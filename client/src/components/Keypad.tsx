@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function Keypad({ onEnter }: { onEnter: (value: number) => void }){
+export default function Keypad({ onEnter }: { onEnter: (_value: number) => void }){
   const [buf, setBuf] = useState("");
   const push = (d: string) => setBuf((b) => (b + d).slice(0, 8));
   const back = () => setBuf((b) => b.slice(0, -1));

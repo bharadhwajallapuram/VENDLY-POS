@@ -3,10 +3,10 @@ import { create } from "zustand";
 export type Line = { variantId: string; name: string; qty: number; priceCents: number };
 export type CartState = {
   lines: Line[];
-  add: (l: Line) => void;
-  inc: (variantId: string) => void;
-  dec: (variantId: string) => void;
-  remove: (variantId: string) => void;
+  add: (_l: Line) => void;
+  inc: (_variantId: string) => void;
+  dec: (_variantId: string) => void;
+  remove: (_variantId: string) => void;
   clear: () => void;
   subtotal: () => number;
 };

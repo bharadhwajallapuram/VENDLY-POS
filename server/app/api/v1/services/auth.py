@@ -1,9 +1,17 @@
 from sqlalchemy.orm import Session
+
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.db import models as m
-from app.core.security import verify_password, create_access_token, create_refresh_token, hash_password
+
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(m.User).filter(m.User.email==email).first()
+    return db.query(m.User).filter(m.User.email == email).first()
+
 
 async def authenticate(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
@@ -15,11 +23,20 @@ async def authenticate(db: Session, email: str, password: str):
     refresh = create_refresh_token(user.email)
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
 
-async def register_user(db: Session, email: str, password: str, full_name: str | None, role: str = "clerk"):
+
+async def register_user(
+    db: Session, email: str, password: str, full_name: str | None, role: str = "clerk"
+):
     existing = get_user_by_email(db, email)
     if existing:
         return None
-    user = m.User(email=email, password_hash=hash_password(password), full_name=full_name, role=role)
+    user = m.User(
+        email=email,
+        password_hash=hash_password(password),
+        full_name=full_name,
+        role=role,
+    )
     db.add(user)
-    db.commit(); db.refresh(user)
+    db.commit()
+    db.refresh(user)
     return user

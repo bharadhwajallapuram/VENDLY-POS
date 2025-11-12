@@ -1,9 +1,13 @@
-from pydantic_settings import BaseSettings
-from typing import List
 import os
+from typing import List
+
+from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = f"sqlite:///{os.path.join(os.path.dirname(os.path.dirname(__file__)), 'vendly.db')}"
+    DATABASE_URL: str = (
+        f"sqlite:///{os.path.join(os.path.dirname(os.path.dirname(__file__)), 'vendly.db')}"
+    )
     REDIS_URL: str = "redis://localhost:6379/0"
     JWT_SECRET: str = "change-me-in-production"  # set via env
     JWT_ALG: str = "HS256"
@@ -13,5 +17,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 settings = Settings()

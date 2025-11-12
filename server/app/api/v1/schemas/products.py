@@ -1,16 +1,20 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, Field
+
 
 class CategoryOut(BaseModel):
     id: UUID
     name: str
     parent_id: Optional[UUID] = None
 
+
 class TaxRateOut(BaseModel):
     id: UUID
     name: str
     rate: float
+
 
 class VariantIn(BaseModel):
     sku: str
@@ -18,9 +22,11 @@ class VariantIn(BaseModel):
     cost_cents: Optional[int] = None
     attributes: Optional[Dict] = None
 
+
 class VariantOut(VariantIn):
     id: UUID
     product_id: UUID
+
 
 class ProductIn(BaseModel):
     name: str
@@ -30,6 +36,7 @@ class ProductIn(BaseModel):
     default_tax_id: Optional[UUID] = None
     is_active: bool = True
     variants: List[VariantIn] = Field(default_factory=list)
+
 
 class ProductOut(ProductIn):
     id: UUID

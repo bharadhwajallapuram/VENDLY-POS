@@ -1,5 +1,7 @@
 from typing import List
+
 from fastapi import WebSocket
+
 
 class ConnectionManager:
     def __init__(self):
@@ -22,5 +24,6 @@ class ConnectionManager:
                     self.disconnect(connection)
                 except Exception:
                     pass
+
 
 manager = ConnectionManager()

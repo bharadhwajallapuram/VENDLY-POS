@@ -56,11 +56,11 @@ export default function POSPage(){
   useEffect(()=>{
     const url = (import.meta.env.VITE_API_URL || "").replace(/^http/,'ws') + "/api/v1/ws";
     const ws = new WebSocket(url);
-    ws.onmessage = (evt)=>{ try{ const msg = JSON.parse(evt.data); if(msg.event){ setWsMsg(`${msg.event}: $${(msg.total_cents/100).toFixed(2)}`);} }catch{} };
+    ws.onmessage = (evt)=>{ try{ const msg = JSON.parse(evt.data); if(msg.event){ setWsMsg(`${msg.event}: $${(msg.total_cents/100).toFixed(2)}`);} }catch{/* ignore invalid JSON */} };
     return ()=> ws.close();
   },[]);
 
-  const subtotal = useMemo(()=> cart.subtotal(), [cart.lines]);
+  const subtotal = useMemo(()=> cart.subtotal(), [cart]);
   
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';

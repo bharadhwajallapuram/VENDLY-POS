@@ -6,7 +6,7 @@ export default function PaymentModal({
 }:{
   open: boolean;
   totalCents: number;
-  onPay: (method: string, amountCents: number) => Promise<void>;
+  onPay: (_method: string, _amountCents: number) => Promise<void>;
   onClose: () => void;
 }){
   const [method, setMethod] = useState("cash");

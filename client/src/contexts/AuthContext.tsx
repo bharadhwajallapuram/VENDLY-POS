@@ -4,9 +4,9 @@ export type User = { email: string; role: 'cashier'|'manager'|'admin'; full_name
 
 type AuthContextType = {
   user: User | null
-  setUser: (user: User | null) => void
+  setUser: (_user: User | null) => void
   token: string | null
-  setToken: (token: string) => void
+  setToken: (_token: string) => void
   clearAuth: () => void
 }
 

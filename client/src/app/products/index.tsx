@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from 'react'
 import { Products, ProductOut, ProductIn } from "../../lib/api";
 
 export default function ProductsPage(){
@@ -6,11 +6,12 @@ export default function ProductsPage(){
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function load(){
+  const load = useCallback(async () => {
     setLoading(true);
     try { setItems(await Products.list(q)); } finally { setLoading(false); }
-  }
-  useEffect(()=>{ load(); },[]);
+  }, [q]);
+  
+  useEffect(()=>{ load(); },[load]);
 
   async function onCreate(){
     const body: ProductIn = { name: "Sample Product", sku: crypto.randomUUID().slice(0,8), variants: [{ sku: `VAR-${crypto.randomUUID().slice(0,6)}`, price_cents: 999 }] };
