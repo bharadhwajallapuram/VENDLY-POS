@@ -230,3 +230,8 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Compiled JavaScript from TypeScript (keep only .ts/.tsx source files)
+client/src/**/*.js
+# Exclude config files from ignore
+!client/*.config.js

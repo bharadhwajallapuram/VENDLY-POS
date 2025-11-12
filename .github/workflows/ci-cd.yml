@@ -1,0 +1,120 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test-client:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+    
+    - name: Install client dependencies
+      run: |
+        cd client
+        npm ci
+    
+    - name: Run client linting
+      run: |
+        cd client
+        npm run lint
+    
+    - name: Run client type checking
+      run: |
+        cd client
+        npm run type-check
+    
+    - name: Run client tests
+      run: |
+        cd client
+        npm run test
+    
+    - name: Build client
+      run: |
+        cd client
+        npm run build
+
+  test-server:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vendly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install server dependencies
+      run: |
+        cd server
+        pip install -r requirements.txt
+    
+    - name: Run server linting
+      run: |
+        cd server
+        black --check .
+        isort --check-only .
+    
+    - name: Run server type checking
+      run: |
+        cd server
+        mypy .
+    
+    - name: Run server tests
+      run: |
+        cd server
+        pytest
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vendly_test
+        REDIS_URL: redis://localhost:6379
+
+  docker-build:
+    needs: [lint-and-test-client, test-server]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker images
+      run: |
+        docker-compose -f scripts/docker-compose.yaml build

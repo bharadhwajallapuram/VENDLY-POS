@@ -1,0 +1,50 @@
+{
+  "name": "vendly",
+  "version": "1.0.0",
+  "description": "A professional point-of-sale system with React frontend and FastAPI backend",
+  "private": true,
+  "workspaces": [
+    "client",
+    "shared"
+  ],
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "powershell -Command \"cd server; $env:PYTHONPATH='D:/vendly/server'; D:/vendly/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\"",
+    "build": "npm run build:client",
+    "build:client": "cd client && npm run build",
+    "install:client": "cd client && npm install",
+    "install:server": "cd server && pip install -r requirements.txt",
+    "setup": "npm run install:client && npm run install:server",
+    "lint": "npm run lint:client",
+    "lint:client": "cd client && npm run lint",
+    "test": "npm run test:client",
+    "test:client": "cd client && npm run test",
+    "docker:build": "docker-compose -f scripts/docker-compose.yaml build",
+    "docker:up": "docker-compose -f scripts/docker-compose.yaml up -d",
+    "docker:down": "docker-compose -f scripts/docker-compose.yaml down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bharadhwajallapuram/Vendly-fastapi-Js.git"
+  },
+  "keywords": [
+    "point-of-sale",
+    "react",
+    "fastapi",
+    "typescript",
+    "python",
+    "retail",
+    "pos-system"
+  ],
+  "author": "Bharadhwaj Allapuram",
+  "license": "MIT"
+}
