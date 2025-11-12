@@ -1,0 +1,10 @@
+<!-- ## Run the frontend
+```bash
+cd vendly/apps/frontend
+cp .env.example .env
+# ensure VITE_API_URL points to your API (e.g., http://localhost:8000)
+
+npm install
+npm run dev
+```
+Then open **http://localhost:5173**. -->
