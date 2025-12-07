@@ -52,7 +52,7 @@ def list_sales(
                     quantity=item.quantity,
                     unit_price=float(item.unit_price),
                     discount=float(item.discount),
-                    total=float(item.total),
+                    total=float(item.subtotal),
                 )
             )
         result.append(
@@ -116,9 +116,13 @@ def create_sale(
     db.flush()  # Get sale.id
 
     # Create sale items and update inventory
-    sale_items = []
+    sale_items: list[m.SaleItem] = []
     for item in payload.items:
         product = db.get(m.Product, item.product_id)
+        if not product:
+            raise HTTPException(
+                status_code=404, detail=f"Product {item.product_id} not found"
+            )
         item_total = (item.unit_price * item.quantity) - item.discount
 
         sale_item = m.SaleItem(
@@ -127,7 +131,7 @@ def create_sale(
             quantity=item.quantity,
             unit_price=item.unit_price,
             discount=item.discount,
-            total=item_total,
+            subtotal=item_total,
         )
         db.add(sale_item)
         sale_items.append(sale_item)
@@ -140,18 +144,18 @@ def create_sale(
 
     # Build response
     items_out = []
-    for i, item in enumerate(sale_items):
-        product = db.get(m.Product, item.product_id)
+    for i, sale_item in enumerate(sale_items):
+        product = db.get(m.Product, sale_item.product_id)
         items_out.append(
             SaleItemOut(
-                id=item.id,
+                id=sale_item.id,
                 sale_id=sale.id,
-                product_id=item.product_id,
+                product_id=sale_item.product_id,
                 product_name=product.name if product else None,
-                quantity=item.quantity,
-                unit_price=float(item.unit_price),
-                discount=float(item.discount),
-                total=float(item.total),
+                quantity=sale_item.quantity,
+                unit_price=float(sale_item.unit_price),
+                discount=float(sale_item.discount),
+                total=float(sale_item.subtotal),
             )
         )
 
@@ -210,7 +214,7 @@ def get_sale(
                 quantity=item.quantity,
                 unit_price=float(item.unit_price),
                 discount=float(item.discount),
-                total=float(item.total),
+                total=float(item.subtotal),
             )
         )
 
@@ -266,7 +270,7 @@ def void_sale(
                 quantity=item.quantity,
                 unit_price=float(item.unit_price),
                 discount=float(item.discount),
-                total=float(item.total),
+                total=float(item.subtotal),
             )
         )
 
@@ -311,7 +315,7 @@ def get_receipt(
                 name=product.name if product else f"Product #{item.product_id}",
                 quantity=item.quantity,
                 unit_price=float(item.unit_price),
-                total=float(item.total),
+                total=float(item.subtotal),
             )
         )
 

@@ -69,8 +69,9 @@ def get_database_url() -> str:
     db = config.get("database", {})
 
     # Check environment variable first
-    if os.getenv("DATABASE_URL"):
-        return os.getenv("DATABASE_URL")
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        return env_url
 
     db_type = db.get("type", "sqlite")
 

@@ -298,7 +298,7 @@ def generate_receipt_html(receipt: Receipt) -> str:
         <div class="divider"></div>
         <p>{settings.get("header", "Thank you for shopping!")}</p>
         <p>{settings.get("footer", "Please come again!")}</p>
-        {"<p style='margin-top:10px'>Tax ID: " + tax.get('tax_number') + "</p>" if tax.get('tax_number') else ""}
+        {"<p style='margin-top:10px'>Tax ID: " + str(tax.get('tax_number', '')) + "</p>" if tax.get('tax_number') else ""}
         <p style="margin-top: 10px; font-size: 10px;">{receipt.date.strftime("%Y-%m-%d %H:%M:%S")}</p>
     </div>
     

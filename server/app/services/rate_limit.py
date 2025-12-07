@@ -23,8 +23,8 @@ class RateLimiter:
 
     def _parse_rate(self, rate: str) -> tuple[int, int]:
         """Parse rate string like '5/minute' to (count, seconds)"""
-        count, period = rate.split("/")
-        count = int(count)
+        count_str, period = rate.split("/")
+        count = int(count_str)
 
         period_seconds = {
             "second": 1,

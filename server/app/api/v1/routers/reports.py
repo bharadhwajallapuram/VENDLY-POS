@@ -43,7 +43,7 @@ def get_summary(
         items_sold += sum(item.quantity for item in sale.items)
 
     # Top products
-    product_sales = {}
+    product_sales: dict[int, dict[str, int | float | str]] = {}
     for sale in sales:
         for item in sale.items:
             if item.product_id not in product_sales:
@@ -52,13 +52,17 @@ def get_summary(
                     "id": item.product_id,
                     "name": product.name if product else "Unknown",
                     "quantity": 0,
-                    "revenue": 0,
+                    "revenue": 0.0,
                 }
-            product_sales[item.product_id]["quantity"] += item.quantity
-            product_sales[item.product_id]["revenue"] += float(item.total)
+            product_sales[item.product_id]["quantity"] = (
+                int(product_sales[item.product_id]["quantity"]) + item.quantity
+            )
+            product_sales[item.product_id]["revenue"] = float(
+                product_sales[item.product_id]["revenue"]
+            ) + float(item.subtotal)
 
     top_products = sorted(
-        product_sales.values(), key=lambda x: x["revenue"], reverse=True
+        product_sales.values(), key=lambda x: float(x["revenue"]), reverse=True
     )[:10]
 
     return {
@@ -92,13 +96,15 @@ def get_sales_by_day(
     sales = q.order_by(m.Sale.created_at).all()
 
     # Group by day
-    daily_sales = {}
+    daily_sales: dict[str, dict[str, str | int | float]] = {}
     for sale in sales:
         day = sale.created_at.strftime("%Y-%m-%d")
         if day not in daily_sales:
-            daily_sales[day] = {"date": day, "count": 0, "revenue": 0}
-        daily_sales[day]["count"] += 1
-        daily_sales[day]["revenue"] += float(sale.total)
+            daily_sales[day] = {"date": day, "count": 0, "revenue": 0.0}
+        daily_sales[day]["count"] = int(daily_sales[day]["count"]) + 1
+        daily_sales[day]["revenue"] = float(daily_sales[day]["revenue"]) + float(
+            sale.total
+        )
 
     return {"data": list(daily_sales.values())}
 
@@ -121,12 +127,14 @@ def get_sales_by_payment(
     sales = q.all()
 
     # Group by payment method
-    by_method = {}
+    by_method: dict[str, dict[str, str | int | float]] = {}
     for sale in sales:
         method = sale.payment_method
         if method not in by_method:
-            by_method[method] = {"method": method, "count": 0, "revenue": 0}
-        by_method[method]["count"] += 1
-        by_method[method]["revenue"] += float(sale.total)
+            by_method[method] = {"method": method, "count": 0, "revenue": 0.0}
+        by_method[method]["count"] = int(by_method[method]["count"]) + 1
+        by_method[method]["revenue"] = float(by_method[method]["revenue"]) + float(
+            sale.total
+        )
 
     return {"data": list(by_method.values())}
