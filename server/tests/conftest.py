@@ -3,21 +3,21 @@
 # ===========================================
 
 import os
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
 
 # Set test environment before importing app
 os.environ["TESTING"] = "1"
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 
-from app.main import app
-from app.db.models import Base, User
 from app.core.deps import get_db
 from app.core.security import hash_password
-
+from app.db.models import Base, User
+from app.main import app
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
