@@ -89,7 +89,7 @@ jobs:
     - name: Run server tests
       run: |
         cd server
-        pytest
+        pytest -v --tb=short
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vendly_test
         REDIS_URL: redis://localhost:6379

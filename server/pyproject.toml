@@ -26,6 +26,13 @@ line_length = 88
 known_first_party = ["app"]
 skip_glob = ["migrations/versions/*"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+# Allow no tests during initial development
+minversion = "6.0"
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = false

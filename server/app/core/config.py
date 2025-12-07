@@ -7,11 +7,17 @@ import os
 from typing import List, Optional
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
     # Application
     APP_NAME: str = "Vendly POS"
@@ -38,8 +44,11 @@ class Settings(BaseSettings):
     ACCESS_TTL_MIN: int = 30  # Token expires after 30 minutes
     REFRESH_TTL_DAYS: int = 7
 
-    # Rate Limiting
-    RATE_LIMIT_ENABLED: bool = True
+    # Testing
+    TESTING: bool = Field(default=False)
+
+    # Rate Limiting (disabled during testing)
+    RATE_LIMIT_ENABLED: bool = Field(default=True)
     RATE_LIMIT_LOGIN: str = "5/minute"  # 5 login attempts per minute per IP
     RATE_LIMIT_API: str = "100/minute"  # 100 API calls per minute per user
 
@@ -74,11 +83,6 @@ class Settings(BaseSettings):
     # File Storage
     STORAGE_TYPE: str = "local"
     STORAGE_PATH: str = "./uploads"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
 
 
 settings = Settings()

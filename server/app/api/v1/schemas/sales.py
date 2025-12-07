@@ -5,7 +5,7 @@ Vendly POS - Sales Schemas
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class SaleItemIn(BaseModel):
@@ -16,6 +16,8 @@ class SaleItemIn(BaseModel):
 
 
 class SaleItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     sale_id: int
     product_id: int
@@ -24,9 +26,6 @@ class SaleItemOut(BaseModel):
     unit_price: float
     discount: float
     total: float
-
-    class Config:
-        from_attributes = True
 
 
 class SaleIn(BaseModel):
@@ -39,6 +38,8 @@ class SaleIn(BaseModel):
 
 
 class SaleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_id: int
     customer_id: Optional[int] = None
@@ -52,9 +53,6 @@ class SaleOut(BaseModel):
     notes: Optional[str] = None
     created_at: datetime
     items: List[SaleItemOut] = []
-
-    class Config:
-        from_attributes = True
 
 
 class SaleListOut(BaseModel):

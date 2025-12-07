@@ -294,7 +294,7 @@ def void_sale(
 @router.get("/{sale_id}/receipt")
 def get_receipt(
     sale_id: int,
-    format: str = Query("html", regex="^(text|html)$"),
+    format: str = Query("html", pattern="^(text|html)$"),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):

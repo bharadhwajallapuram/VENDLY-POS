@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -27,6 +27,8 @@ class CustomerIn(BaseModel):
 
 
 class CustomerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     email: Optional[str] = None
@@ -37,9 +39,6 @@ class CustomerOut(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class LoyaltyAdjustment(BaseModel):

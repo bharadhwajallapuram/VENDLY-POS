@@ -4,7 +4,7 @@ Vendly POS - Products Schemas
 
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CategoryIn(BaseModel):
@@ -15,14 +15,13 @@ class CategoryIn(BaseModel):
 
 
 class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: Optional[str] = None
     parent_id: Optional[int] = None
     is_active: bool = True
-
-    class Config:
-        from_attributes = True
 
 
 class ProductIn(BaseModel):
@@ -41,6 +40,8 @@ class ProductIn(BaseModel):
 
 
 class ProductOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     sku: Optional[str] = None
@@ -54,9 +55,6 @@ class ProductOut(BaseModel):
     tax_rate: float
     image_url: Optional[str] = None
     is_active: bool
-
-    class Config:
-        from_attributes = True
 
 
 class ProductListOut(BaseModel):

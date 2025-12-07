@@ -5,7 +5,7 @@ Tracks sensitive operations for security and compliance
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -98,7 +98,7 @@ def log_audit(
         return
 
     audit_entry = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "action": action.value,
         "success": success,
         "user_id": user_id,

@@ -5,7 +5,7 @@ Vendly POS - Users Router (Admin Only)
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_role
@@ -38,14 +38,13 @@ class UserUpdate(BaseModel):
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str
     full_name: Optional[str] = None
     role: str
     is_active: bool
-
-    class Config:
-        from_attributes = True
 
 
 # ---------- Admin dependency ----------
