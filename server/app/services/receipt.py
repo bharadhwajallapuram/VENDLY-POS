@@ -3,13 +3,13 @@ Vendly POS - Receipt Generator
 Generates printable receipts for sales
 """
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
-from dataclasses import dataclass
 
 from app.core.config_loader import (
-    get_store_info,
     get_receipt_settings,
+    get_store_info,
     get_tax_settings,
 )
 

@@ -3,12 +3,12 @@ Vendly POS - Rate Limiting
 Prevents brute force attacks and API abuse
 """
 
-from typing import Callable, Optional
 import time
 from collections import defaultdict
 from threading import Lock
+from typing import Callable, Optional
 
-from fastapi import Request, HTTPException, status
+from fastapi import HTTPException, Request, status
 
 
 class RateLimiter:

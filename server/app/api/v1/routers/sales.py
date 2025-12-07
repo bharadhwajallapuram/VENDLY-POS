@@ -12,13 +12,13 @@ from sqlalchemy.orm import Session
 from app.api.v1.schemas.sales import SaleIn, SaleItemOut, SaleOut
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
-from app.services.ws_manager import manager
 from app.services.receipt import (
-    generate_receipt_text,
-    generate_receipt_html,
     Receipt,
     ReceiptItem,
+    generate_receipt_html,
+    generate_receipt_text,
 )
+from app.services.ws_manager import manager
 
 router = APIRouter()
 

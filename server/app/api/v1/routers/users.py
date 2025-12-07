@@ -10,13 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_role
 from app.db import models as m
-from app.services.auth import hash_password
 from app.services.audit import (
+    AuditAction,
+    log_audit,
     log_user_created,
     log_user_deleted,
-    log_audit,
-    AuditAction,
 )
+from app.services.auth import hash_password
 
 router = APIRouter()
 

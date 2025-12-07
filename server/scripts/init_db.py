@@ -11,14 +11,15 @@ Options:
     --drop    Drop existing tables before creating (CAUTION: destroys data!)
 """
 
-import sys
 import os
+import sys
 
 # Add the server directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
+
 from app.core.config import settings
 from app.db.models import Base
 
@@ -128,8 +129,9 @@ def create_tables(drop_existing: bool = False):
 def create_admin_user():
     """Create a default admin user"""
     from sqlalchemy.orm import Session
-    from app.db.models import User
+
     from app.core.security import hash_password
+    from app.db.models import User
 
     engine = create_engine(settings.DATABASE_URL)
 

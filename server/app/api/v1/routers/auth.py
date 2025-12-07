@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.auth import LoginIn, TokenOut, UserOut
 from app.core.deps import get_current_user, get_db
+from app.services.audit import log_login_failed, log_login_success
 from app.services.auth import authenticate
-from app.services.rate_limit import rate_limit, get_client_ip
-from app.services.audit import log_login_success, log_login_failed
+from app.services.rate_limit import get_client_ip, rate_limit
 
 router = APIRouter()
 

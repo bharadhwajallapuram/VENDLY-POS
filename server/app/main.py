@@ -4,6 +4,7 @@
 # ===========================================
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,10 +16,11 @@ from app.services.metrics import MetricsMiddleware, get_metrics_endpoint
 def init_database():
     """Initialize database and create admin user if needed"""
     from sqlalchemy import inspect
-    from app.db.session import engine
-    from app.db.models import Base, User
-    from app.core.security import hash_password
     from sqlalchemy.orm import Session
+
+    from app.core.security import hash_password
+    from app.db.models import Base, User
+    from app.db.session import engine
 
     # Create all tables
     Base.metadata.create_all(bind=engine)

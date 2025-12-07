@@ -2,8 +2,8 @@
 # Vendly POS - Prometheus Metrics Service
 # ===========================================
 
-from typing import Callable
 import time
+from typing import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware

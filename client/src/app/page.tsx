@@ -9,7 +9,7 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated()) {
       router.push('/pos');
     } else {
       router.push('/login');

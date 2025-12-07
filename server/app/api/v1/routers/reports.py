@@ -2,7 +2,7 @@
 Vendly POS - Reports Router
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
