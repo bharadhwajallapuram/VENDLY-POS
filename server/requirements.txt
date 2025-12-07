@@ -9,6 +9,7 @@ sqlalchemy>=2.0.36
 alembic>=1.14.0
 asyncpg>=0.30.0
 redis>=5.2.0
+psycopg2-binary>=2.9.9
 
 # Authentication & Security
 python-jose[cryptography]>=3.3.0
