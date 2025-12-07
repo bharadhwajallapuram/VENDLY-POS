@@ -43,7 +43,7 @@ def override_get_db():
 def setup_database():
     """Set up fresh database for each test"""
     Base.metadata.create_all(bind=engine)
-    
+
     # Create admin user
     db = TestingSessionLocal()
     admin = db.query(User).filter(User.email == "admin@vendly.com").first()
@@ -53,17 +53,17 @@ def setup_database():
             password_hash=hash_password("admin123"),
             full_name="Admin User",
             role="admin",
-            is_active=True
+            is_active=True,
         )
         db.add(admin)
         db.commit()
     db.close()
-    
+
     # Override the dependency
     app.dependency_overrides[get_db] = override_get_db
-    
+
     yield
-    
+
     # Cleanup
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
@@ -90,12 +90,11 @@ def client():
 def auth_headers(client):
     """Get authentication headers for admin user"""
     response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin@vendly.com", "password": "admin123"}
+        "/api/v1/auth/login", json={"email": "admin@vendly.com", "password": "admin123"}
     )
-    
+
     if response.status_code != 200:
         pytest.fail(f"Failed to login admin user: {response.text}")
-    
+
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
