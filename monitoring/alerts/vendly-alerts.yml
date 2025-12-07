@@ -1,0 +1,158 @@
+# ===========================================
+# Vendly POS - Prometheus Alert Rules
+# ===========================================
+
+groups:
+  - name: vendly-alerts
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="vendly-backend", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="vendly-backend"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 5% for the last 5 minutes (current: {{ $value | humanizePercentage }})"
+
+      # High Response Time Alert
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="vendly-backend"}[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds"
+
+      # Backend Down Alert
+      - alert: BackendDown
+        expr: up{job="vendly-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vendly backend is down"
+          description: "The Vendly backend service has been down for more than 1 minute"
+
+      # Database Connection Alert
+      - alert: DatabaseConnectionIssue
+        expr: pg_up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "Unable to connect to PostgreSQL database"
+
+      # High Database Connection Usage
+      - alert: HighDatabaseConnections
+        expr: pg_stat_activity_count{job="postgres"} > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "Database connection count is above 80 (current: {{ $value }})"
+
+      # Redis Down Alert
+      - alert: RedisDown
+        expr: redis_up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache service has been down for more than 1 minute"
+
+      # High Redis Memory Usage
+      - alert: HighRedisMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 90%"
+
+      # Kafka Consumer Lag Alert
+      - alert: KafkaConsumerLag
+        expr: kafka_consumergroup_lag > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer group {{ $labels.consumergroup }} has high lag: {{ $value }}"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% for more than 5 minutes"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85%"
+
+      # Low Disk Space
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 15% on {{ $labels.mountpoint }}"
+
+  - name: vendly-business-alerts
+    rules:
+      # No Sales Alert (during business hours)
+      - alert: NoSalesActivity
+        expr: sum(increase(vendly_sales_total[30m])) == 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "No sales activity detected"
+          description: "No sales have been recorded in the last 30 minutes"
+
+      # High Refund Rate Alert
+      - alert: HighRefundRate
+        expr: |
+          (
+            sum(increase(vendly_refunds_total[1h]))
+            /
+            sum(increase(vendly_sales_total[1h]))
+          ) > 0.1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "High refund rate detected"
+          description: "Refund rate is above 10% in the last hour"
+
+      # Low Inventory Alert
+      - alert: LowInventory
+        expr: vendly_inventory_quantity < 10
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low inventory alert"
+          description: "Product {{ $labels.product_name }} has low inventory: {{ $value }} units"

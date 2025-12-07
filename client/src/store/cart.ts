@@ -1,30 +1,74 @@
-import { create } from "zustand";
+// ===========================================
+// Vendly POS - Cart Store (Zustand)
+// ===========================================
 
-export type Line = { variantId: string; name: string; qty: number; priceCents: number };
-export type CartState = {
-  lines: Line[];
-  add: (_l: Line) => void;
-  inc: (_variantId: string) => void;
-  dec: (_variantId: string) => void;
-  remove: (_variantId: string) => void;
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface CartLine {
+  variantId: string;
+  name: string;
+  qty: number;
+  priceCents: number;
+}
+
+interface CartState {
+  lines: CartLine[];
+  add: (line: CartLine) => void;
+  inc: (variantId: string) => void;
+  dec: (variantId: string) => void;
+  remove: (variantId: string) => void;
   clear: () => void;
   subtotal: () => number;
-};
+  itemCount: () => number;
+}
 
-export const useCart = create<CartState>((set, get) => ({
-  lines: [],
-  add: (l) => set((s) => {
-    const i = s.lines.findIndex((x) => x.variantId === l.variantId);
-    if (i > -1) {
-      const copy = [...s.lines];
-      copy[i] = { ...copy[i], qty: copy[i].qty + l.qty };
-      return { lines: copy };
+export const useCart = create<CartState>()(
+  persist(
+    (set, get) => ({
+      lines: [],
+
+      add: (line) =>
+        set((state) => {
+          const existing = state.lines.findIndex((l) => l.variantId === line.variantId);
+          if (existing > -1) {
+            const updated = [...state.lines];
+            updated[existing] = {
+              ...updated[existing],
+              qty: updated[existing].qty + line.qty,
+            };
+            return { lines: updated };
+          }
+          return { lines: [line, ...state.lines] };
+        }),
+
+      inc: (variantId) =>
+        set((state) => ({
+          lines: state.lines.map((l) =>
+            l.variantId === variantId ? { ...l, qty: l.qty + 1 } : l
+          ),
+        })),
+
+      dec: (variantId) =>
+        set((state) => ({
+          lines: state.lines.map((l) =>
+            l.variantId === variantId ? { ...l, qty: Math.max(1, l.qty - 1) } : l
+          ),
+        })),
+
+      remove: (variantId) =>
+        set((state) => ({
+          lines: state.lines.filter((l) => l.variantId !== variantId),
+        })),
+
+      clear: () => set({ lines: [] }),
+
+      subtotal: () => get().lines.reduce((sum, l) => sum + l.qty * l.priceCents, 0),
+
+      itemCount: () => get().lines.reduce((sum, l) => sum + l.qty, 0),
+    }),
+    {
+      name: 'vendly-cart',
     }
-    return { lines: [l, ...s.lines] };
-  }),
-  inc: (id) => set((s) => ({ lines: s.lines.map((x) => (x.variantId === id ? { ...x, qty: x.qty + 1 } : x)) })),
-  dec: (id) => set((s) => ({ lines: s.lines.map((x) => (x.variantId === id ? { ...x, qty: Math.max(1, x.qty - 1) } : x)) })),
-  remove: (id) => set((s) => ({ lines: s.lines.filter((x) => x.variantId !== id) })),
-  clear: () => set({ lines: [] }),
-  subtotal: () => get().lines.reduce((sum, l) => sum + l.qty * l.priceCents, 0),
-}));
+  )
+);

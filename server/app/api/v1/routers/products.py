@@ -1,50 +1,67 @@
+"""
+Vendly POS - Products Router
+"""
 from typing import List, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.products import ProductIn, ProductOut
+from app.api.v1.schemas.products import (
+    CategoryIn,
+    CategoryOut,
+    ProductIn,
+    ProductOut,
+)
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
 
 router = APIRouter()
 
 
+# ---------- Products ----------
 @router.get("", response_model=List[ProductOut])
 def list_products(
     q: Optional[str] = Query(None),
+    category_id: Optional[int] = Query(None),
+    active_only: bool = Query(True),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    """List all products with optional filtering"""
     stmt = db.query(m.Product)
     if q:
         like = f"%{q.lower()}%"
-        stmt = stmt.filter(m.Product.name.ilike(like))
-    return stmt.order_by(m.Product.name).all()
+        stmt = stmt.filter(
+            m.Product.name.ilike(like) | m.Product.sku.ilike(like) | m.Product.barcode.ilike(like)
+        )
+    if category_id:
+        stmt = stmt.filter(m.Product.category_id == category_id)
+    if active_only:
+        stmt = stmt.filter(m.Product.is_active == True)
+    return stmt.order_by(m.Product.name).offset(skip).limit(limit).all()
 
 
 @router.post("", response_model=ProductOut, status_code=201)
 def create_product(
     payload: ProductIn, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
+    """Create a new product"""
     prod = m.Product(
         name=payload.name,
         sku=payload.sku,
+        barcode=payload.barcode,
         description=payload.description,
+        price=payload.price,
+        cost=payload.cost,
+        quantity=payload.quantity,
+        min_quantity=payload.min_quantity,
         category_id=payload.category_id,
-        default_tax_id=payload.default_tax_id,
+        tax_rate=payload.tax_rate,
+        image_url=payload.image_url,
         is_active=payload.is_active,
     )
-    for v in payload.variants:
-        prod.variants.append(
-            m.ProductVariant(
-                sku=v.sku,
-                price_cents=v.price_cents,
-                cost_cents=v.cost_cents,
-                attributes=v.attributes,
-            )
-        )
     db.add(prod)
     db.commit()
     db.refresh(prod)
@@ -53,8 +70,9 @@ def create_product(
 
 @router.get("/{product_id}", response_model=ProductOut)
 def get_product(
-    product_id: UUID, db: Session = Depends(get_db), user=Depends(get_current_user)
+    product_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
+    """Get a single product by ID"""
     prod = db.get(m.Product, product_id)
     if not prod:
         raise HTTPException(404, detail="Product not found")
@@ -63,34 +81,20 @@ def get_product(
 
 @router.patch("/{product_id}", response_model=ProductOut)
 def update_product(
-    product_id: UUID,
+    product_id: int,
     payload: ProductIn,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    """Update an existing product"""
     prod = db.get(m.Product, product_id)
     if not prod:
         raise HTTPException(404, detail="Product not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        if field == "variants":
-            continue
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(prod, field, value)
-    sku_to_variant = {v.sku: v for v in prod.variants}
-    for v in payload.variants:
-        if v.sku in sku_to_variant:
-            var = sku_to_variant[v.sku]
-            var.price_cents = v.price_cents
-            var.cost_cents = v.cost_cents
-            var.attributes = v.attributes
-        else:
-            prod.variants.append(
-                m.ProductVariant(
-                    sku=v.sku,
-                    price_cents=v.price_cents,
-                    cost_cents=v.cost_cents,
-                    attributes=v.attributes,
-                )
-            )
+    
     db.commit()
     db.refresh(prod)
     return prod
@@ -98,8 +102,9 @@ def update_product(
 
 @router.delete("/{product_id}", status_code=204)
 def delete_product(
-    product_id: UUID, db: Session = Depends(get_db), user=Depends(get_current_user)
+    product_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
+    """Delete a product"""
     prod = db.get(m.Product, product_id)
     if not prod:
         return

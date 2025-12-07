@@ -1,18 +1,47 @@
-# Vendly - Professional Point of Sale System
+# Vendly - Enterprise Point of Sale System
 
-A modern, full-stack point-of-sale system built with React, TypeScript, FastAPI, and Python.
+A modern, enterprise-grade point-of-sale system built with React, TypeScript, FastAPI, and Python. Designed for high availability, scalability, and real-time operations.
 
-## 🏗️ Project Structure
+## 🏗️ Architecture
+
+Vendly follows a microservices-inspired architecture with event-driven patterns:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         VENDLY POS                                │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐       │
+│  │ Frontend│────│  Nginx  │────│ Backend │────│  AI/ML  │       │
+│  │ (React) │    │ (Proxy) │    │(FastAPI)│    │ Service │       │
+│  └─────────┘    └─────────┘    └────┬────┘    └─────────┘       │
+│                                     │                            │
+│        ┌────────────────────────────┼────────────────────┐       │
+│        │                            │                    │       │
+│  ┌─────▼─────┐    ┌─────────┐    ┌──▼──────┐    ┌───────▼───┐  │
+│  │PostgreSQL │    │  Redis  │    │  Kafka  │    │Prometheus │  │
+│  │(Database) │    │ (Cache) │    │(Events) │    │(Metrics)  │  │
+│  └───────────┘    └─────────┘    └─────────┘    └───────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## 📁 Project Structure
 
 ```
 vendly/
-├── client/          # React frontend application
-├── server/          # FastAPI backend application  
-├── shared/          # Shared types and utilities
-├── docs/            # Documentation
-├── scripts/         # Build and deployment scripts
-├── .github/         # GitHub workflows and templates
-└── README.md
+├── client/              # Next.js frontend application
+├── server/              # FastAPI backend application
+├── shared/              # Shared types and utilities
+├── ai_ml/               # AI/ML prediction services
+├── kafka/               # Event streaming configuration
+├── k8s/                 # Kubernetes manifests
+├── monitoring/          # Prometheus & alerting
+├── nginx/               # Reverse proxy configuration
+├── redis/               # Cache configuration
+├── scripts/             # Build and deployment scripts
+├── docker-compose.yml   # Container orchestration
+├── Dockerfile           # Multi-stage build
+├── config.example.yaml  # User configuration template
+└── .env.example         # Environment template
 ```
 
 ## 🚀 Quick Start
@@ -20,10 +49,11 @@ vendly/
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- Python >= 3.8
+- Python >= 3.11
+- Docker & Docker Compose (for containerized deployment)
 - npm >= 9.0.0
 
-### Installation
+### Local Development
 
 1. Clone the repository:
 ```bash
@@ -36,82 +66,159 @@ cd vendly
 npm run setup
 ```
 
-### Development
-
-Start both frontend and backend in development mode:
+3. Start development servers:
 ```bash
 npm run dev
 ```
 
-Or run them separately:
-```bash
-# Frontend only (runs on http://localhost:5173)
-npm run dev:client
+### Docker Deployment
 
-# Backend only (runs on http://localhost:8000)
-npm run dev:server
+Start the full stack with Docker Compose:
+```bash
+docker-compose up -d
 ```
 
-### Building
+This starts:
+- Frontend at `http://localhost:3000`
+- Backend API at `http://localhost:8000`
+- PostgreSQL at `localhost:5432`
+- Redis at `localhost:6379`
+- Kafka at `localhost:9092`
+- Prometheus at `http://localhost:9090`
+- Grafana at `http://localhost:3001`
 
-Build the client application:
+### Kubernetes Deployment
+
+Deploy to Kubernetes:
 ```bash
-npm run build
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/
 ```
 
-## 📁 Directory Details
+## 📁 Component Details
 
 ### `/client` - Frontend Application
-- React 18 with TypeScript
-- Vite for fast development and building
-- Tailwind CSS for styling
-- Zustand for state management
-- React Router for navigation
+- **React 18** with TypeScript
+- **Vite** for fast development
+- **Tailwind CSS** for styling
+- **Zustand** for state management
+- Role-based access control
 
 ### `/server` - Backend API
-- FastAPI framework
-- SQLAlchemy ORM
-- Alembic for database migrations
-- Redis for caching
-- JWT authentication
+- **FastAPI** with async support
+- **SQLAlchemy 2.0** ORM
+- **Alembic** for migrations
+- **JWT** authentication
+- Prometheus metrics
 
-### `/shared` - Shared Code
-- TypeScript type definitions
-- Utility functions
-- Constants and enums
+### `/ai_ml` - AI/ML Services
+- Sales forecasting with Random Forest
+- Inventory optimization (EOQ, reorder points)
+- Anomaly detection with Isolation Forest
 
-### `/docs` - Documentation
-- API documentation
-- Development guides
-- Deployment instructions
+### `/kafka` - Event Streaming
+- Real-time event processing
+- Sales, inventory, and payment events
+- Audit logging
 
-### `/scripts` - Automation Scripts
-- Docker configurations
-- Build scripts
-- Deployment scripts
+### `/k8s` - Kubernetes
+- Deployment manifests
+- Service definitions
+- Ingress configuration
+- Horizontal Pod Autoscaling
 
-## 🛠️ Available Scripts
+### `/monitoring` - Observability
+- Prometheus configuration
+- Alert rules
+- Custom metrics
+
+### `/nginx` - Reverse Proxy
+- Load balancing
+- SSL termination
+- Rate limiting
+- WebSocket support
+
+## 🛠️ Available Commands
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start both client and server in development mode |
+| `npm run dev` | Start frontend and backend in development mode |
+| `npm run dev:client` | Start frontend only (port 5173) |
+| `npm run dev:server` | Start backend only (port 8000) |
 | `npm run build` | Build the client application |
 | `npm run setup` | Install all dependencies |
 | `npm run lint` | Run linting checks |
 | `npm run test` | Run tests |
-| `npm run docker:build` | Build Docker containers |
-| `npm run docker:up` | Start services with Docker Compose |
 
-## 🐳 Docker Support
+### Docker Commands
 
-Run with Docker Compose:
+| Command | Description |
+|---------|-------------|
+| `docker-compose up -d` | Start all services |
+| `docker-compose down` | Stop all services |
+| `docker-compose logs -f backend` | View backend logs |
+| `docker-compose ps` | List running services |
+
+## 📝 Configuration
+
+Copy the environment template and configure:
 ```bash
-npm run docker:up
+cp .env.example .env
 ```
 
-## 📝 Environment Variables
+Key configuration options:
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `JWT_SECRET` - Secret key for JWT tokens
+- `KAFKA_BOOTSTRAP_SERVERS` - Kafka broker addresses
 
-Create `.env` files in both `client` and `server` directories based on the `.env.example` templates.
+See [`.env.example`](.env.example) for all options.
+
+## 🔐 Security
+
+> ⚠️ **IMPORTANT: Before deploying to production, change all default credentials!**
+
+### Default Development Credentials
+- **Email:** `admin@vendly.com`
+- **Password:** `admin123`
+
+**Change these immediately in production!**
+
+### Security Features
+- ✅ bcrypt password hashing
+- ✅ JWT authentication with short-lived tokens
+- ✅ Role-based access control (admin, manager, clerk)
+- ✅ Rate limiting on login (5 attempts/minute)
+- ✅ Audit logging for sensitive operations
+- ✅ Input validation with Pydantic
+- ✅ SQL injection prevention via ORM
+
+### Quick Security Setup
+```bash
+# 1. Copy config files
+cp .env.example .env
+cp config.example.yaml config.yaml
+
+# 2. Generate strong secrets
+echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+
+# 3. Update passwords in .env and config.yaml
+# 4. Change default admin password after first login
+```
+
+## 📊 Monitoring
+
+### Prometheus Metrics
+
+Access metrics at:
+- Backend: `http://localhost:8000/metrics`
+- Prometheus UI: `http://localhost:9090`
+- Grafana: `http://localhost:3001` (admin/admin)
+
+### Health Checks
+
+- Backend: `http://localhost:8000/health`
+- Frontend: `http://localhost:3000/health`
 
 ## 🤝 Contributing
 

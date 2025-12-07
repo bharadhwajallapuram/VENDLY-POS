@@ -1,126 +1,335 @@
+"""
+Vendly POS - Sales Router
+"""
 from datetime import datetime
-from uuid import UUID, uuid4
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.sales import (
-    CompleteOut,
-    PaymentIn,
-    SaleLineIn,
-    SaleOpenIn,
-    SaleOut,
-)
+from app.api.v1.schemas.sales import SaleIn, SaleItemOut, SaleOut
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
-from app.services.sales import get_or_create_payment_method, recalc_totals
 from app.services.ws_manager import manager
+from app.services.receipt import generate_receipt_text, generate_receipt_html, Receipt, ReceiptItem
 
 router = APIRouter()
 
 
-@router.post("", response_model=SaleOut, status_code=201)
-def open_sale(
-    payload: SaleOpenIn, db: Session = Depends(get_db), user=Depends(get_current_user)
+@router.get("", response_model=List[SaleOut])
+def list_sales(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    # For demo: use a placeholder UUID since we don't have real user records
-    demo_user_id = uuid4()  # Generate a demo UUID for the user
+    """List all sales with optional filtering"""
+    stmt = db.query(m.Sale)
+    if status:
+        stmt = stmt.filter(m.Sale.status == status)
+    sales = stmt.order_by(m.Sale.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Convert to output format
+    result = []
+    for sale in sales:
+        items = []
+        for item in sale.items:
+            product = db.get(m.Product, item.product_id)
+            items.append(SaleItemOut(
+                id=item.id,
+                sale_id=item.sale_id,
+                product_id=item.product_id,
+                product_name=product.name if product else None,
+                quantity=item.quantity,
+                unit_price=float(item.unit_price),
+                discount=float(item.discount),
+                total=float(item.total),
+            ))
+        result.append(SaleOut(
+            id=sale.id,
+            user_id=sale.user_id,
+            customer_id=sale.customer_id,
+            subtotal=float(sale.subtotal),
+            tax=float(sale.tax),
+            discount=float(sale.discount),
+            total=float(sale.total),
+            payment_method=sale.payment_method,
+            payment_reference=sale.payment_reference,
+            status=sale.status,
+            notes=sale.notes,
+            created_at=sale.created_at,
+            items=items,
+        ))
+    return result
+
+
+@router.post("", response_model=SaleOut, status_code=201)
+def create_sale(
+    payload: SaleIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Create a new sale (checkout)"""
+    # Calculate totals
+    subtotal = 0.0
+    tax = 0.0
+    
+    for item in payload.items:
+        product = db.get(m.Product, item.product_id)
+        if not product:
+            raise HTTPException(400, detail=f"Product {item.product_id} not found")
+        if product.quantity < item.quantity:
+            raise HTTPException(400, detail=f"Insufficient stock for {product.name}")
+        
+        item_total = (item.unit_price * item.quantity) - item.discount
+        subtotal += item_total
+        tax += item_total * float(product.tax_rate) / 100
+    
+    total = subtotal + tax - payload.discount
+    
+    # Create sale
     sale = m.Sale(
-        store_id=payload.store_id, register_id=payload.register_id, user_id=demo_user_id
+        user_id=user.id,
+        customer_id=payload.customer_id,
+        subtotal=subtotal,
+        tax=tax,
+        discount=payload.discount,
+        total=total,
+        payment_method=payload.payment_method,
+        payment_reference=payload.payment_reference,
+        status="completed",
+        notes=payload.notes,
     )
     db.add(sale)
+    db.flush()  # Get sale.id
+    
+    # Create sale items and update inventory
+    sale_items = []
+    for item in payload.items:
+        product = db.get(m.Product, item.product_id)
+        item_total = (item.unit_price * item.quantity) - item.discount
+        
+        sale_item = m.SaleItem(
+            sale_id=sale.id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            discount=item.discount,
+            total=item_total,
+        )
+        db.add(sale_item)
+        sale_items.append(sale_item)
+        
+        # Reduce inventory
+        product.quantity -= item.quantity
+    
     db.commit()
     db.refresh(sale)
-    return SaleOut(
-        id=sale.id,
-        status=sale.status,
-        subtotal_cents=sale.subtotal_cents,
-        discount_cents=sale.discount_cents,
-        tax_cents=sale.tax_cents,
-        total_cents=sale.total_cents,
-    )
-
-
-@router.post("/{sale_id}/lines", response_model=SaleOut)
-def add_line(
-    sale_id: UUID,
-    payload: SaleLineIn,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    sale = db.get(m.Sale, sale_id)
-    if not sale or sale.status != "open":
-        raise HTTPException(400, detail="Sale not open")
-    line = m.SaleLine(
-        sale_id=sale.id,
-        variant_id=payload.variant_id,
-        qty=payload.qty,
-        unit_price_cents=payload.unit_price_cents,
-    )
-    sale.lines.append(line)
-    recalc_totals(sale)
-    db.commit()
-    db.refresh(sale)
-    return SaleOut(
-        id=sale.id,
-        status=sale.status,
-        subtotal_cents=sale.subtotal_cents,
-        discount_cents=sale.discount_cents,
-        tax_cents=sale.tax_cents,
-        total_cents=sale.total_cents,
-    )
-
-
-@router.post("/{sale_id}/payments", response_model=SaleOut)
-def add_payment(
-    sale_id: UUID,
-    payload: PaymentIn,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    sale = db.get(m.Sale, sale_id)
-    if not sale or sale.status != "open":
-        raise HTTPException(400, detail="Sale not open")
-    pm = get_or_create_payment_method(db, payload.method_code)
-    sale.payments.append(
-        m.Payment(sale_id=sale.id, method_id=pm.id, amount_cents=payload.amount_cents)
-    )
-    recalc_totals(sale)
-    db.commit()
-    db.refresh(sale)
-    return SaleOut(
-        id=sale.id,
-        status=sale.status,
-        subtotal_cents=sale.subtotal_cents,
-        discount_cents=sale.discount_cents,
-        tax_cents=sale.tax_cents,
-        total_cents=sale.total_cents,
-    )
-
-
-@router.post("/{sale_id}/complete", response_model=CompleteOut)
-def complete_sale(
-    sale_id: UUID, db: Session = Depends(get_db), user=Depends(get_current_user)
-):
-    sale = db.get(m.Sale, sale_id)
-    if not sale or sale.status != "open":
-        raise HTTPException(400, detail="Sale not open")
-    sale.status = "completed"
-    sale.completed_at = datetime.utcnow()
-    db.commit()
-    db.refresh(sale)
-    # broadcast
+    
+    # Build response
+    items_out = []
+    for i, item in enumerate(sale_items):
+        product = db.get(m.Product, item.product_id)
+        items_out.append(SaleItemOut(
+            id=item.id,
+            sale_id=sale.id,
+            product_id=item.product_id,
+            product_name=product.name if product else None,
+            quantity=item.quantity,
+            unit_price=float(item.unit_price),
+            discount=float(item.discount),
+            total=float(item.total),
+        ))
+    
+    # Broadcast sale completed
     try:
         import anyio
-
         anyio.from_thread.run(
             manager.broadcast,
             {
                 "event": "sale.completed",
-                "sale_id": str(sale.id),
-                "total_cents": sale.total_cents,
+                "sale_id": sale.id,
+                "total": float(sale.total),
             },
         )
     except Exception:
         pass
-    return CompleteOut(id=sale.id, total_cents=sale.total_cents, status=sale.status)
+    
+    return SaleOut(
+        id=sale.id,
+        user_id=sale.user_id,
+        customer_id=sale.customer_id,
+        subtotal=float(sale.subtotal),
+        tax=float(sale.tax),
+        discount=float(sale.discount),
+        total=float(sale.total),
+        payment_method=sale.payment_method,
+        payment_reference=sale.payment_reference,
+        status=sale.status,
+        notes=sale.notes,
+        created_at=sale.created_at,
+        items=items_out,
+    )
+
+
+@router.get("/{sale_id}", response_model=SaleOut)
+def get_sale(
+    sale_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Get a single sale by ID"""
+    sale = db.get(m.Sale, sale_id)
+    if not sale:
+        raise HTTPException(404, detail="Sale not found")
+    
+    items = []
+    for item in sale.items:
+        product = db.get(m.Product, item.product_id)
+        items.append(SaleItemOut(
+            id=item.id,
+            sale_id=item.sale_id,
+            product_id=item.product_id,
+            product_name=product.name if product else None,
+            quantity=item.quantity,
+            unit_price=float(item.unit_price),
+            discount=float(item.discount),
+            total=float(item.total),
+        ))
+    
+    return SaleOut(
+        id=sale.id,
+        user_id=sale.user_id,
+        customer_id=sale.customer_id,
+        subtotal=float(sale.subtotal),
+        tax=float(sale.tax),
+        discount=float(sale.discount),
+        total=float(sale.total),
+        payment_method=sale.payment_method,
+        payment_reference=sale.payment_reference,
+        status=sale.status,
+        notes=sale.notes,
+        created_at=sale.created_at,
+        items=items,
+    )
+
+
+@router.post("/{sale_id}/void", response_model=SaleOut)
+def void_sale(
+    sale_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Void a sale and restore inventory"""
+    sale = db.get(m.Sale, sale_id)
+    if not sale:
+        raise HTTPException(404, detail="Sale not found")
+    if sale.status != "completed":
+        raise HTTPException(400, detail="Can only void completed sales")
+    
+    # Restore inventory
+    for item in sale.items:
+        product = db.get(m.Product, item.product_id)
+        if product:
+            product.quantity += item.quantity
+    
+    sale.status = "voided"
+    db.commit()
+    db.refresh(sale)
+    
+    items = []
+    for item in sale.items:
+        product = db.get(m.Product, item.product_id)
+        items.append(SaleItemOut(
+            id=item.id,
+            sale_id=item.sale_id,
+            product_id=item.product_id,
+            product_name=product.name if product else None,
+            quantity=item.quantity,
+            unit_price=float(item.unit_price),
+            discount=float(item.discount),
+            total=float(item.total),
+        ))
+    
+    return SaleOut(
+        id=sale.id,
+        user_id=sale.user_id,
+        customer_id=sale.customer_id,
+        subtotal=float(sale.subtotal),
+        tax=float(sale.tax),
+        discount=float(sale.discount),
+        total=float(sale.total),
+        payment_method=sale.payment_method,
+        payment_reference=sale.payment_reference,
+        status=sale.status,
+        notes=sale.notes,
+        created_at=sale.created_at,
+        items=items,
+    )
+
+
+@router.get("/{sale_id}/receipt")
+def get_receipt(
+    sale_id: int,
+    format: str = Query("html", regex="^(text|html)$"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Get a printable receipt for a sale.
+    Format can be 'text' (for thermal printers) or 'html' (for regular printers)
+    """
+    sale = db.get(m.Sale, sale_id)
+    if not sale:
+        raise HTTPException(404, detail="Sale not found")
+    
+    # Build receipt items
+    receipt_items = []
+    for item in sale.items:
+        product = db.get(m.Product, item.product_id)
+        receipt_items.append(ReceiptItem(
+            name=product.name if product else f"Product #{item.product_id}",
+            quantity=item.quantity,
+            unit_price=float(item.unit_price),
+            total=float(item.total),
+        ))
+    
+    # Get cashier name
+    cashier = db.get(m.User, sale.user_id)
+    cashier_name = cashier.full_name or cashier.email if cashier else "Unknown"
+    
+    # Get customer if any
+    customer_name = None
+    if sale.customer_id:
+        customer = db.get(m.Customer, sale.customer_id)
+        customer_name = customer.name if customer else None
+    
+    # Calculate tax rate (assume 8% if not stored)
+    tax_rate = 8.0
+    if sale.subtotal > 0:
+        tax_rate = round((float(sale.tax) / float(sale.subtotal)) * 100, 2)
+    
+    # Build receipt object
+    receipt = Receipt(
+        receipt_number=f"R-{sale.id:06d}",
+        date=sale.created_at,
+        items=receipt_items,
+        subtotal=float(sale.subtotal),
+        tax_amount=float(sale.tax),
+        tax_rate=tax_rate,
+        total=float(sale.total),
+        payment_method=sale.payment_method or "cash",
+        amount_paid=float(sale.total),  # Assuming exact payment for now
+        change=0.0,
+        cashier_name=cashier_name,
+        customer_name=customer_name,
+    )
+    
+    if format == "text":
+        receipt_content = generate_receipt_text(receipt)
+        return PlainTextResponse(content=receipt_content)
+    else:
+        receipt_content = generate_receipt_html(receipt)
+        return HTMLResponse(content=receipt_content)

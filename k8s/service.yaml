@@ -1,0 +1,145 @@
+# ===========================================
+# Vendly POS - Kubernetes Services
+# ===========================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-backend
+  namespace: vendly
+  labels:
+    app: vendly
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: vendly
+    component: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-frontend
+  namespace: vendly
+  labels:
+    app: vendly
+    component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: vendly
+    component: frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-redis
+  namespace: vendly
+  labels:
+    app: vendly
+    component: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: vendly
+    component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-postgres
+  namespace: vendly
+  labels:
+    app: vendly
+    component: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: vendly
+    component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-kafka
+  namespace: vendly
+  labels:
+    app: vendly
+    component: kafka
+spec:
+  type: ClusterIP
+  selector:
+    app: vendly
+    component: kafka
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+      protocol: TCP
+
+---
+# NodePort service for external access during development
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-backend-nodeport
+  namespace: vendly
+  labels:
+    app: vendly
+    component: backend
+spec:
+  type: NodePort
+  selector:
+    app: vendly
+    component: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendly-frontend-nodeport
+  namespace: vendly
+  labels:
+    app: vendly
+    component: frontend
+spec:
+  type: NodePort
+  selector:
+    app: vendly
+    component: frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      nodePort: 30000
+      protocol: TCP

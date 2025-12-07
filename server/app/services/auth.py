@@ -1,79 +1,88 @@
+"""
+Vendly POS - Authentication Services
+"""
 from datetime import datetime, timedelta
 from typing import Optional
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db import models as m
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against a hash"""
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 async def authenticate(db: Session, email: str, password: str) -> Optional[dict]:
     """
     Authenticate user with email and password
-    For now, return a dummy token for demo purposes
     """
-    # Demo users for testing
-    demo_users = {
-        "demo@vendly.com": {
-            "password": "demo123",
-            "role": "cashier",
-            "name": "Demo Cashier",
-        },
-        "admin@vendly.com": {
-            "password": "admin123",
-            "role": "admin",
-            "name": "Admin User",
-        },
-        "manager@vendly.com": {
-            "password": "manager123",
-            "role": "manager",
-            "name": "Manager User",
-        },
-    }
-
-    if email in demo_users and demo_users[email]["password"] == password:
-        user_data = demo_users[email]
-        access_token = create_access_token(
-            data={"sub": email, "role": user_data["role"], "name": user_data["name"]}
-        )
-        return {
-            "access_token": access_token,
-            "refresh_token": access_token,  # Same for demo
-            "token_type": "bearer",
-            "expires_in": settings.ACCESS_TTL_MIN * 60,
+    # Look up user in database
+    user = db.query(m.User).filter(m.User.email == email).first()
+    
+    if not user:
+        return None
+    
+    if not verify_password(password, user.password_hash):
+        return None
+    
+    if not user.is_active:
+        return None
+    
+    # Create access token
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "name": user.full_name or user.email,
         }
-    return None
+    )
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": access_token,  # Same for now
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TTL_MIN * 60,
+        "user_id": user.id,  # For audit logging
+    }
 
 
 async def register_user(
-    db: Session, email: str, password: str, full_name: str, role: str = "cashier"
-):
+    db: Session, email: str, password: str, full_name: str, role: str = "clerk"
+) -> Optional[m.User]:
     """
     Register a new user
-    For now, return a dummy user for demo purposes
     """
-    # Check if user already exists in demo users
-    demo_users = ["demo@vendly.com", "admin@vendly.com", "manager@vendly.com"]
-    if email in demo_users:
-        return None  # User already exists
+    # Check if user already exists
+    existing = db.query(m.User).filter(m.User.email == email).first()
+    if existing:
+        return None
+    
+    # Create user
+    user = m.User(
+        email=email,
+        password_hash=hash_password(password),
+        full_name=full_name,
+        role=role,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
-    # TODO: Implement actual user creation in database
-    return type(
-        "User",
-        (),
-        {
-            "email": email,
-            "full_name": full_name,
-            "role": role,
-            "id": len(demo_users) + 1,
-        },
-    )()
 
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:

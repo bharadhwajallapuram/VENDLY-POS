@@ -1,0 +1,227 @@
+# ===========================================
+# Vendly POS - Kubernetes Deployment
+# ===========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vendly-backend
+  namespace: vendly
+  labels:
+    app: vendly
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vendly
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: vendly
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: vendly/backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vendly-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vendly-secrets
+                  key: redis-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vendly-secrets
+                  key: jwt-secret
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "vendly-kafka:9092"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      restartPolicy: Always
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vendly-frontend
+  namespace: vendly
+  labels:
+    app: vendly
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vendly
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: vendly
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: vendly/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: VITE_API_URL
+              value: "https://api.vendly.local/api/v1"
+            - name: VITE_WS_URL
+              value: "wss://api.vendly.local/ws"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      restartPolicy: Always
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vendly-redis
+  namespace: vendly
+  labels:
+    app: vendly
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vendly
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: vendly
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-config
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+            - name: redis-data
+              mountPath: /data
+          command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+      volumes:
+        - name: redis-config
+          configMap:
+            name: vendly-redis-config
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: vendly-redis-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vendly-postgres
+  namespace: vendly
+  labels:
+    app: vendly
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vendly
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: vendly
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: vendly-secrets
+                  key: postgres-user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vendly-secrets
+                  key: postgres-password
+            - name: POSTGRES_DB
+              value: "vendly_db"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: vendly-postgres-pvc

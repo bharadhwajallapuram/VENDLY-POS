@@ -1,0 +1,132 @@
+# ===========================================
+# Vendly POS - Kubernetes Namespace & Secrets
+# ===========================================
+# ⚠️  WARNING: This is a TEMPLATE file!
+# DO NOT commit real secrets. Use kubectl to create secrets:
+#   kubectl create secret generic vendly-secrets \
+#     --from-literal=database-url='your-db-url' \
+#     --from-literal=jwt-secret='your-secret' \
+#     --from-literal=postgres-password='your-password'
+# ===========================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vendly
+  labels:
+    app: vendly
+    environment: production
+
+---
+# TEMPLATE - Replace with real values using kubectl or CI/CD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vendly-secrets
+  namespace: vendly
+  labels:
+    app: vendly
+type: Opaque
+stringData:
+  # ⚠️  REPLACE THESE VALUES - DO NOT USE IN PRODUCTION
+  database-url: "REPLACE_WITH_REAL_DATABASE_URL"
+  redis-url: "redis://vendly-redis:6379/0"
+  jwt-secret: "REPLACE_WITH_STRONG_SECRET_KEY"
+  postgres-user: "vendly"
+  postgres-password: "REPLACE_WITH_STRONG_PASSWORD"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vendly-config
+  namespace: vendly
+  labels:
+    app: vendly
+data:
+  APP_NAME: "Vendly"
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "https://vendly.local"
+  KAFKA_BOOTSTRAP_SERVERS: "vendly-kafka:9092"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vendly-redis-config
+  namespace: vendly
+  labels:
+    app: vendly
+    component: redis
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    maxmemory 256mb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfsync everysec
+
+---
+# Persistent Volume Claims
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vendly-postgres-pvc
+  namespace: vendly
+  labels:
+    app: vendly
+    component: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vendly-redis-pvc
+  namespace: vendly
+  labels:
+    app: vendly
+    component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+
+---
+# Horizontal Pod Autoscaler for Backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vendly-backend-hpa
+  namespace: vendly
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vendly-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

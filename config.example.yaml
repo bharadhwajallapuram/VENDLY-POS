@@ -1,0 +1,196 @@
+# ===========================================
+# VENDLY POS - CONFIGURATION FILE
+# ===========================================
+# 
+# HOW TO USE:
+# 1. Copy this file: cp config.example.yaml config.yaml
+# 2. Update ALL values marked with "CHANGE_THIS"
+# 3. Never commit config.yaml to git (it's in .gitignore)
+#
+# ===========================================
+
+# ===========================================
+# 🏪 STORE INFORMATION
+# ===========================================
+store:
+  name: "My Store Name"                    # CHANGE_THIS: Your store name
+  address: "123 Main Street"               # CHANGE_THIS: Store address
+  city: "New York"                         # CHANGE_THIS: City
+  state: "NY"                              # CHANGE_THIS: State/Province
+  zip: "10001"                             # CHANGE_THIS: ZIP/Postal code
+  country: "USA"                           # CHANGE_THIS: Country
+  phone: "+1-555-123-4567"                 # CHANGE_THIS: Store phone
+  email: "store@example.com"               # CHANGE_THIS: Store email
+  currency: "USD"                          # CHANGE_THIS: USD, EUR, GBP, INR, etc.
+  timezone: "America/New_York"             # CHANGE_THIS: Your timezone
+
+# ===========================================
+# 🔐 SECURITY SETTINGS (MUST CHANGE!)
+# ===========================================
+security:
+  # Generate with: openssl rand -hex 32
+  jwt_secret: "CHANGE_THIS_TO_A_RANDOM_32_CHAR_STRING"
+  secret_key: "CHANGE_THIS_TO_ANOTHER_RANDOM_STRING"
+  
+  # Token expiration
+  access_token_minutes: 30                 # How long until login expires
+  refresh_token_days: 7                    # How long refresh token lasts
+  
+  # Rate limiting (protects against attacks)
+  rate_limit_enabled: true
+  login_attempts_per_minute: 5             # Max login attempts per IP
+  api_calls_per_minute: 100                # Max API calls per user
+
+# ===========================================
+# 🗄️ DATABASE SETTINGS
+# ===========================================
+database:
+  # Option 1: SQLite (Simple, for small stores)
+  # type: "sqlite"
+  # path: "./vendly.db"
+  
+  # Option 2: MySQL (Recommended for production)
+  type: "mysql"
+  host: "localhost"                        # CHANGE_THIS: Database server
+  port: 3306
+  name: "vendly_db"                        # CHANGE_THIS: Database name
+  user: "vendly"                           # CHANGE_THIS: Database user
+  password: "CHANGE_THIS_DB_PASSWORD"      # CHANGE_THIS: Database password
+  
+  # Option 3: PostgreSQL
+  # type: "postgresql"
+  # host: "localhost"
+  # port: 5432
+  # name: "vendly_db"
+  # user: "vendly"
+  # password: "CHANGE_THIS_DB_PASSWORD"
+
+# ===========================================
+# 👤 DEFAULT ADMIN ACCOUNT
+# ===========================================
+# This account is created on first run
+# CHANGE THE PASSWORD IMMEDIATELY after first login!
+admin:
+  email: "admin@yourstore.com"             # CHANGE_THIS: Admin email
+  password: "CHANGE_THIS_ADMIN_PASSWORD"   # CHANGE_THIS: Strong password
+  full_name: "Store Administrator"         # CHANGE_THIS: Admin name
+
+# ===========================================
+# 🌐 SERVER SETTINGS
+# ===========================================
+server:
+  # Backend API
+  backend_host: "0.0.0.0"
+  backend_port: 8000
+  
+  # Frontend
+  frontend_port: 3000
+  
+  # Allowed origins for CORS (add your domain)
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    # - "https://yourdomain.com"           # CHANGE_THIS: Add your domain
+
+# ===========================================
+# 📧 EMAIL SETTINGS (Optional)
+# ===========================================
+# For password reset, receipts, etc.
+email:
+  enabled: false                           # Set to true to enable
+  smtp_host: "smtp.gmail.com"              # CHANGE_THIS: SMTP server
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"        # CHANGE_THIS: Email address
+  smtp_password: "your-app-password"       # CHANGE_THIS: App password
+  from_name: "Vendly POS"
+  from_email: "noreply@yourstore.com"      # CHANGE_THIS: From address
+
+# ===========================================
+# 🖨️ RECEIPT SETTINGS
+# ===========================================
+receipt:
+  header: "Thank you for shopping!"        # CHANGE_THIS: Receipt header
+  footer: "Please come again!"             # CHANGE_THIS: Receipt footer
+  show_tax_details: true
+  paper_width: 80                          # 58 or 80 mm
+
+# ===========================================
+# 💳 PAYMENT METHODS
+# ===========================================
+payments:
+  cash:
+    enabled: true
+    name: "Cash"
+  
+  card:
+    enabled: true
+    name: "Credit/Debit Card"
+    # Stripe integration (optional)
+    # stripe_key: "sk_live_CHANGE_THIS"    # CHANGE_THIS: Stripe secret key
+  
+  upi:
+    enabled: false                         # Set true for India
+    name: "UPI"
+    # upi_id: "store@upi"                  # CHANGE_THIS: Your UPI ID
+
+# ===========================================
+# 📊 TAX SETTINGS
+# ===========================================
+tax:
+  enabled: true
+  default_rate: 8.0                        # CHANGE_THIS: Tax rate percentage
+  tax_name: "Sales Tax"                    # CHANGE_THIS: Tax name
+  tax_number: ""                           # CHANGE_THIS: GST/VAT number
+
+# ===========================================
+# 🔔 NOTIFICATIONS
+# ===========================================
+notifications:
+  low_stock_alert: true
+  low_stock_threshold: 10                  # Alert when stock below this
+  daily_report_email: false
+  
+# ===========================================
+# 🚀 ADVANCED SETTINGS
+# ===========================================
+advanced:
+  # Redis (for caching, optional)
+  redis_enabled: false
+  redis_url: "redis://localhost:6379/0"
+  
+  # Logging
+  log_level: "INFO"                        # DEBUG, INFO, WARNING, ERROR
+  audit_logging: true                      # Log all user actions
+  
+  # File uploads
+  max_upload_size_mb: 5
+  allowed_image_types:
+    - "image/jpeg"
+    - "image/png"
+    - "image/webp"
+
+
+# ===========================================
+# 📝 QUICK START GUIDE
+# ===========================================
+#
+# 1. REQUIRED CHANGES (Security):
+#    - security.jwt_secret
+#    - security.secret_key  
+#    - database.password
+#    - admin.email
+#    - admin.password
+#
+# 2. RECOMMENDED CHANGES:
+#    - store.* (all store details)
+#    - tax.default_rate
+#    - receipt.header/footer
+#
+# 3. OPTIONAL:
+#    - email.* (if you want email features)
+#    - payments.card.stripe_key (for card payments)
+#
+# After making changes, restart the server:
+#    cd server && python -m uvicorn app.main:app --reload
+#
+# ===========================================

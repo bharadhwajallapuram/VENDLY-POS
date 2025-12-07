@@ -1,40 +1,55 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { me } from '../lib/api'
-import { useEffect, useState } from 'react'
+'use client';
 
-type Role = 'cashier' | 'manager' | 'admin'
+// ===========================================
+// Vendly POS - Protected Route Wrapper
+// ===========================================
 
-export default function ProtectedRoute({ roles }: { roles?: Role[] } = {}){
-  const { token, user, setUser } = useAuth()
-  const loc = useLocation()
-  const [ok, setOk] = useState<boolean>(!!token)
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth, UserRole } from '@/store/auth';
 
-  useEffect(()=>{
-    (async()=>{
-      if(!token){ setOk(false); return }
-      // ensure we have fresh user profile (with role)
-      if(!user){
-        try{ 
-          const u = await me(); 
-          setUser({
-            email: u.email,
-            role: u.role as 'cashier'|'manager'|'admin',
-            full_name: u.full_name
-          })
-        }catch{ /* ignore */ }
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  roles?: UserRole[];
+}
+
+export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
+  const router = useRouter();
+  const { token, user, hasRole } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  useEffect(() => {
+    // No token means not logged in - redirect to login
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    // Check role authorization
+    if (roles && roles.length > 0) {
+      const authorized = hasRole(roles);
+      if (!authorized) {
+        router.push('/pos'); // Redirect to POS if not authorized
+        return;
       }
-      if(roles && roles.length){
-        if(!user || !roles.includes(user.role)) setOk(false)
-        else setOk(true)
-      }else{
-        setOk(true)
-      }
-    })()
-  },[token, user, roles, setUser])
+    }
 
-  if(!token || !ok){
-    return <Navigate to="/login" state={{ from: loc }} replace />
+    setIsAuthorized(true);
+    setIsLoading(false);
+  }, [token, user, roles, router, hasRole]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
-  return <Outlet />
+
+  if (!isAuthorized) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

@@ -35,6 +35,11 @@ venv.bak/
 .env.test.local
 .env.production.local
 
+# User Configuration (contains secrets)
+config.yaml
+config.yml
+config.local.yaml
+
 # Node.js
 node_modules/
 npm-debug.log*
@@ -227,9 +232,20 @@ Thumbs.db
 # Database
 *.sqlite
 *.db
+vendly.db
+
+# Audit logs (contain sensitive info)
+audit.log
+*.log
 
 # Docker
 docker-compose.override.yml
+
+# Secrets (NEVER commit)
+secrets/
+*.pem
+*.key
+*.crt
 
 # Compiled JavaScript from TypeScript (keep only .ts/.tsx source files)
 client/src/**/*.js

@@ -1,5 +1,5 @@
 # app/core/deps.py
-from typing import Generator
+from typing import Callable, Generator, List
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -22,21 +22,46 @@ def get_db() -> Generator[Session, None, None]:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> m.User:
+    """Get the current authenticated user from the database"""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALG])
-        email: str = payload.get("sub")
-        role: str = payload.get("role", "cashier")
-        name: str = payload.get("name", "User")
+        user_id = payload.get("sub")
 
-        if not email:
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
             )
 
-        # Return user object with role information
-        return {"email": email, "role": role, "full_name": name}
+        # Look up user in database
+        user = db.get(m.User, int(user_id))
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User is inactive"
+            )
+
+        return user
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
+
+
+def require_role(allowed_roles: List[str]) -> Callable:
+    """Create a dependency that requires specific roles"""
+    def role_checker(user: m.User = Depends(get_current_user)) -> m.User:
+        if user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role: {', '.join(allowed_roles)}"
+            )
+        return user
+    return role_checker

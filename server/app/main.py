@@ -1,42 +1,124 @@
+# ===========================================
+# Vendly POS - Main Application
+# Based on BVM-POS Architecture
+# ===========================================
+
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.routers import api_router
 from app.core.config import settings
+from app.services.metrics import MetricsMiddleware, get_metrics_endpoint
+
+
+def init_database():
+    """Initialize database and create admin user if needed"""
+    from sqlalchemy import inspect
+    from app.db.session import engine
+    from app.db.models import Base, User
+    from app.core.security import hash_password
+    from sqlalchemy.orm import Session
+    
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    
+    # Check if admin exists
+    with Session(engine) as session:
+        admin = session.query(User).filter(User.email == "admin@vendly.com").first()
+        if not admin:
+            # Create default admin user
+            admin = User(
+                email="admin@vendly.com",
+                password_hash=hash_password("admin123"),
+                full_name="System Admin",
+                is_active=True,
+                role="admin"
+            )
+            session.add(admin)
+            session.commit()
+            print("✅ Default admin created: admin@vendly.com / admin123")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup/shutdown events"""
+    # Startup
+    print(f"🚀 Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
+    
+    # Initialize database
+    init_database()
+    
+    # Initialize Kafka producer if enabled
+    if settings.KAFKA_ENABLED:
+        try:
+            from kafka.producer import producer
+            await producer.start()
+            print("✅ Kafka producer connected")
+        except Exception as e:
+            print(f"⚠️ Kafka connection failed: {e}")
+    
+    yield
+    
+    # Shutdown
+    print(f"👋 Shutting down {settings.APP_NAME}")
+    
+    if settings.KAFKA_ENABLED:
+        try:
+            from kafka.producer import producer
+            await producer.stop()
+        except Exception:
+            pass
+
 
 app = FastAPI(
     title="Vendly POS API",
-    version="1.0.0",
-    description="A modern point-of-sale system API",
+    version="2.0.0",
+    description="A modern, enterprise-grade point-of-sale system API",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
-# Configure CORS - Allow specific origins for development with credentials
+# Metrics middleware (must be added before other middleware)
+if settings.PROMETHEUS_ENABLED:
+    app.add_middleware(MetricsMiddleware)
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-    ],
-    allow_credentials=True,  # Enable credentials for authentication
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 async def root():
-    return {"message": "Vendly POS API is running"}
+    """Root endpoint"""
+    return {
+        "name": settings.APP_NAME,
+        "version": "2.0.0",
+        "status": "running",
+        "environment": settings.APP_ENV,
+    }
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "healthy", "message": "API is operational"}
+    """Health check endpoint for load balancers and orchestrators"""
+    return {
+        "status": "healthy",
+        "message": "API is operational",
+        "service": settings.APP_NAME,
+    }
 
 
+# Include API routes
 app.include_router(api_router, prefix="/api/v1")
+
+# Include metrics endpoint
+if settings.PROMETHEUS_ENABLED:
+    app.include_router(get_metrics_endpoint())

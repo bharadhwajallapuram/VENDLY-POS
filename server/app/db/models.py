@@ -1,24 +1,25 @@
+"""
+Vendly POS - Database Models
+=============================
+MySQL/SQLite compatible models
+"""
+
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Optional
+from enum import Enum as PyEnum
+from typing import Optional, List
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     DateTime,
-)
-from sqlalchemy import Enum as PgEnum
-from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
     String,
     Text,
+    func,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -27,168 +28,157 @@ class Base(DeclarativeBase):
     pass
 
 
-# ---------- Roles ----------
-class RoleEnum(str, Enum):
+# ---------- Enums ----------
+class RoleEnum(str, PyEnum):
     clerk = "clerk"
     manager = "manager"
     admin = "admin"
 
 
+class SaleStatus(str, PyEnum):
+    open = "open"
+    completed = "completed"
+    voided = "voided"
+    refunded = "refunded"
+
+
 # ---------- Users ----------
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, index=True, nullable=False
-    )
-    password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    full_name: Mapped[Optional[str]] = mapped_column(String(255))
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    role: Mapped[str] = mapped_column(
-        PgEnum(RoleEnum, name="user_role"), default=RoleEnum.clerk, nullable=False
-    )
+    role: Mapped[str] = mapped_column(String(20), default="clerk", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=func.now(), nullable=True)
+    
+    # Relationships
+    sales: Mapped[List["Sale"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
-# ---------- Catalog ----------
+# ---------- Categories ----------
 class Category(Base):
     __tablename__ = "categories"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    name: Mapped[str] = mapped_column(String(120), index=True)
-    parent_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("categories.id")
-    )
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id"), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    products: Mapped[List["Product"]] = relationship(back_populates="category")
+    parent: Mapped[Optional["Category"]] = relationship(remote_side=[id])
 
 
-class TaxRate(Base):
-    __tablename__ = "tax_rates"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    name: Mapped[str]
-    rate: Mapped[float] = mapped_column(Numeric(6, 4))
-
-
+# ---------- Products ----------
 class Product(Base):
     __tablename__ = "products"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    name: Mapped[str] = mapped_column(String(255), index=True)
-    category_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("categories.id")
-    )
-    default_tax_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tax_rates.id")
-    )
-    sku: Mapped[str | None] = mapped_column(String(80), unique=True)
-    description: Mapped[str | None] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    variants: Mapped[list[ProductVariant]] = relationship(
-        back_populates="product", cascade="all, delete-orphan"
-    )
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    sku: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True)
+    barcode: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    cost: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    min_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    category_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id"), nullable=True)
+    tax_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0, nullable=False)
+    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=func.now(), nullable=True)
+    
+    # Relationships
+    category: Mapped[Optional["Category"]] = relationship(back_populates="products")
+    sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="product")
 
 
-class ProductVariant(Base):
-    __tablename__ = "product_variants"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    product_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("products.id"), index=True
-    )
-    sku: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    price_cents: Mapped[int] = mapped_column(Integer)
-    cost_cents: Mapped[int | None] = mapped_column(Integer)
-    attributes: Mapped[dict | None] = mapped_column(JSON)
-    product: Mapped[Product] = relationship(back_populates="variants")
-
-
-# ---------- Inventory ----------
-class InventoryLevel(Base):
-    __tablename__ = "inventory_levels"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    variant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("product_variants.id"), index=True
-    )
-    qty: Mapped[int] = mapped_column(Integer, default=0)
-    min_qty: Mapped[int] = mapped_column(Integer, default=0)
+# ---------- Customers ----------
+class Customer(Base):
+    __tablename__ = "customers"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    loyalty_points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=func.now(), nullable=True)
+    
+    # Relationships
+    sales: Mapped[List["Sale"]] = relationship(back_populates="customer")
 
 
 # ---------- Sales ----------
 class Sale(Base):
     __tablename__ = "sales"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    store_id: Mapped[uuid.UUID]
-    register_id: Mapped[uuid.UUID]
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
-    )
-    customer_id: Mapped[uuid.UUID | None]
-    status: Mapped[str] = mapped_column(String(20), index=True, default="open")
-    subtotal_cents: Mapped[int] = mapped_column(Integer, default=0)
-    discount_cents: Mapped[int] = mapped_column(Integer, default=0)
-    tax_cents: Mapped[int] = mapped_column(Integer, default=0)
-    total_cents: Mapped[int] = mapped_column(Integer, default=0)
-    opened_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    lines: Mapped[list[SaleLine]] = relationship(
-        back_populates="sale", cascade="all, delete-orphan"
-    )
-    payments: Mapped[list[Payment]] = relationship(
-        back_populates="sale", cascade="all, delete-orphan"
-    )
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("customers.id"), nullable=True)
+    subtotal: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    tax: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    discount: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(50), nullable=False)
+    payment_reference: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="completed", nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, index=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="sales")
+    customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
+    items: Mapped[List["SaleItem"]] = relationship(back_populates="sale", cascade="all, delete-orphan")
 
 
-class SaleLine(Base):
-    __tablename__ = "sale_lines"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    sale_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sales.id"), index=True
-    )
-    variant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("product_variants.id")
-    )
-    qty: Mapped[int] = mapped_column(Integer)
-    unit_price_cents: Mapped[int] = mapped_column(Integer)
-    discount_cents: Mapped[int] = mapped_column(Integer, default=0)
-    tax_cents: Mapped[int] = mapped_column(Integer, default=0)
-    line_total_cents: Mapped[int] = mapped_column(Integer, default=0)
-    sale: Mapped[Sale] = relationship(back_populates="lines")
+class SaleItem(Base):
+    __tablename__ = "sale_items"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sale_id: Mapped[int] = mapped_column(Integer, ForeignKey("sales.id"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    discount: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    tax: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    subtotal: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    
+    # Relationships
+    sale: Mapped["Sale"] = relationship(back_populates="items")
+    product: Mapped["Product"] = relationship(back_populates="sale_items")
 
 
-class PaymentMethod(Base):
-    __tablename__ = "payment_methods"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(40), unique=True)
-    name: Mapped[str] = mapped_column(String(80))
+# ---------- Inventory Movements ----------
+class InventoryMovement(Base):
+    __tablename__ = "inventory_movements"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    quantity_change: Mapped[int] = mapped_column(Integer, nullable=False)  # positive = in, negative = out
+    movement_type: Mapped[str] = mapped_column(String(50), nullable=False)  # sale, purchase, adjustment, return
+    reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # sale_id or purchase_id
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
 
 
-class Payment(Base):
-    __tablename__ = "payments"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    sale_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sales.id"), index=True
-    )
-    method_id: Mapped[int] = mapped_column(ForeignKey("payment_methods.id"))
-    amount_cents: Mapped[int] = mapped_column(Integer)
-    txn_ref: Mapped[str | None] = mapped_column(String(120))
-    meta: Mapped[dict | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
-    )
-    sale: Mapped[Sale] = relationship(back_populates="payments")
+# ---------- Settings ----------
+class Setting(Base):
+    __tablename__ = "settings"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=func.now(), nullable=True)
