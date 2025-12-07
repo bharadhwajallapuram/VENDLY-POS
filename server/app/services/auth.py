@@ -1,6 +1,7 @@
 """
 Vendly POS - Authentication Services
 """
+
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -28,16 +29,16 @@ async def authenticate(db: Session, email: str, password: str) -> Optional[dict]
     """
     # Look up user in database
     user = db.query(m.User).filter(m.User.email == email).first()
-    
+
     if not user:
         return None
-    
+
     if not verify_password(password, user.password_hash):
         return None
-    
+
     if not user.is_active:
         return None
-    
+
     # Create access token
     access_token = create_access_token(
         data={
@@ -47,7 +48,7 @@ async def authenticate(db: Session, email: str, password: str) -> Optional[dict]
             "name": user.full_name or user.email,
         }
     )
-    
+
     return {
         "access_token": access_token,
         "refresh_token": access_token,  # Same for now
@@ -67,7 +68,7 @@ async def register_user(
     existing = db.query(m.User).filter(m.User.email == email).first()
     if existing:
         return None
-    
+
     # Create user
     user = m.User(
         email=email,

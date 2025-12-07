@@ -43,12 +43,16 @@ def create_mysql_database(url: str, db_name: str):
     """Create MySQL database if it doesn't exist"""
     base_url = get_base_url(url)
     engine = create_engine(base_url)
-    
+
     with engine.connect() as conn:
-        conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+        conn.execute(
+            text(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+        )
         conn.commit()
         print(f"✅ Database '{db_name}' created or already exists")
-    
+
     engine.dispose()
 
 
@@ -56,14 +60,14 @@ def create_tables(drop_existing: bool = False):
     """Create all database tables"""
     db_url = settings.DATABASE_URL
     db_name = get_database_name(db_url)
-    
+
     print(f"\n{'='*50}")
     print("Vendly POS - Database Initialization")
     print(f"{'='*50}\n")
     print(f"Database URL: {db_url.split('@')[-1] if '@' in db_url else db_url}")
     print(f"Database Name: {db_name}")
     print()
-    
+
     # For MySQL, create the database first
     if "mysql" in db_url:
         try:
@@ -72,10 +76,10 @@ def create_tables(drop_existing: bool = False):
             print(f"❌ Error creating database: {e}")
             print("\nMake sure MySQL is running and credentials are correct.")
             sys.exit(1)
-    
+
     # Create engine for the actual database
     engine = create_engine(db_url, echo=False)
-    
+
     try:
         # Test connection
         with engine.connect() as conn:
@@ -92,13 +96,13 @@ def create_tables(drop_existing: bool = False):
     except OperationalError as e:
         print(f"❌ Connection failed: {e}")
         sys.exit(1)
-    
+
     # Drop tables if requested
     if drop_existing:
         print("\n⚠️  Dropping existing tables...")
         Base.metadata.drop_all(bind=engine)
         print("✅ Tables dropped")
-    
+
     # Create tables
     print("\n📦 Creating tables...")
     try:
@@ -107,14 +111,14 @@ def create_tables(drop_existing: bool = False):
     except Exception as e:
         print(f"❌ Error creating tables: {e}")
         sys.exit(1)
-    
+
     # List created tables
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     print(f"\n📋 Tables in database ({len(tables)}):")
     for table in sorted(tables):
         print(f"   - {table}")
-    
+
     engine.dispose()
     print(f"\n{'='*50}")
     print("✅ Database initialization complete!")
@@ -126,42 +130,42 @@ def create_admin_user():
     from sqlalchemy.orm import Session
     from app.db.models import User
     from app.core.security import hash_password
-    
+
     engine = create_engine(settings.DATABASE_URL)
-    
+
     with Session(engine) as session:
         # Check if admin exists
         existing = session.query(User).filter(User.email == "admin@vendly.com").first()
         if existing:
             print("ℹ️  Admin user already exists")
             return
-        
+
         # Create admin user
         admin = User(
             email="admin@vendly.com",
             password_hash=hash_password("admin123"),
             full_name="System Admin",
             is_active=True,
-            role="admin"
+            role="admin",
         )
         session.add(admin)
         session.commit()
         print("✅ Admin user created: admin@vendly.com / admin123")
-    
+
     engine.dispose()
 
 
 if __name__ == "__main__":
     drop_flag = "--drop" in sys.argv
-    
+
     if drop_flag:
         confirm = input("⚠️  This will DELETE all data. Type 'yes' to confirm: ")
         if confirm.lower() != "yes":
             print("Aborted.")
             sys.exit(0)
-    
+
     create_tables(drop_existing=drop_flag)
-    
+
     # Ask to create admin user
     create_admin = input("\nCreate default admin user? (y/n): ")
     if create_admin.lower() == "y":

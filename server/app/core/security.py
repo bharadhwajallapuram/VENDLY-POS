@@ -8,12 +8,12 @@ from app.core.config import settings
 
 def hash_password(p: str) -> str:
     """Hash a password using bcrypt"""
-    return bcrypt.hashpw(p.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return bcrypt.hashpw(p.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(p: str, h: str) -> bool:
     """Verify a password against a hash"""
-    return bcrypt.checkpw(p.encode('utf-8'), h.encode('utf-8'))
+    return bcrypt.checkpw(p.encode("utf-8"), h.encode("utf-8"))
 
 
 def create_access_token(sub: str, expires_min: int | None = None) -> str:

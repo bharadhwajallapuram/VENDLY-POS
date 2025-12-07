@@ -4,7 +4,7 @@
 // Vendly POS - Users Management Page (Admin Only)
 // ===========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Users, UserOut, UserIn, UserUpdate } from '@/lib/api';
 
@@ -42,7 +42,7 @@ function UsersContent() {
   const [formData, setFormData] = useState<UserFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await Users.list(search || undefined);
@@ -53,11 +53,11 @@ function UsersContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchUsers();
-  }, [search]);
+  }, [fetchUsers]);
 
   const openAddModal = () => {
     setEditingUser(null);

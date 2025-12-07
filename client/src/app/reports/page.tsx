@@ -4,7 +4,7 @@
 // Vendly POS - Reports Page
 // ===========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Reports, ReportSummary } from '@/lib/api';
 
@@ -16,11 +16,7 @@ function ReportsContent() {
     end: new Date().toISOString().split('T')[0],
   });
 
-  useEffect(() => {
-    loadReport();
-  }, []);
-
-  async function loadReport() {
+  const loadReport = useCallback(async () => {
     setLoading(true);
     try {
       const data = await Reports.summary(dateRange.start, dateRange.end);
@@ -30,7 +26,11 @@ function ReportsContent() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [dateRange.start, dateRange.end]);
+
+  useEffect(() => {
+    loadReport();
+  }, [loadReport]);
 
   return (
     <div className="space-y-6">

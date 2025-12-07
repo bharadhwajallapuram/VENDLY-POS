@@ -2,11 +2,16 @@
 Vendly POS - Receipt Generator
 Generates printable receipts for sales
 """
+
 from datetime import datetime
 from typing import List, Optional
 from dataclasses import dataclass
 
-from app.core.config_loader import get_store_info, get_receipt_settings, get_tax_settings
+from app.core.config_loader import (
+    get_store_info,
+    get_receipt_settings,
+    get_tax_settings,
+)
 
 
 @dataclass
@@ -40,40 +45,42 @@ def generate_receipt_text(receipt: Receipt, width: int = 40) -> str:
     store = get_store_info()
     settings = get_receipt_settings()
     tax = get_tax_settings()
-    
+
     lines = []
-    
+
     def center(text: str) -> str:
         return text.center(width)
-    
+
     def line(char: str = "-") -> str:
         return char * width
-    
+
     def item_line(left: str, right: str) -> str:
         space = width - len(left) - len(right)
         return left + " " * max(1, space) + right
-    
+
     # Header
     lines.append(center(store.get("name", "VENDLY POS")))
     if store.get("address"):
         lines.append(center(store.get("address", "")))
     if store.get("city"):
-        city_line = f"{store.get('city', '')}, {store.get('state', '')} {store.get('zip', '')}"
+        city_line = (
+            f"{store.get('city', '')}, {store.get('state', '')} {store.get('zip', '')}"
+        )
         lines.append(center(city_line))
     if store.get("phone"):
         lines.append(center(f"Tel: {store.get('phone', '')}"))
-    
+
     lines.append(line("="))
-    
+
     # Receipt info
     lines.append(f"Receipt #: {receipt.receipt_number}")
     lines.append(f"Date: {receipt.date.strftime('%Y-%m-%d %H:%M')}")
     lines.append(f"Cashier: {receipt.cashier_name}")
     if receipt.customer_name:
         lines.append(f"Customer: {receipt.customer_name}")
-    
+
     lines.append(line("-"))
-    
+
     # Items
     for item in receipt.items:
         # Item name
@@ -82,41 +89,43 @@ def generate_receipt_text(receipt: Receipt, width: int = 40) -> str:
         qty_price = f"  {item.quantity} x ${item.unit_price:.2f}"
         total = f"${item.total:.2f}"
         lines.append(item_line(qty_price, total))
-    
+
     lines.append(line("-"))
-    
+
     # Totals
     lines.append(item_line("Subtotal:", f"${receipt.subtotal:.2f}"))
-    
+
     if receipt.tax_amount > 0:
         tax_label = f"{tax.get('tax_name', 'Tax')} ({receipt.tax_rate}%):"
         lines.append(item_line(tax_label, f"${receipt.tax_amount:.2f}"))
-    
+
     lines.append(line("="))
     lines.append(item_line("TOTAL:", f"${receipt.total:.2f}"))
     lines.append(line("="))
-    
+
     # Payment
     lines.append("")
-    lines.append(item_line(f"Paid ({receipt.payment_method}):", f"${receipt.amount_paid:.2f}"))
+    lines.append(
+        item_line(f"Paid ({receipt.payment_method}):", f"${receipt.amount_paid:.2f}")
+    )
     if receipt.change > 0:
         lines.append(item_line("Change:", f"${receipt.change:.2f}"))
-    
+
     lines.append("")
     lines.append(line("-"))
-    
+
     # Footer
     lines.append(center(settings.get("header", "Thank you for shopping!")))
     lines.append(center(settings.get("footer", "Please come again!")))
-    
+
     # Tax number if configured
     if tax.get("tax_number"):
         lines.append("")
         lines.append(center(f"Tax ID: {tax.get('tax_number')}"))
-    
+
     lines.append("")
     lines.append(center(receipt.date.strftime("%Y-%m-%d %H:%M:%S")))
-    
+
     return "\n".join(lines)
 
 
@@ -128,7 +137,7 @@ def generate_receipt_html(receipt: Receipt) -> str:
     settings = get_receipt_settings()
     tax = get_tax_settings()
     currency = store.get("currency", "USD")
-    
+
     items_html = ""
     for item in receipt.items:
         items_html += f"""
@@ -139,7 +148,7 @@ def generate_receipt_html(receipt: Receipt) -> str:
             <td class="right">${item.total:.2f}</td>
         </tr>
         """
-    
+
     html = f"""
 <!DOCTYPE html>
 <html>
@@ -301,5 +310,5 @@ def generate_receipt_html(receipt: Receipt) -> str:
 </body>
 </html>
     """
-    
+
     return html

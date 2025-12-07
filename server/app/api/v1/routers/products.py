@@ -1,6 +1,7 @@
 """
 Vendly POS - Products Router
 """
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -34,7 +35,9 @@ def list_products(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.filter(
-            m.Product.name.ilike(like) | m.Product.sku.ilike(like) | m.Product.barcode.ilike(like)
+            m.Product.name.ilike(like)
+            | m.Product.sku.ilike(like)
+            | m.Product.barcode.ilike(like)
         )
     if category_id:
         stmt = stmt.filter(m.Product.category_id == category_id)
@@ -90,11 +93,11 @@ def update_product(
     prod = db.get(m.Product, product_id)
     if not prod:
         raise HTTPException(404, detail="Product not found")
-    
+
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(prod, field, value)
-    
+
     db.commit()
     db.refresh(prod)
     return prod

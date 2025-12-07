@@ -1,6 +1,7 @@
 """
 Vendly POS - Customers Router
 """
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -61,9 +62,9 @@ def list_customers(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.filter(
-            m.Customer.name.ilike(like) | 
-            m.Customer.email.ilike(like) | 
-            m.Customer.phone.ilike(like)
+            m.Customer.name.ilike(like)
+            | m.Customer.email.ilike(like)
+            | m.Customer.phone.ilike(like)
         )
     if active_only:
         stmt = stmt.filter(m.Customer.is_active == True)
@@ -79,10 +80,12 @@ def create_customer(
     """Create a new customer"""
     # Check for duplicate email
     if payload.email:
-        existing = db.query(m.Customer).filter(m.Customer.email == payload.email).first()
+        existing = (
+            db.query(m.Customer).filter(m.Customer.email == payload.email).first()
+        )
         if existing:
             raise HTTPException(400, detail="Customer with this email already exists")
-    
+
     customer = m.Customer(
         name=payload.name,
         email=payload.email,
@@ -122,17 +125,19 @@ def update_customer(
     customer = db.get(m.Customer, customer_id)
     if not customer:
         raise HTTPException(404, detail="Customer not found")
-    
+
     # Check for duplicate email if changing
     if payload.email and payload.email != customer.email:
-        existing = db.query(m.Customer).filter(m.Customer.email == payload.email).first()
+        existing = (
+            db.query(m.Customer).filter(m.Customer.email == payload.email).first()
+        )
         if existing:
             raise HTTPException(400, detail="Customer with this email already exists")
-    
+
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(customer, field, value)
-    
+
     db.commit()
     db.refresh(customer)
     return customer
@@ -163,7 +168,7 @@ def adjust_loyalty_points(
     customer = db.get(m.Customer, customer_id)
     if not customer:
         raise HTTPException(404, detail="Customer not found")
-    
+
     customer.loyalty_points = max(0, customer.loyalty_points + payload.points)
     db.commit()
     db.refresh(customer)

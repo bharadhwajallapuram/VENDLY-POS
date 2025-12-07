@@ -1,6 +1,7 @@
 """
 Vendly POS - Reports Router
 """
+
 from datetime import datetime, date
 from typing import Optional
 
@@ -23,24 +24,24 @@ def get_summary(
 ):
     """Get sales summary report for a date range"""
     q = db.query(m.Sale).filter(m.Sale.status == "completed")
-    
+
     if start_date:
         q = q.filter(m.Sale.created_at >= start_date)
     if end_date:
         q = q.filter(m.Sale.created_at <= end_date + " 23:59:59")
-    
+
     sales = q.all()
-    
+
     total_sales = len(sales)
     total_revenue = sum(float(s.total) for s in sales)
     total_tax = sum(float(s.tax) for s in sales)
     total_discount = sum(float(s.discount) for s in sales)
-    
+
     # Get items sold count
     items_sold = 0
     for sale in sales:
         items_sold += sum(item.quantity for item in sale.items)
-    
+
     # Top products
     product_sales = {}
     for sale in sales:
@@ -55,11 +56,11 @@ def get_summary(
                 }
             product_sales[item.product_id]["quantity"] += item.quantity
             product_sales[item.product_id]["revenue"] += float(item.total)
-    
+
     top_products = sorted(
         product_sales.values(), key=lambda x: x["revenue"], reverse=True
     )[:10]
-    
+
     return {
         "start_date": start_date,
         "end_date": end_date,
@@ -82,14 +83,14 @@ def get_sales_by_day(
 ):
     """Get daily sales breakdown"""
     q = db.query(m.Sale).filter(m.Sale.status == "completed")
-    
+
     if start_date:
         q = q.filter(m.Sale.created_at >= start_date)
     if end_date:
         q = q.filter(m.Sale.created_at <= end_date + " 23:59:59")
-    
+
     sales = q.order_by(m.Sale.created_at).all()
-    
+
     # Group by day
     daily_sales = {}
     for sale in sales:
@@ -98,7 +99,7 @@ def get_sales_by_day(
             daily_sales[day] = {"date": day, "count": 0, "revenue": 0}
         daily_sales[day]["count"] += 1
         daily_sales[day]["revenue"] += float(sale.total)
-    
+
     return {"data": list(daily_sales.values())}
 
 
@@ -111,14 +112,14 @@ def get_sales_by_payment(
 ):
     """Get sales breakdown by payment method"""
     q = db.query(m.Sale).filter(m.Sale.status == "completed")
-    
+
     if start_date:
         q = q.filter(m.Sale.created_at >= start_date)
     if end_date:
         q = q.filter(m.Sale.created_at <= end_date + " 23:59:59")
-    
+
     sales = q.all()
-    
+
     # Group by payment method
     by_method = {}
     for sale in sales:
@@ -127,5 +128,5 @@ def get_sales_by_payment(
             by_method[method] = {"method": method, "count": 0, "revenue": 0}
         by_method[method]["count"] += 1
         by_method[method]["revenue"] += float(sale.total)
-    
+
     return {"data": list(by_method.values())}

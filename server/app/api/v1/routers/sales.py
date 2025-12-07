@@ -1,6 +1,7 @@
 """
 Vendly POS - Sales Router
 """
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -12,7 +13,12 @@ from app.api.v1.schemas.sales import SaleIn, SaleItemOut, SaleOut
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
 from app.services.ws_manager import manager
-from app.services.receipt import generate_receipt_text, generate_receipt_html, Receipt, ReceiptItem
+from app.services.receipt import (
+    generate_receipt_text,
+    generate_receipt_html,
+    Receipt,
+    ReceiptItem,
+)
 
 router = APIRouter()
 
@@ -30,38 +36,42 @@ def list_sales(
     if status:
         stmt = stmt.filter(m.Sale.status == status)
     sales = stmt.order_by(m.Sale.created_at.desc()).offset(skip).limit(limit).all()
-    
+
     # Convert to output format
     result = []
     for sale in sales:
         items = []
         for item in sale.items:
             product = db.get(m.Product, item.product_id)
-            items.append(SaleItemOut(
-                id=item.id,
-                sale_id=item.sale_id,
-                product_id=item.product_id,
-                product_name=product.name if product else None,
-                quantity=item.quantity,
-                unit_price=float(item.unit_price),
-                discount=float(item.discount),
-                total=float(item.total),
-            ))
-        result.append(SaleOut(
-            id=sale.id,
-            user_id=sale.user_id,
-            customer_id=sale.customer_id,
-            subtotal=float(sale.subtotal),
-            tax=float(sale.tax),
-            discount=float(sale.discount),
-            total=float(sale.total),
-            payment_method=sale.payment_method,
-            payment_reference=sale.payment_reference,
-            status=sale.status,
-            notes=sale.notes,
-            created_at=sale.created_at,
-            items=items,
-        ))
+            items.append(
+                SaleItemOut(
+                    id=item.id,
+                    sale_id=item.sale_id,
+                    product_id=item.product_id,
+                    product_name=product.name if product else None,
+                    quantity=item.quantity,
+                    unit_price=float(item.unit_price),
+                    discount=float(item.discount),
+                    total=float(item.total),
+                )
+            )
+        result.append(
+            SaleOut(
+                id=sale.id,
+                user_id=sale.user_id,
+                customer_id=sale.customer_id,
+                subtotal=float(sale.subtotal),
+                tax=float(sale.tax),
+                discount=float(sale.discount),
+                total=float(sale.total),
+                payment_method=sale.payment_method,
+                payment_reference=sale.payment_reference,
+                status=sale.status,
+                notes=sale.notes,
+                created_at=sale.created_at,
+                items=items,
+            )
+        )
     return result
 
 
@@ -75,20 +85,20 @@ def create_sale(
     # Calculate totals
     subtotal = 0.0
     tax = 0.0
-    
+
     for item in payload.items:
         product = db.get(m.Product, item.product_id)
         if not product:
             raise HTTPException(400, detail=f"Product {item.product_id} not found")
         if product.quantity < item.quantity:
             raise HTTPException(400, detail=f"Insufficient stock for {product.name}")
-        
+
         item_total = (item.unit_price * item.quantity) - item.discount
         subtotal += item_total
         tax += item_total * float(product.tax_rate) / 100
-    
+
     total = subtotal + tax - payload.discount
-    
+
     # Create sale
     sale = m.Sale(
         user_id=user.id,
@@ -104,13 +114,13 @@ def create_sale(
     )
     db.add(sale)
     db.flush()  # Get sale.id
-    
+
     # Create sale items and update inventory
     sale_items = []
     for item in payload.items:
         product = db.get(m.Product, item.product_id)
         item_total = (item.unit_price * item.quantity) - item.discount
-        
+
         sale_item = m.SaleItem(
             sale_id=sale.id,
             product_id=item.product_id,
@@ -121,31 +131,34 @@ def create_sale(
         )
         db.add(sale_item)
         sale_items.append(sale_item)
-        
+
         # Reduce inventory
         product.quantity -= item.quantity
-    
+
     db.commit()
     db.refresh(sale)
-    
+
     # Build response
     items_out = []
     for i, item in enumerate(sale_items):
         product = db.get(m.Product, item.product_id)
-        items_out.append(SaleItemOut(
-            id=item.id,
-            sale_id=sale.id,
-            product_id=item.product_id,
-            product_name=product.name if product else None,
-            quantity=item.quantity,
-            unit_price=float(item.unit_price),
-            discount=float(item.discount),
-            total=float(item.total),
-        ))
-    
+        items_out.append(
+            SaleItemOut(
+                id=item.id,
+                sale_id=sale.id,
+                product_id=item.product_id,
+                product_name=product.name if product else None,
+                quantity=item.quantity,
+                unit_price=float(item.unit_price),
+                discount=float(item.discount),
+                total=float(item.total),
+            )
+        )
+
     # Broadcast sale completed
     try:
         import anyio
+
         anyio.from_thread.run(
             manager.broadcast,
             {
@@ -156,7 +169,7 @@ def create_sale(
         )
     except Exception:
         pass
-    
+
     return SaleOut(
         id=sale.id,
         user_id=sale.user_id,
@@ -184,21 +197,23 @@ def get_sale(
     sale = db.get(m.Sale, sale_id)
     if not sale:
         raise HTTPException(404, detail="Sale not found")
-    
+
     items = []
     for item in sale.items:
         product = db.get(m.Product, item.product_id)
-        items.append(SaleItemOut(
-            id=item.id,
-            sale_id=item.sale_id,
-            product_id=item.product_id,
-            product_name=product.name if product else None,
-            quantity=item.quantity,
-            unit_price=float(item.unit_price),
-            discount=float(item.discount),
-            total=float(item.total),
-        ))
-    
+        items.append(
+            SaleItemOut(
+                id=item.id,
+                sale_id=item.sale_id,
+                product_id=item.product_id,
+                product_name=product.name if product else None,
+                quantity=item.quantity,
+                unit_price=float(item.unit_price),
+                discount=float(item.discount),
+                total=float(item.total),
+            )
+        )
+
     return SaleOut(
         id=sale.id,
         user_id=sale.user_id,
@@ -228,31 +243,33 @@ def void_sale(
         raise HTTPException(404, detail="Sale not found")
     if sale.status != "completed":
         raise HTTPException(400, detail="Can only void completed sales")
-    
+
     # Restore inventory
     for item in sale.items:
         product = db.get(m.Product, item.product_id)
         if product:
             product.quantity += item.quantity
-    
+
     sale.status = "voided"
     db.commit()
     db.refresh(sale)
-    
+
     items = []
     for item in sale.items:
         product = db.get(m.Product, item.product_id)
-        items.append(SaleItemOut(
-            id=item.id,
-            sale_id=item.sale_id,
-            product_id=item.product_id,
-            product_name=product.name if product else None,
-            quantity=item.quantity,
-            unit_price=float(item.unit_price),
-            discount=float(item.discount),
-            total=float(item.total),
-        ))
-    
+        items.append(
+            SaleItemOut(
+                id=item.id,
+                sale_id=item.sale_id,
+                product_id=item.product_id,
+                product_name=product.name if product else None,
+                quantity=item.quantity,
+                unit_price=float(item.unit_price),
+                discount=float(item.discount),
+                total=float(item.total),
+            )
+        )
+
     return SaleOut(
         id=sale.id,
         user_id=sale.user_id,
@@ -284,33 +301,35 @@ def get_receipt(
     sale = db.get(m.Sale, sale_id)
     if not sale:
         raise HTTPException(404, detail="Sale not found")
-    
+
     # Build receipt items
     receipt_items = []
     for item in sale.items:
         product = db.get(m.Product, item.product_id)
-        receipt_items.append(ReceiptItem(
-            name=product.name if product else f"Product #{item.product_id}",
-            quantity=item.quantity,
-            unit_price=float(item.unit_price),
-            total=float(item.total),
-        ))
-    
+        receipt_items.append(
+            ReceiptItem(
+                name=product.name if product else f"Product #{item.product_id}",
+                quantity=item.quantity,
+                unit_price=float(item.unit_price),
+                total=float(item.total),
+            )
+        )
+
     # Get cashier name
     cashier = db.get(m.User, sale.user_id)
     cashier_name = cashier.full_name or cashier.email if cashier else "Unknown"
-    
+
     # Get customer if any
     customer_name = None
     if sale.customer_id:
         customer = db.get(m.Customer, sale.customer_id)
         customer_name = customer.name if customer else None
-    
+
     # Calculate tax rate (assume 8% if not stored)
     tax_rate = 8.0
     if sale.subtotal > 0:
         tax_rate = round((float(sale.tax) / float(sale.subtotal)) * 100, 2)
-    
+
     # Build receipt object
     receipt = Receipt(
         receipt_number=f"R-{sale.id:06d}",
@@ -326,7 +345,7 @@ def get_receipt(
         cashier_name=cashier_name,
         customer_name=customer_name,
     )
-    
+
     if format == "text":
         receipt_content = generate_receipt_text(receipt)
         return PlainTextResponse(content=receipt_content)

@@ -19,14 +19,14 @@ async def login(
 ):
     ip = get_client_ip(request)
     result = await authenticate(db, payload.email, payload.password)
-    
+
     if not result:
         log_login_failed(payload.email, ip=ip)
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Log successful login
     log_login_success(result["user_id"], payload.email, ip=ip)
-    
+
     return result
 
 

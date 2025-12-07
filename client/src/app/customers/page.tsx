@@ -4,7 +4,7 @@
 // Vendly POS - Customers Page
 // ===========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Customers, CustomerOut, CustomerIn } from '@/lib/api';
 
@@ -46,7 +46,7 @@ function CustomersContent() {
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyReason, setLoyaltyReason] = useState('');
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await Customers.list(search || undefined);
@@ -57,11 +57,11 @@ function CustomersContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchCustomers();
-  }, [search]);
+  }, [fetchCustomers]);
 
   const openAddModal = () => {
     setEditingCustomer(null);

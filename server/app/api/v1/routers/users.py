@@ -1,6 +1,7 @@
 """
 Vendly POS - Users Router (Admin Only)
 """
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +11,12 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_db, require_role
 from app.db import models as m
 from app.services.auth import hash_password
-from app.services.audit import log_user_created, log_user_deleted, log_audit, AuditAction
+from app.services.audit import (
+    log_user_created,
+    log_user_deleted,
+    log_audit,
+    AuditAction,
+)
 
 router = APIRouter()
 
@@ -57,13 +63,13 @@ def list_users(
 ):
     """List all users (admin only)"""
     query = db.query(m.User)
-    
+
     if q:
         search = f"%{q}%"
         query = query.filter(
             (m.User.email.ilike(search)) | (m.User.full_name.ilike(search))
         )
-    
+
     return query.order_by(m.User.email).offset(skip).limit(limit).all()
 
 
@@ -78,12 +84,14 @@ def create_user(
     existing = db.query(m.User).filter(m.User.email == payload.email).first()
     if existing:
         raise HTTPException(400, detail="User with this email already exists")
-    
+
     # Validate role
     valid_roles = ["clerk", "manager", "admin"]
     if payload.role not in valid_roles:
-        raise HTTPException(400, detail=f"Role must be one of: {', '.join(valid_roles)}")
-    
+        raise HTTPException(
+            400, detail=f"Role must be one of: {', '.join(valid_roles)}"
+        )
+
     new_user = m.User(
         email=payload.email,
         password_hash=hash_password(payload.password),
@@ -94,10 +102,10 @@ def create_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     # Audit log
     log_user_created(admin.id, new_user.id, new_user.email, new_user.role)
-    
+
     return new_user
 
 
@@ -125,19 +133,21 @@ def update_user(
     db_user = db.get(m.User, user_id)
     if not db_user:
         raise HTTPException(404, detail="User not found")
-    
+
     # Check for duplicate email if changing
     if payload.email and payload.email != db_user.email:
         existing = db.query(m.User).filter(m.User.email == payload.email).first()
         if existing:
             raise HTTPException(400, detail="User with this email already exists")
-    
+
     # Validate role if changing
     if payload.role:
         valid_roles = ["clerk", "manager", "admin"]
         if payload.role not in valid_roles:
-            raise HTTPException(400, detail=f"Role must be one of: {', '.join(valid_roles)}")
-    
+            raise HTTPException(
+                400, detail=f"Role must be one of: {', '.join(valid_roles)}"
+            )
+
     # Apply updates
     if payload.email is not None:
         db_user.email = payload.email
@@ -149,7 +159,7 @@ def update_user(
         db_user.is_active = payload.is_active
     if payload.password is not None:
         db_user.password_hash = hash_password(payload.password)
-    
+
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -165,13 +175,13 @@ def delete_user(
     db_user = db.get(m.User, user_id)
     if not db_user:
         return
-    
+
     # Prevent deleting yourself
     if db_user.id == current_user.id:
         raise HTTPException(400, detail="Cannot delete your own account")
-    
+
     # Audit log before deletion
     log_user_deleted(current_user.id, db_user.id, db_user.email)
-    
+
     db.delete(db_user)
     db.commit()

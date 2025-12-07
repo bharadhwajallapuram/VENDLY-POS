@@ -42,7 +42,7 @@ def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
             )
-        
+
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="User is inactive"
@@ -57,11 +57,13 @@ def get_current_user(
 
 def require_role(allowed_roles: List[str]) -> Callable:
     """Create a dependency that requires specific roles"""
+
     def role_checker(user: m.User = Depends(get_current_user)) -> m.User:
         if user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required role: {', '.join(allowed_roles)}"
+                detail=f"Access denied. Required role: {', '.join(allowed_roles)}",
             )
         return user
+
     return role_checker

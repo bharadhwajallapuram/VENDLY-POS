@@ -19,10 +19,10 @@ def init_database():
     from app.db.models import Base, User
     from app.core.security import hash_password
     from sqlalchemy.orm import Session
-    
+
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    
+
     # Check if admin exists
     with Session(engine) as session:
         admin = session.query(User).filter(User.email == "admin@vendly.com").first()
@@ -33,7 +33,7 @@ def init_database():
                 password_hash=hash_password("admin123"),
                 full_name="System Admin",
                 is_active=True,
-                role="admin"
+                role="admin",
             )
             session.add(admin)
             session.commit()
@@ -45,27 +45,29 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events"""
     # Startup
     print(f"🚀 Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
-    
+
     # Initialize database
     init_database()
-    
+
     # Initialize Kafka producer if enabled
     if settings.KAFKA_ENABLED:
         try:
             from kafka.producer import producer
+
             await producer.start()
             print("✅ Kafka producer connected")
         except Exception as e:
             print(f"⚠️ Kafka connection failed: {e}")
-    
+
     yield
-    
+
     # Shutdown
     print(f"👋 Shutting down {settings.APP_NAME}")
-    
+
     if settings.KAFKA_ENABLED:
         try:
             from kafka.producer import producer
+
             await producer.stop()
         except Exception:
             pass
