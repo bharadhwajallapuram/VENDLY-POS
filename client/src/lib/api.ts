@@ -11,7 +11,7 @@ function getToken(): string | null {
 }
 
 // Base fetch wrapper with auth
-async function apiFetch<T>(
+export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -223,9 +223,14 @@ export const Sales = {
 
 export interface ReportSummary {
   total_sales: number;
-  total_revenue_cents: number;
-  average_sale_cents: number;
-  top_products: { name: string; quantity: number; revenue_cents: number }[];
+  total_revenue: number;
+  average_sale: number;
+  top_products: { name: string; quantity: number; revenue: number }[];
+  // Refund/Return statistics
+  total_refunds?: number;
+  total_returns?: number;
+  refund_amount?: number;
+  return_amount?: number;
 }
 
 export const Reports = {

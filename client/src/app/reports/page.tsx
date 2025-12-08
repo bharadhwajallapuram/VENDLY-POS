@@ -71,13 +71,37 @@ function ReportsContent() {
             <div className="card">
               <div className="text-sm text-gray-600 mb-1">Total Revenue</div>
               <div className="text-3xl font-bold">
-                ${(summary.total_revenue_cents / 100).toFixed(2)}
+                ${summary.total_revenue.toFixed(2)}
               </div>
             </div>
             <div className="card">
               <div className="text-sm text-gray-600 mb-1">Average Sale</div>
               <div className="text-3xl font-bold">
-                ${(summary.average_sale_cents / 100).toFixed(2)}
+                ${summary.average_sale.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          {/* Refunds & Returns Section */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="card border-l-4" style={{ borderLeftColor: '#d97706' }}>
+              <div className="text-sm text-gray-600 mb-1">Total Refunds</div>
+              <div className="text-2xl font-bold" style={{ color: '#d97706' }}>{summary.total_refunds || 0}</div>
+            </div>
+            <div className="card border-l-4" style={{ borderLeftColor: '#d97706' }}>
+              <div className="text-sm text-gray-600 mb-1">Refund Amount</div>
+              <div className="text-2xl font-bold" style={{ color: '#d97706' }}>
+                ${(summary.refund_amount || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="card border-l-4" style={{ borderLeftColor: '#dc2626' }}>
+              <div className="text-sm text-gray-600 mb-1">Total Returns</div>
+              <div className="text-2xl font-bold" style={{ color: '#dc2626' }}>{summary.total_returns || 0}</div>
+            </div>
+            <div className="card border-l-4" style={{ borderLeftColor: '#dc2626' }}>
+              <div className="text-sm text-gray-600 mb-1">Return Amount</div>
+              <div className="text-2xl font-bold" style={{ color: '#dc2626' }}>
+                ${(summary.return_amount || 0).toFixed(2)}
               </div>
             </div>
           </div>
@@ -106,7 +130,7 @@ function ReportsContent() {
                       <td className="p-3 font-medium">{product.name}</td>
                       <td className="p-3 text-right">{product.quantity}</td>
                       <td className="p-3 text-right">
-                        ${(product.revenue_cents / 100).toFixed(2)}
+                        ${product.revenue.toFixed(2)}
                       </td>
                     </tr>
                   ))

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
+from app.api.v1.schemas.refund import RefundItem, RefundRequest, RefundResponse
 from app.api.v1.schemas.sales import SaleIn, SaleItemOut, SaleOut
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
@@ -23,18 +24,158 @@ from app.services.ws_manager import manager
 router = APIRouter()
 
 
+# Refund endpoint (partial/full)
+@router.post("/{sale_id}/refund", response_model=RefundResponse)
+def refund_sale(
+    sale_id: int,
+    payload: RefundRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    # Validate employee ID
+    if not payload.employee_id or not payload.employee_id.strip():
+        raise HTTPException(400, detail="Employee ID is required for refund processing")
+    
+    # Verify employee exists (check by ID or email)
+    employee = db.query(m.User).filter(
+        (m.User.id == int(payload.employee_id) if payload.employee_id.isdigit() else False) |
+        (m.User.email == payload.employee_id)
+    ).first()
+    if not employee:
+        raise HTTPException(400, detail="Invalid Employee ID")
+    if not employee.is_active:
+        raise HTTPException(400, detail="Employee account is inactive")
+    
+    sale = db.get(m.Sale, sale_id)
+    if not sale:
+        raise HTTPException(404, detail="Sale not found")
+    if sale.status not in ("completed", "partially_refunded"):
+        raise HTTPException(400, detail="Can only refund completed sales")
+
+    total_refund = 0.0
+    refunded_items = []
+    for item in payload.items:
+        sale_item = db.get(m.SaleItem, item.sale_item_id)
+        if not sale_item or sale_item.sale_id != sale_id:
+            raise HTTPException(400, detail=f"Sale item {item.sale_item_id} not found in sale")
+        if item.quantity > sale_item.quantity:
+            raise HTTPException(400, detail=f"Cannot refund more than sold for item {sale_item.id}")
+        # Restore inventory
+        product = db.get(m.Product, sale_item.product_id)
+        if product:
+            product.quantity += item.quantity
+        # Calculate refund amount (convert Decimal to float)
+        unit_price = float(sale_item.unit_price) if sale_item.unit_price else 0.0
+        discount = float(sale_item.discount) if sale_item.discount else 0.0
+        refund_amount = (unit_price - discount) * item.quantity
+        total_refund += refund_amount
+        refunded_items.append({"sale_item_id": item.sale_item_id, "quantity": item.quantity})
+        # Reduce sale item quantity
+        sale_item.quantity -= item.quantity
+        sale_item.subtotal = float(sale_item.subtotal or 0) - refund_amount
+    # Update sale status
+    if all(si.quantity == 0 for si in sale.items):
+        sale.status = "refunded"
+    else:
+        sale.status = "partially_refunded"
+    db.commit()
+    db.refresh(sale)
+    return RefundResponse(
+        sale_id=sale.id,
+        refunded_items=[RefundItem(**ri) for ri in refunded_items],
+        status=sale.status,
+        refund_amount=round(total_refund, 2),
+        processed_by=payload.employee_id,
+        message=f"Refund processed successfully by employee {employee.email}."
+    )
+
+
+# Return endpoint (items returned to inventory, customer gets refund)
+@router.post("/{sale_id}/return", response_model=RefundResponse)
+def return_sale(
+    sale_id: int,
+    payload: RefundRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    # Validate employee ID
+    if not payload.employee_id or not payload.employee_id.strip():
+        raise HTTPException(400, detail="Employee ID is required for return processing")
+    
+    # Verify employee exists (check by ID or email)
+    employee = db.query(m.User).filter(
+        (m.User.id == int(payload.employee_id) if payload.employee_id.isdigit() else False) |
+        (m.User.email == payload.employee_id)
+    ).first()
+    if not employee:
+        raise HTTPException(400, detail="Invalid Employee ID")
+    if not employee.is_active:
+        raise HTTPException(400, detail="Employee account is inactive")
+    
+    sale = db.get(m.Sale, sale_id)
+    if not sale:
+        raise HTTPException(404, detail="Sale not found")
+    if sale.status not in ("completed", "partially_refunded", "partially_returned"):
+        raise HTTPException(400, detail="Can only return items from completed sales")
+
+    total_return = 0.0
+    returned_items = []
+    for item in payload.items:
+        sale_item = db.get(m.SaleItem, item.sale_item_id)
+        if not sale_item or sale_item.sale_id != sale_id:
+            raise HTTPException(400, detail=f"Sale item {item.sale_item_id} not found in sale")
+        if item.quantity > sale_item.quantity:
+            raise HTTPException(400, detail=f"Cannot return more than sold for item {sale_item.id}")
+        # Restore inventory
+        product = db.get(m.Product, sale_item.product_id)
+        if product:
+            product.quantity += item.quantity
+        # Calculate return amount (convert Decimal to float)
+        unit_price = float(sale_item.unit_price) if sale_item.unit_price else 0.0
+        discount = float(sale_item.discount) if sale_item.discount else 0.0
+        return_amount = (unit_price - discount) * item.quantity
+        total_return += return_amount
+        returned_items.append({"sale_item_id": item.sale_item_id, "quantity": item.quantity})
+        # Reduce sale item quantity
+        sale_item.quantity -= item.quantity
+        sale_item.subtotal = float(sale_item.subtotal or 0) - return_amount
+    # Update sale status
+    if all(si.quantity == 0 for si in sale.items):
+        sale.status = "returned"
+    else:
+        sale.status = "partially_returned"
+    db.commit()
+    db.refresh(sale)
+    return RefundResponse(
+        sale_id=sale.id,
+        refunded_items=[RefundItem(**ri) for ri in returned_items],
+        status=sale.status,
+        refund_amount=round(total_return, 2),
+        processed_by=payload.employee_id,
+        message=f"Return processed successfully by employee {employee.email}."
+    )
+
+
 @router.get("", response_model=List[SaleOut])
 def list_sales(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     status: Optional[str] = Query(None),
+    customer_phone: Optional[str] = Query(None),
+    customer_name: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """List all sales with optional filtering"""
+    """List all sales with optional filtering by status, customer phone, or customer name"""
     stmt = db.query(m.Sale)
     if status:
         stmt = stmt.filter(m.Sale.status == status)
+    if customer_phone or customer_name:
+        stmt = stmt.join(m.Customer, m.Sale.customer_id == m.Customer.id)
+        if customer_phone:
+            stmt = stmt.filter(m.Customer.phone.ilike(f"%{customer_phone}%"))
+        if customer_name:
+            stmt = stmt.filter(m.Customer.name.ilike(f"%{customer_name}%"))
     sales = stmt.order_by(m.Sale.created_at.desc()).offset(skip).limit(limit).all()
 
     # Convert to output format
@@ -141,6 +282,15 @@ def create_sale(
 
     db.commit()
     db.refresh(sale)
+
+    # Award loyalty points: 10 points per $1 spent
+    if sale.customer_id:
+        customer = db.get(m.Customer, sale.customer_id)
+        if customer:
+            points_earned = int(float(sale.total) * 10)
+            customer.loyalty_points = (customer.loyalty_points or 0) + points_earned
+            db.commit()
+            db.refresh(customer)
 
     # Build response
     items_out = []

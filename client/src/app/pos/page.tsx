@@ -7,6 +7,8 @@
 import { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PaymentModal from '@/components/PaymentModal';
+import Receipt from '@/components/Receipt';
+import { useRef } from 'react';
 import { useCart } from '@/store/cart';
 import { useAuth } from '@/store/auth';
 import { API_URL } from '@/lib/api';
@@ -21,6 +23,7 @@ interface SimpleProduct {
 }
 
 function POSContent() {
+  const receiptRef = useRef<HTMLDivElement>(null);
   const cart = useCart();
   const { user } = useAuth();
   
@@ -31,6 +34,14 @@ function POSContent() {
   const [error, setError] = useState('');
   const [lastSaleId, setLastSaleId] = useState<number | null>(null);
   const [showReceiptPrompt, setShowReceiptPrompt] = useState(false);
+  const [lastSale, setLastSale] = useState<any>(null);
+
+  // Customer details state
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
 
   // Load products on mount
   useEffect(() => {
@@ -81,6 +92,38 @@ function POSContent() {
   async function handlePayment(method: string, amountCents: number) {
     const token = localStorage.getItem('vendly_token');
     
+    if (!token) {
+      alert('You must be logged in to complete a sale');
+      return;
+    }
+    
+    // Create or find customer if details provided
+    let finalCustomerId = customerId;
+    if (!finalCustomerId && (customerName || customerPhone || customerEmail)) {
+      try {
+        const customerRes = await fetch(`${API_URL}/api/v1/customers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: customerName || 'Guest',
+            phone: customerPhone || null,
+            email: customerEmail || null,
+          }),
+        });
+        if (customerRes.ok) {
+          const customerData = await customerRes.json();
+          finalCustomerId = customerData.id;
+        } else {
+          console.error('Customer creation failed:', customerRes.status, await customerRes.text());
+        }
+      } catch (e) {
+        console.error('Failed to create customer:', e);
+      }
+    }
+
     // Build sale payload
     const salePayload = {
       items: cart.lines.map((line) => ({
@@ -93,7 +136,7 @@ function POSContent() {
       payment_reference: method === 'card' ? `CARD-${Date.now()}` : null,
       discount: 0,
       notes: null,
-      customer_id: null,
+      customer_id: finalCustomerId,
     };
     
     const response = await fetch(`${API_URL}/api/v1/sales`, {
@@ -112,37 +155,36 @@ function POSContent() {
     
     const sale = await response.json();
     setLastSaleId(sale.id);
+    setLastSale(sale);
     cart.clear();
     setPayOpen(false);
     setShowReceiptPrompt(true);
+    // Reset customer info
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerEmail('');
+    setCustomerId(null);
   }
 
-  // Print receipt
-  async function printReceipt(format: 'html' | 'text' = 'html') {
-    if (!lastSaleId) return;
-    
-    const token = localStorage.getItem('vendly_token');
-    const url = `${API_URL}/api/v1/sales/${lastSaleId}/receipt?format=${format}`;
-    
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    
-    if (!response.ok) {
-      alert('Failed to get receipt');
-      return;
-    }
-    
-    const receiptContent = await response.text();
-    
-    // Open print window
+  // Open customer modal before payment
+  function openCustomerModal() {
+    setShowCustomerModal(true);
+  }
+
+  // Proceed to payment after customer info
+  function proceedToPayment() {
+    setShowCustomerModal(false);
+    setPayOpen(true);
+  }
+
+  // Print in-app receipt
+  function printInAppReceipt() {
+    if (!receiptRef.current) return;
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     if (printWindow) {
-      if (format === 'html') {
-        printWindow.document.write(receiptContent);
-      } else {
-        printWindow.document.write(`<pre style="font-family: monospace; font-size: 12px;">${receiptContent}</pre>`);
-      }
+      printWindow.document.write('<html><head><title>Receipt</title></head><body>');
+      printWindow.document.write(receiptRef.current.innerHTML);
+      printWindow.document.write('</body></html>');
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
@@ -271,7 +313,7 @@ function POSContent() {
           <button
             className="btn btn-success w-full"
             disabled={cart.lines.length === 0}
-            onClick={() => setPayOpen(true)}
+            onClick={openCustomerModal}
           >
             Pay ${(total / 100).toFixed(2)}
           </button>
@@ -293,8 +335,55 @@ function POSContent() {
         onPay={handlePayment}
       />
 
-      {/* Receipt Prompt Modal */}
-      {showReceiptPrompt && (
+      {/* Customer Details Modal */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">Customer Details</h2>
+            <p className="text-gray-500 text-sm mb-4">Enter customer info (optional)</p>
+            <div className="space-y-3 mb-4">
+              <input
+                type="text"
+                className="input w-full"
+                placeholder="Customer Name"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+              />
+              <input
+                type="tel"
+                className="input w-full"
+                placeholder="Phone Number"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+              />
+              <input
+                type="email"
+                className="input w-full"
+                placeholder="Email (optional)"
+                value={customerEmail}
+                onChange={e => setCustomerEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <button
+                className="btn btn-success w-full"
+                onClick={proceedToPayment}
+              >
+                Continue to Payment
+              </button>
+              <button
+                className="btn btn-secondary w-full"
+                onClick={() => { setShowCustomerModal(false); setPayOpen(true); }}
+              >
+                Skip (Guest Checkout)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Prompt Modal (in-app printable) */}
+      {showReceiptPrompt && lastSale && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <div className="text-center mb-6">
@@ -302,19 +391,27 @@ function POSContent() {
               <h2 className="text-xl font-semibold text-green-600">Payment Successful!</h2>
               <p className="text-gray-500 mt-2">Sale #{lastSaleId} completed</p>
             </div>
-
+            <div className="mb-4 flex justify-center">
+              <div ref={receiptRef}>
+                <Receipt
+                  saleId={lastSaleId!}
+                  items={lastSale.items?.map((item: any) => ({
+                    name: item.product_name || item.name,
+                    price: Math.round(item.unit_price * 100),
+                    quantity: item.quantity,
+                  })) || []}
+                  total={Math.round(lastSale.total * 100) || 0}
+                  date={lastSale.created_at ? new Date(lastSale.created_at).toLocaleString() : new Date().toLocaleString()}
+                  cashier={user?.full_name || user?.email}
+                />
+              </div>
+            </div>
             <div className="space-y-3">
               <button
-                onClick={() => printReceipt('html')}
+                onClick={printInAppReceipt}
                 className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >
                 🖨️ Print Receipt
-              </button>
-              <button
-                onClick={() => printReceipt('text')}
-                className="w-full py-2 border rounded-lg hover:bg-gray-50 text-sm"
-              >
-                Print for Thermal Printer (Text)
               </button>
               <button
                 onClick={closeReceiptPrompt}
