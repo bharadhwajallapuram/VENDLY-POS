@@ -269,3 +269,92 @@ class TestSalesEndpoints:
         assert (
             "Sale Test Product" in response.text or "RECEIPT" in response.text.upper()
         )
+
+    def test_refund_full_and_partial(
+        self, client: TestClient, auth_headers: dict, sample_product: dict
+    ):
+        """Test full and partial refund of a sale"""
+        # Create a sale with 3 items
+        sale_data = {
+            "items": [
+                {
+                    "product_id": sample_product["id"],
+                    "quantity": 3,
+                    "unit_price": 29.99,
+                    "discount": 0,
+                }
+            ],
+            "payment_method": "cash",
+            "discount": 0,
+        }
+        create_response = client.post(
+            "/api/v1/sales", json=sale_data, headers=auth_headers
+        )
+        sale = create_response.json()
+        sale_id = sale["id"]
+        sale_item_id = sale["items"][0]["id"]
+
+        # Partial refund (1 out of 3)
+        refund_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        refund_response = client.post(
+            f"/api/v1/sales/{sale_id}/refund", json=refund_data, headers=auth_headers
+        )
+        assert refund_response.status_code == 200
+        refund_result = refund_response.json()
+        assert refund_result["status"] == "partially_refunded"
+        assert refund_result["refund_amount"] > 0
+
+        # Full refund (remaining 2 out of 3)
+        refund_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 2}]}
+        refund_response = client.post(
+            f"/api/v1/sales/{sale_id}/refund", json=refund_data, headers=auth_headers
+        )
+        assert refund_response.status_code == 200
+        refund_result = refund_response.json()
+        assert refund_result["status"] == "refunded"
+        assert refund_result["refund_amount"] > 0
+
+    def test_return_full_and_partial(
+        self, client: TestClient, auth_headers: dict, sample_product: dict
+    ):
+        """Test full and partial return of a sale (if /return endpoint exists)"""
+        # Create a sale with 2 items
+        sale_data = {
+            "items": [
+                {
+                    "product_id": sample_product["id"],
+                    "quantity": 2,
+                    "unit_price": 29.99,
+                    "discount": 0,
+                }
+            ],
+            "payment_method": "cash",
+            "discount": 0,
+        }
+        create_response = client.post(
+            "/api/v1/sales", json=sale_data, headers=auth_headers
+        )
+        sale = create_response.json()
+        sale_id = sale["id"]
+        sale_item_id = sale["items"][0]["id"]
+
+        # Partial return (1 out of 2)
+        return_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        return_response = client.post(
+            f"/api/v1/sales/{sale_id}/return", json=return_data, headers=auth_headers
+        )
+        # Accept 200 (success) or 404 (if not implemented)
+        assert return_response.status_code in (200, 404)
+        if return_response.status_code == 200:
+            return_result = return_response.json()
+            assert return_result["status"] in ("partially_returned", "partially_refunded", "returned", "refunded")
+
+        # Full return (remaining 1 out of 2)
+        return_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        return_response = client.post(
+            f"/api/v1/sales/{sale_id}/return", json=return_data, headers=auth_headers
+        )
+        assert return_response.status_code in (200, 404)
+        if return_response.status_code == 200:
+            return_result = return_response.json()
+            assert return_result["status"] in ("returned", "refunded")

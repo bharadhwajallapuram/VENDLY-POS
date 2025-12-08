@@ -20,12 +20,20 @@ interface AuthState {
   clearAuth: () => void;
   isAuthenticated: () => boolean;
   hasRole: (roles: UserRole[]) => boolean;
+  initFromStorage: () => void;
 }
 
-// No persist - session will be cleared on page refresh
+// Rehydrate token from localStorage on initialization
+const getInitialToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('vendly_token');
+  }
+  return null;
+};
+
 export const useAuth = create<AuthState>()((set, get) => ({
   user: null,
-  token: null,
+  token: getInitialToken(),
 
   setUser: (user) => set({ user }),
 
@@ -50,6 +58,15 @@ export const useAuth = create<AuthState>()((set, get) => ({
     const user = get().user;
     if (!user) return false;
     return roles.includes(user.role);
+  },
+
+  initFromStorage: () => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('vendly_token');
+      if (token) {
+        set({ token });
+      }
+    }
   },
 }));
 

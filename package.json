@@ -57,5 +57,8 @@
     "pos-system"
   ],
   "author": "Bharadhwaj Allapuram",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@stripe/react-stripe-js": "^5.4.1"
+  }
 }

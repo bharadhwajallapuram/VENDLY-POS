@@ -65,6 +65,35 @@ def get_summary(
         product_sales.values(), key=lambda x: float(x["revenue"]), reverse=True
     )[:10]
 
+    # Get refund/return statistics
+    refund_q = db.query(m.Sale).filter(
+        m.Sale.status.in_(["refunded", "partially_refunded", "returned", "partially_returned"])
+    )
+    if start_date:
+        refund_q = refund_q.filter(m.Sale.created_at >= start_date)
+    if end_date:
+        refund_q = refund_q.filter(m.Sale.created_at <= end_date + " 23:59:59")
+    
+    refund_sales = refund_q.all()
+    total_refunds = len([s for s in refund_sales if s.status in ("refunded", "partially_refunded")])
+    total_returns = len([s for s in refund_sales if s.status in ("returned", "partially_returned")])
+    
+    # Calculate refund amounts (rough estimate based on status changes)
+    refund_amount = 0.0
+    return_amount = 0.0
+    for sale in refund_sales:
+        if sale.status in ("refunded", "partially_refunded"):
+            # For fully refunded, count original total; for partial, estimate half
+            if sale.status == "refunded":
+                refund_amount += float(sale.total)
+            else:
+                refund_amount += float(sale.total) * 0.5  # Rough estimate
+        elif sale.status in ("returned", "partially_returned"):
+            if sale.status == "returned":
+                return_amount += float(sale.total)
+            else:
+                return_amount += float(sale.total) * 0.5
+
     return {
         "start_date": start_date,
         "end_date": end_date,
@@ -75,6 +104,11 @@ def get_summary(
         "items_sold": items_sold,
         "average_sale": total_revenue / total_sales if total_sales > 0 else 0,
         "top_products": top_products,
+        # Refund/Return statistics
+        "total_refunds": total_refunds,
+        "total_returns": total_returns,
+        "refund_amount": round(refund_amount, 2),
+        "return_amount": round(return_amount, 2),
     }
 
 

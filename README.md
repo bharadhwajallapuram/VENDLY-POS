@@ -1,6 +1,7 @@
+
 # Vendly - Enterprise Point of Sale System
 
-A modern, enterprise-grade point-of-sale system built with React, TypeScript, FastAPI, and Python. Designed for high availability, scalability, and real-time operations.
+A modern, enterprise-grade point-of-sale system built with Next.js 14 (React/TypeScript) frontend and FastAPI (Python) backend. Includes trending AI features, real-time event processing, and robust security.
 
 ## 🏗️ Architecture
 
@@ -28,18 +29,13 @@ Vendly follows a microservices-inspired architecture with event-driven patterns:
 
 ```
 vendly/
-├── client/              # Next.js frontend application
-├── server/              # FastAPI backend application
+
+├── client/              # Next.js 14 frontend (React, TypeScript, Tailwind)
+├── server/              # FastAPI backend (Python 3.11, SQLAlchemy, Alembic)
 ├── shared/              # Shared types and utilities
-├── ai_ml/               # AI/ML prediction services
-├── kafka/               # Event streaming configuration
-├── k8s/                 # Kubernetes manifests
-├── monitoring/          # Prometheus & alerting
-├── nginx/               # Reverse proxy configuration
-├── redis/               # Cache configuration
-├── scripts/             # Build and deployment scripts
-├── docker-compose.yml   # Container orchestration
-├── Dockerfile           # Multi-stage build
+├── ai_ml/               # AI/ML services (forecasting, anomaly, recommendations, pricing, LLM, voice)
+├── scripts/             # Utility scripts (e.g., seed_products.py for demo data)
+├── docker-compose.yaml  # Container orchestration
 ├── config.example.yaml  # User configuration template
 └── .env.example         # Environment template
 ```
@@ -53,23 +49,31 @@ vendly/
 - Docker & Docker Compose (for containerized deployment)
 - npm >= 9.0.0
 
+
 ### Local Development
 
 1. Clone the repository:
-```bash
-git clone https://github.com/bharadhwajallapuram/Vendly-fastapi-Js.git
-cd vendly
-```
+	```bash
+	git clone https://github.com/bharadhwajallapuram/Vendly-fastapi-Js.git
+	cd Vendly-fastapi-Js
+	```
 
 2. Install dependencies:
-```bash
-npm run setup
-```
+	```bash
+	npm run setup
+	```
 
 3. Start development servers:
-```bash
-npm run dev
-```
+	```bash
+	npm run dev
+	```
+
+4. (Optional) Seed demo products:
+	```bash
+	cd server
+	python scripts/seed_products.py
+	```
+
 
 ### Docker Deployment
 
@@ -99,10 +103,11 @@ kubectl apply -f k8s/
 
 ### `/client` - Frontend Application
 - **React 18** with TypeScript
-- **Vite** for fast development
+ - **Next.js 14** for fast, modern React development
 - **Tailwind CSS** for styling
 - **Zustand** for state management
 - Role-based access control
+
 
 ### `/server` - Backend API
 - **FastAPI** with async support
@@ -110,11 +115,51 @@ kubectl apply -f k8s/
 - **Alembic** for migrations
 - **JWT** authentication
 - Prometheus metrics
+- **Planned/Supported Payments:**
+	- Stripe integration (credit/debit cards, wallets)
+	- UPI integration (via Razorpay, Cashfree, or Paytm)
+	- API endpoints for payment intents, webhooks, and payment status
+### `/payments` - Payment Integration (Planned/Extensible)
+- Stripe for global card payments (PCI-compliant)
+- UPI for India (QR, collect, intent)
+- Easily extendable for other gateways
+
+**To enable Stripe/UPI:**
+1. Add your Stripe/UPI provider API keys to `.env` and backend config.
+2. Use the provided endpoints or follow the integration guide in `/docs/payments.md` (to be created).
+3. Frontend: Use Stripe.js or UPI QR/intent flows for user checkout.
+
+**Roadmap:**
+- [ ] Backend: Stripe payment intent endpoint (`/api/v1/payments/stripe-intent`)
+- [ ] Backend: UPI payment request endpoint (`/api/v1/payments/upi-request`)
+- [ ] Webhook handling for payment confirmation
+- [ ] Frontend: Stripe Elements integration
+- [ ] Frontend: UPI QR/intent UI
+
 
 ### `/ai_ml` - AI/ML Services
-- Sales forecasting with Random Forest
-- Inventory optimization (EOQ, reorder points)
-- Anomaly detection with Isolation Forest
+- Sales forecasting (moving average, ready for ML)
+- Anomaly detection (z-score, ready for ML)
+- Personalized recommendations
+- Dynamic pricing
+- LLM analytics (keyword-based, ready for OpenAI)
+- Voice-enabled POS (demo, ready for STT)
+## 🧠 Trending AI Features
+
+Vendly exposes modern AI endpoints at `/api/v1/ai/`:
+- `/forecast` - Sales forecasting
+- `/anomaly` - Anomaly detection
+- `/recommend` - Personalized recommendations
+- `/price-suggest` - Dynamic pricing
+- `/ask` - Natural language analytics
+- `/voice` - Voice command processing
+
+See the [AI demo page](http://localhost:3000/ai-demo) in the frontend to test all features.
+## 🧪 Troubleshooting
+
+- If you only see one product in the frontend, ensure you have seeded demo products and are using the correct database file.
+- If AI endpoints return 404, check backend logs for import errors and confirm `/api/v1/ai` endpoints are listed in `/docs`.
+- If you see `ModuleNotFoundError: No module named 'pandas'`, run `python -m pip install pandas` in your backend directory.
 
 ### `/kafka` - Event Streaming
 - Real-time event processing
@@ -227,6 +272,7 @@ Access metrics at:
 3. Make your changes
 4. Run tests and linting
 5. Submit a pull request
+
 
 ## 📄 License
 

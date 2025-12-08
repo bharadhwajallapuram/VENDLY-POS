@@ -1,6 +1,8 @@
+
+
 # ===========================================
 # Vendly POS - Main Application
-# Based on BVM-POS Architecture
+# Created: 2024-01-15
 # ===========================================
 
 from contextlib import asynccontextmanager
@@ -22,57 +24,67 @@ def init_database():
     from app.db.models import Base, User
     from app.db.session import engine
 
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    try:
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
 
-    # Check if admin exists
-    with Session(engine) as session:
-        admin = session.query(User).filter(User.email == "admin@vendly.com").first()
-        if not admin:
-            # Create default admin user
-            admin = User(
-                email="admin@vendly.com",
-                password_hash=hash_password("admin123"),
-                full_name="System Admin",
-                is_active=True,
-                role="admin",
-            )
-            session.add(admin)
-            session.commit()
-            print("✅ Default admin created: admin@vendly.com / admin123")
+        # Check if admin exists
+        with Session(engine) as session:
+            admin = session.query(User).filter(User.email == "admin@vendly.com").first()
+            if not admin:
+                # Create default admin user
+                admin = User(
+                    email="admin@vendly.com",
+                    password_hash=hash_password("admin123"),
+                    full_name="System Admin",
+                    is_active=True,
+                    role="admin",
+                )
+                session.add(admin)
+                session.commit()
+                print("✅ Default admin created: admin@vendly.com / admin123")
+    except Exception as e:
+        print(f"❌ Error in init_database: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events"""
-    # Startup
-    print(f"🚀 Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
+    try:
+        # Startup
+        print(f"🚀 Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
 
-    # Initialize database
-    init_database()
+        # Initialize database
+        init_database()
 
-    # Initialize Kafka producer if enabled
-    if settings.KAFKA_ENABLED:
-        try:
-            from kafka.producer import producer
+        # Initialize Kafka producer if enabled
+        if settings.KAFKA_ENABLED:
+            try:
+                from kafka.producer import producer
 
-            await producer.start()
-            print("✅ Kafka producer connected")
-        except Exception as e:
-            print(f"⚠️ Kafka connection failed: {e}")
+                await producer.start()
+                print("✅ Kafka producer connected")
+            except Exception as e:
+                print(f"⚠️ Kafka connection failed: {e}")
 
-    yield
+        yield
 
-    # Shutdown
-    print(f"👋 Shutting down {settings.APP_NAME}")
+        # Shutdown
+        print(f"👋 Shutting down {settings.APP_NAME}")
 
-    if settings.KAFKA_ENABLED:
-        try:
-            from kafka.producer import producer
+        if settings.KAFKA_ENABLED:
+            try:
+                from kafka.producer import producer
 
-            await producer.stop()
-        except Exception:
-            pass
+                await producer.stop()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"❌ Error in lifespan: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 app = FastAPI(

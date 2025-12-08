@@ -4,6 +4,7 @@
 // Vendly POS - Navigation Component
 // ===========================================
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useRoleCheck } from '@/store/auth';
@@ -13,7 +14,14 @@ export default function Nav() {
   const pathname = usePathname();
   const { user, token, clearAuth } = useAuth();
   const { isManager, isAdmin } = useRoleCheck();
-  const isAuthenticated = !!token;
+  
+  // Prevent hydration mismatch by only rendering auth-dependent content after mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isAuthenticated = mounted && !!token;
 
   const handleLogout = () => {
     clearAuth();
@@ -31,6 +39,12 @@ export default function Nav() {
 
         {isAuthenticated && (
           <div className="flex items-center gap-4 text-sm">
+            <Link
+              href="/returns"
+              className={`hover:text-primary-600 ${isActive('/returns') ? 'font-semibold text-primary-600' : ''}`}
+            >
+              Refund/Return
+            </Link>
             <Link
               href="/pos"
               className={`hover:text-primary-600 ${isActive('/pos') ? 'font-semibold text-primary-600' : ''}`}
@@ -87,7 +101,9 @@ export default function Nav() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
-          {isAuthenticated ? (
+          {!mounted ? (
+            <div className="text-sm text-gray-400">Loading...</div>
+          ) : isAuthenticated ? (
             <>
               <div className="text-sm text-gray-600 flex items-center gap-2">
                 <span>{user?.full_name || user?.email}</span>
