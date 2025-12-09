@@ -12,15 +12,12 @@ def create_stripe_payment_intent(
     if not stripe.api_key:
         raise ValueError("Stripe secret key is not configured")
 
-    create_kwargs: dict[str, object] = {
-        "amount": amount,
-        "currency": currency,
-        "payment_method_types": ["card"],
-    }
-    if description:
-        create_kwargs["description"] = description
-
-    intent = stripe.PaymentIntent.create(**create_kwargs)  # type: ignore[arg-type]
+    intent = stripe.PaymentIntent.create(
+        amount=amount,
+        currency=currency,
+        description=description or "",
+        payment_method_types=["card"],
+    )
     client_secret = intent.client_secret
     if client_secret is None:
         raise ValueError("Failed to create payment intent - no client secret returned")
