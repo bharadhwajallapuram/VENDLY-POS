@@ -26,7 +26,7 @@ router = APIRouter()
 
 
 # Simple in-memory coupons/promotions
-# type: percent (value=percent off) or amount (value=fixed dollars off)
+# Types: "percent" (value=percent off) or "amount" (value=fixed dollars off)
 # max_off caps the discount for percent coupons
 COUPONS = {
     "SAVE10": {"type": "percent", "value": 10},
