@@ -1,5 +1,3 @@
-
-
 # ===========================================
 # Vendly POS - Main Application
 # Created: 2024-01-15
@@ -42,10 +40,11 @@ def init_database():
                 )
                 session.add(admin)
                 session.commit()
-                print("✅ Default admin created: admin@vendly.com / admin123")
+                print("[OK] Default admin created: admin@vendly.com / admin123")
     except Exception as e:
-        print(f"❌ Error in init_database: {e}")
+        print(f"[ERROR] Error in init_database: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -54,7 +53,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events"""
     try:
         # Startup
-        print(f"🚀 Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
+        print(f"[STARTUP] Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
 
         # Initialize database
         init_database()
@@ -65,14 +64,14 @@ async def lifespan(app: FastAPI):
                 from kafka.producer import producer
 
                 await producer.start()
-                print("✅ Kafka producer connected")
+                print("[OK] Kafka producer connected")
             except Exception as e:
-                print(f"⚠️ Kafka connection failed: {e}")
+                print(f"[WARNING] Kafka connection failed: {e}")
 
         yield
 
         # Shutdown
-        print(f"👋 Shutting down {settings.APP_NAME}")
+        print(f"[SHUTDOWN] Shutting down {settings.APP_NAME}")
 
         if settings.KAFKA_ENABLED:
             try:
@@ -82,8 +81,9 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
     except Exception as e:
-        print(f"❌ Error in lifespan: {e}")
+        print(f"[ERROR] Error in lifespan: {e}")
         import traceback
+
         traceback.print_exc()
 
 

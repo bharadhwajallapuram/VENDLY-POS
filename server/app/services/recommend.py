@@ -1,6 +1,7 @@
 import random
 from typing import List
 
+
 def recommend_products(customer_id: int, n: int = 3) -> List[int]:
     """
     Recommend n product IDs for a customer.

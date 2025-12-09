@@ -1,6 +1,17 @@
 from fastapi import APIRouter
 
-from . import auth, customers, products, reports, sales, users, ws, ai, payments
+from . import (
+    ai,
+    auth,
+    coupons,
+    customers,
+    payments,
+    products,
+    reports,
+    sales,
+    users,
+    ws,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -12,3 +23,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(ws.router, tags=["websocket"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
+api_router.include_router(coupons.router, prefix="/coupons", tags=["coupons"])

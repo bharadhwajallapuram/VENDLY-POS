@@ -52,7 +52,7 @@ def create_mysql_database(url: str, db_name: str):
             )
         )
         conn.commit()
-        print(f"✅ Database '{db_name}' created or already exists")
+        print(f"[OK] Database '{db_name}' created or already exists")
 
     engine.dispose()
 
@@ -74,7 +74,7 @@ def create_tables(drop_existing: bool = False):
         try:
             create_mysql_database(db_url, db_name)
         except Exception as e:
-            print(f"❌ Error creating database: {e}")
+            print(f"[ERROR] Error creating database: {e}")
             print("\nMake sure MySQL is running and credentials are correct.")
             sys.exit(1)
 
@@ -87,30 +87,30 @@ def create_tables(drop_existing: bool = False):
             if "mysql" in db_url:
                 result = conn.execute(text("SELECT VERSION()"))
                 version = result.scalar()
-                print(f"✅ Connected to MySQL {version}")
+                print(f"[OK] Connected to MySQL {version}")
             elif "sqlite" in db_url:
-                print(f"✅ Connected to SQLite")
+                print(f"[OK] Connected to SQLite")
             elif "postgresql" in db_url:
                 result = conn.execute(text("SELECT version()"))
                 version = result.scalar()
-                print(f"✅ Connected to {version.split(',')[0]}")
+                print(f"[OK] Connected to {version.split(',')[0]}")
     except OperationalError as e:
-        print(f"❌ Connection failed: {e}")
+        print(f"[ERROR] Connection failed: {e}")
         sys.exit(1)
 
     # Drop tables if requested
     if drop_existing:
-        print("\n⚠️  Dropping existing tables...")
+        print("\n[WARNING] Dropping existing tables...")
         Base.metadata.drop_all(bind=engine)
-        print("✅ Tables dropped")
+        print("[OK] Tables dropped")
 
     # Create tables
     print("\n📦 Creating tables...")
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Tables created successfully!")
+        print("[OK] Tables created successfully!")
     except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+        print(f"[ERROR] Error creating tables: {e}")
         sys.exit(1)
 
     # List created tables
@@ -122,7 +122,7 @@ def create_tables(drop_existing: bool = False):
 
     engine.dispose()
     print(f"\n{'='*50}")
-    print("✅ Database initialization complete!")
+    print("[OK] Database initialization complete!")
     print(f"{'='*50}\n")
 
 
@@ -139,7 +139,7 @@ def create_admin_user():
         # Check if admin exists
         existing = session.query(User).filter(User.email == "admin@vendly.com").first()
         if existing:
-            print("ℹ️  Admin user already exists")
+            print("[INFO] Admin user already exists")
             return
 
         # Create admin user
@@ -152,7 +152,7 @@ def create_admin_user():
         )
         session.add(admin)
         session.commit()
-        print("✅ Admin user created: admin@vendly.com / admin123")
+        print("[OK] Admin user created: admin@vendly.com / admin123")
 
     engine.dispose()
 

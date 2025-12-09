@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install as this is a workspace package)
+RUN npm install --frozen-lockfile 2>/dev/null || npm install
 
 # Copy source code
 COPY . .

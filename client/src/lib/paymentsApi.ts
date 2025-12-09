@@ -1,4 +1,14 @@
-import { StripePaymentIntentRequest, StripePaymentIntentResponse } from "../../shared/types";
+// Stripe Payment Types
+export interface StripePaymentIntentRequest {
+  amount: number;
+  currency?: string;
+  sale_id?: number;
+}
+
+export interface StripePaymentIntentResponse {
+  client_secret: string;
+  payment_intent_id: string;
+}
 
 export async function createStripePaymentIntent(req: StripePaymentIntentRequest): Promise<StripePaymentIntentResponse> {
   const res = await fetch("/api/v1/payments/stripe-intent", {

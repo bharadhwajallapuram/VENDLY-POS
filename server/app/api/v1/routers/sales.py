@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.refund import RefundItem, RefundRequest, RefundResponse
@@ -24,6 +25,16 @@ from app.services.ws_manager import manager
 router = APIRouter()
 
 
+# Simple in-memory coupons/promotions
+# type: percent (value=percent off) or amount (value=fixed dollars off)
+# max_off caps the discount for percent coupons
+COUPONS = {
+    "SAVE10": {"type": "percent", "value": 10},
+    "WELCOME15": {"type": "percent", "value": 15, "max_off": 25},
+    "FLAT5": {"type": "amount", "value": 5},
+}
+
+
 # Refund endpoint (partial/full)
 @router.post("/{sale_id}/refund", response_model=RefundResponse)
 def refund_sale(
@@ -35,17 +46,26 @@ def refund_sale(
     # Validate employee ID
     if not payload.employee_id or not payload.employee_id.strip():
         raise HTTPException(400, detail="Employee ID is required for refund processing")
-    
+
     # Verify employee exists (check by ID or email)
-    employee = db.query(m.User).filter(
-        (m.User.id == int(payload.employee_id) if payload.employee_id.isdigit() else False) |
-        (m.User.email == payload.employee_id)
-    ).first()
+    if payload.employee_id.isdigit():
+        employee = (
+            db.query(m.User)
+            .filter(
+                or_(
+                    m.User.id == int(payload.employee_id),
+                    m.User.email == payload.employee_id,
+                )
+            )
+            .first()
+        )
+    else:
+        employee = db.query(m.User).filter(m.User.email == payload.employee_id).first()
     if not employee:
         raise HTTPException(400, detail="Invalid Employee ID")
     if not employee.is_active:
         raise HTTPException(400, detail="Employee account is inactive")
-    
+
     sale = db.get(m.Sale, sale_id)
     if not sale:
         raise HTTPException(404, detail="Sale not found")
@@ -57,9 +77,13 @@ def refund_sale(
     for item in payload.items:
         sale_item = db.get(m.SaleItem, item.sale_item_id)
         if not sale_item or sale_item.sale_id != sale_id:
-            raise HTTPException(400, detail=f"Sale item {item.sale_item_id} not found in sale")
+            raise HTTPException(
+                400, detail=f"Sale item {item.sale_item_id} not found in sale"
+            )
         if item.quantity > sale_item.quantity:
-            raise HTTPException(400, detail=f"Cannot refund more than sold for item {sale_item.id}")
+            raise HTTPException(
+                400, detail=f"Cannot refund more than sold for item {sale_item.id}"
+            )
         # Restore inventory
         product = db.get(m.Product, sale_item.product_id)
         if product:
@@ -69,7 +93,9 @@ def refund_sale(
         discount = float(sale_item.discount) if sale_item.discount else 0.0
         refund_amount = (unit_price - discount) * item.quantity
         total_refund += refund_amount
-        refunded_items.append({"sale_item_id": item.sale_item_id, "quantity": item.quantity})
+        refunded_items.append(
+            {"sale_item_id": item.sale_item_id, "quantity": item.quantity}
+        )
         # Reduce sale item quantity
         sale_item.quantity -= item.quantity
         sale_item.subtotal = float(sale_item.subtotal or 0) - refund_amount
@@ -86,7 +112,7 @@ def refund_sale(
         status=sale.status,
         refund_amount=round(total_refund, 2),
         processed_by=payload.employee_id,
-        message=f"Refund processed successfully by employee {employee.email}."
+        message=f"Refund processed successfully by employee {employee.email}.",
     )
 
 
@@ -101,17 +127,26 @@ def return_sale(
     # Validate employee ID
     if not payload.employee_id or not payload.employee_id.strip():
         raise HTTPException(400, detail="Employee ID is required for return processing")
-    
+
     # Verify employee exists (check by ID or email)
-    employee = db.query(m.User).filter(
-        (m.User.id == int(payload.employee_id) if payload.employee_id.isdigit() else False) |
-        (m.User.email == payload.employee_id)
-    ).first()
+    if payload.employee_id.isdigit():
+        employee = (
+            db.query(m.User)
+            .filter(
+                or_(
+                    m.User.id == int(payload.employee_id),
+                    m.User.email == payload.employee_id,
+                )
+            )
+            .first()
+        )
+    else:
+        employee = db.query(m.User).filter(m.User.email == payload.employee_id).first()
     if not employee:
         raise HTTPException(400, detail="Invalid Employee ID")
     if not employee.is_active:
         raise HTTPException(400, detail="Employee account is inactive")
-    
+
     sale = db.get(m.Sale, sale_id)
     if not sale:
         raise HTTPException(404, detail="Sale not found")
@@ -123,9 +158,13 @@ def return_sale(
     for item in payload.items:
         sale_item = db.get(m.SaleItem, item.sale_item_id)
         if not sale_item or sale_item.sale_id != sale_id:
-            raise HTTPException(400, detail=f"Sale item {item.sale_item_id} not found in sale")
+            raise HTTPException(
+                400, detail=f"Sale item {item.sale_item_id} not found in sale"
+            )
         if item.quantity > sale_item.quantity:
-            raise HTTPException(400, detail=f"Cannot return more than sold for item {sale_item.id}")
+            raise HTTPException(
+                400, detail=f"Cannot return more than sold for item {sale_item.id}"
+            )
         # Restore inventory
         product = db.get(m.Product, sale_item.product_id)
         if product:
@@ -135,7 +174,9 @@ def return_sale(
         discount = float(sale_item.discount) if sale_item.discount else 0.0
         return_amount = (unit_price - discount) * item.quantity
         total_return += return_amount
-        returned_items.append({"sale_item_id": item.sale_item_id, "quantity": item.quantity})
+        returned_items.append(
+            {"sale_item_id": item.sale_item_id, "quantity": item.quantity}
+        )
         # Reduce sale item quantity
         sale_item.quantity -= item.quantity
         sale_item.subtotal = float(sale_item.subtotal or 0) - return_amount
@@ -152,7 +193,7 @@ def return_sale(
         status=sale.status,
         refund_amount=round(total_return, 2),
         processed_by=payload.employee_id,
-        message=f"Return processed successfully by employee {employee.email}."
+        message=f"Return processed successfully by employee {employee.email}.",
     )
 
 
@@ -204,6 +245,9 @@ def list_sales(
                 subtotal=float(sale.subtotal),
                 tax=float(sale.tax),
                 discount=float(sale.discount),
+                order_discount=float(getattr(sale, "order_discount", 0) or 0),
+                coupon_discount=float(getattr(sale, "coupon_discount", 0) or 0),
+                coupon_code=getattr(sale, "coupon_code", None),
                 total=float(sale.total),
                 payment_method=sale.payment_method,
                 payment_reference=sale.payment_reference,
@@ -227,6 +271,14 @@ def create_sale(
     subtotal = 0.0
     tax = 0.0
 
+    # Validate coupon (if provided)
+    coupon_code = (payload.coupon_code or "").strip().upper() or None
+    coupon_discount = 0.0
+    if coupon_code:
+        coupon = COUPONS.get(coupon_code)
+        if not coupon:
+            raise HTTPException(400, detail="Invalid or expired coupon code")
+
     for item in payload.items:
         product = db.get(m.Product, item.product_id)
         if not product:
@@ -238,20 +290,41 @@ def create_sale(
         subtotal += item_total
         tax += item_total * float(product.tax_rate) / 100
 
-    total = subtotal + tax - payload.discount
+    # Apply coupon discount on subtotal (after item discounts)
+    if coupon_code:
+        if coupon["type"] == "percent":
+            coupon_discount = round(subtotal * (coupon["value"] / 100), 2)
+            if coupon.get("max_off"):
+                coupon_discount = min(coupon_discount, float(coupon["max_off"]))
+        else:
+            coupon_discount = float(coupon["value"])
+
+    order_discount = payload.discount or 0
+    total_discount = order_discount + coupon_discount
+
+    total = subtotal + tax - total_discount
+    if total < 0:
+        total = 0
 
     # Create sale
+    # Persist coupon reference in notes for later visibility
+    notes_text = (payload.notes or "").strip()
+    if coupon_code:
+        notes_suffix = f"Coupon:{coupon_code}"
+        notes_text = f"{notes_text} {notes_suffix}".strip()
+
     sale = m.Sale(
         user_id=user.id,
         customer_id=payload.customer_id,
         subtotal=subtotal,
         tax=tax,
-        discount=payload.discount,
+        discount=total_discount,
+        coupon_code=coupon_code,
         total=total,
         payment_method=payload.payment_method,
         payment_reference=payload.payment_reference,
         status="completed",
-        notes=payload.notes,
+        notes=notes_text or None,
     )
     db.add(sale)
     db.flush()  # Get sale.id
@@ -331,6 +404,9 @@ def create_sale(
         subtotal=float(sale.subtotal),
         tax=float(sale.tax),
         discount=float(sale.discount),
+        order_discount=float(getattr(sale, "order_discount", 0) or 0),
+        coupon_discount=float(getattr(sale, "coupon_discount", 0) or 0),
+        coupon_code=getattr(sale, "coupon_code", None),
         total=float(sale.total),
         payment_method=sale.payment_method,
         payment_reference=sale.payment_reference,
@@ -375,6 +451,9 @@ def get_sale(
         subtotal=float(sale.subtotal),
         tax=float(sale.tax),
         discount=float(sale.discount),
+        order_discount=float(getattr(sale, "order_discount", 0) or 0),
+        coupon_discount=float(getattr(sale, "coupon_discount", 0) or 0),
+        coupon_code=getattr(sale, "coupon_code", None),
         total=float(sale.total),
         payment_method=sale.payment_method,
         payment_reference=sale.payment_reference,
@@ -431,6 +510,9 @@ def void_sale(
         subtotal=float(sale.subtotal),
         tax=float(sale.tax),
         discount=float(sale.discount),
+        order_discount=float(sale.discount),
+        coupon_discount=0,
+        coupon_code=sale.coupon_code,
         total=float(sale.total),
         payment_method=sale.payment_method,
         payment_reference=sale.payment_reference,

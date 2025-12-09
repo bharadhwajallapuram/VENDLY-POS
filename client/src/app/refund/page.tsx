@@ -1,4 +1,8 @@
+"use client";
+
 import React, { useState } from "react";
+import SplitPaymentInput, { SplitPayment } from "../../components/SplitPaymentInput";
+
 
 export default function RefundPage() {
   const [saleId, setSaleId] = useState("");
@@ -7,6 +11,7 @@ export default function RefundPage() {
   const [reason, setReason] = useState("");
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
 
   async function fetchSale() {
     setError("");
@@ -33,14 +38,20 @@ export default function RefundPage() {
         .filter(([id, qty]) => qty > 0)
         .map(([id, qty]) => ({ sale_item_id: Number(id), quantity: qty }));
       if (items.length === 0) throw new Error("Select at least one item to refund");
+      if (splitPayments.length === 0) throw new Error("Enter at least one payment method");
       const token = localStorage.getItem("vendly_token");
+      const refundPayload = {
+        items,
+        reason,
+        payments: splitPayments,
+      };
       const res = await fetch(`/api/v1/sales/${saleId}/refund`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ items, reason }),
+        body: JSON.stringify(refundPayload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Refund failed");
@@ -100,6 +111,11 @@ export default function RefundPage() {
             placeholder="Reason for refund (optional)"
             value={reason}
             onChange={e => setReason(e.target.value)}
+          />
+          {/* Split Payment UI */}
+          <SplitPaymentInput
+            total={sale.items.reduce((sum: number, item: any) => sum + (selected[item.id] || 0) * item.unit_price, 0)}
+            onChange={setSplitPayments}
           />
           <button className="bg-green-600 text-white px-4 py-2 rounded w-full" onClick={submitRefund}>
             Process Refund
