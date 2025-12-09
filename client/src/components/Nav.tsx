@@ -67,6 +67,12 @@ export default function Nav() {
                   Inventory
                 </Link>
                 <Link
+                  href="/settings/discounts"
+                  className={`hover:text-primary-600 ${isActive('/settings/discounts') ? 'font-semibold text-primary-600' : ''}`}
+                >
+                  Discounts
+                </Link>
+                <Link
                   href="/reports"
                   className={`hover:text-primary-600 ${isActive('/reports') ? 'font-semibold text-primary-600' : ''}`}
                 >

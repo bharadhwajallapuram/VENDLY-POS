@@ -371,6 +371,97 @@ export const Users = {
 };
 
 // ===========================================
+// Coupons API
+// ===========================================
+
+export interface CouponOut {
+  id: number;
+  code: string;
+  type: 'percent' | 'amount';
+  value: number;
+  max_off?: number | null;
+  min_order?: number | null;
+  active: boolean;
+  expires_at?: string | null;
+  usage_count: number;
+  stackable: boolean;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface CouponIn {
+  code: string;
+  type: 'percent' | 'amount';
+  value: number;
+  max_off?: number | null;
+  min_order?: number | null;
+  active?: boolean;
+  expires_at?: string | null;
+  stackable?: boolean;
+}
+
+export interface CouponUpdate {
+  code?: string;
+  type?: 'percent' | 'amount';
+  value?: number;
+  max_off?: number | null;
+  min_order?: number | null;
+  active?: boolean;
+  expires_at?: string | null;
+  stackable?: boolean;
+}
+
+export interface CouponValidateResponse {
+  valid: boolean;
+  coupon?: CouponOut | null;
+  discount_amount: number;
+  message: string;
+}
+
+export const couponsApi = {
+  list: (activeOnly: boolean = false): Promise<CouponOut[]> => {
+    return apiFetch(`/api/v1/coupons?active_only=${activeOnly}`);
+  },
+
+  get: (id: number): Promise<CouponOut> => {
+    return apiFetch(`/api/v1/coupons/${id}`);
+  },
+
+  create: (data: CouponIn): Promise<CouponOut> => {
+    return apiFetch('/api/v1/coupons', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: (id: number, data: CouponUpdate): Promise<CouponOut> => {
+    return apiFetch(`/api/v1/coupons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  del: (id: number): Promise<void> => {
+    return apiFetch(`/api/v1/coupons/${id}`, { method: 'DELETE' });
+  },
+
+  toggle: (id: number): Promise<CouponOut> => {
+    return apiFetch(`/api/v1/coupons/${id}/toggle`, { method: 'PATCH' });
+  },
+
+  validate: (code: string, orderTotal: number): Promise<CouponValidateResponse> => {
+    return apiFetch('/api/v1/coupons/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, order_total: orderTotal }),
+    });
+  },
+
+  incrementUsage: (id: number): Promise<CouponOut> => {
+    return apiFetch(`/api/v1/coupons/${id}/increment-usage`, { method: 'POST' });
+  },
+};
+
+// ===========================================
 // WebSocket
 // ===========================================
 
