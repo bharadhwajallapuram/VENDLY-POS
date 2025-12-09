@@ -1,10 +1,12 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
 class StripePaymentIntentRequest(BaseModel):
     amount: int
     currency: str = "inr"
-    description: str = None
+    description: Optional[str] = None
 
 
 class StripePaymentIntentResponse(BaseModel):
@@ -14,8 +16,8 @@ class StripePaymentIntentResponse(BaseModel):
 class UPIPaymentRequest(BaseModel):
     amount: int  # in paise (e.g., 10000 = ₹100)
     vpa: str  # UPI ID (e.g., user@upi)
-    name: str = None
-    note: str = None
+    name: Optional[str] = None
+    note: Optional[str] = None
 
 
 class UPIPaymentResponse(BaseModel):
