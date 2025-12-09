@@ -31,7 +31,8 @@ class SaleItemOut(BaseModel):
 class SaleIn(BaseModel):
     customer_id: Optional[int] = None
     items: List[SaleItemIn]
-    discount: float = 0
+    discount: float = 0  # manual order-level discount
+    coupon_code: Optional[str] = None  # promo/coupon code applied to this sale
     payment_method: str = "cash"
     payment_reference: Optional[str] = None
     notes: Optional[str] = None
@@ -45,7 +46,10 @@ class SaleOut(BaseModel):
     customer_id: Optional[int] = None
     subtotal: float
     tax: float
-    discount: float
+    discount: float  # total discount (order + coupon)
+    order_discount: Optional[float] = None  # manual discount
+    coupon_discount: Optional[float] = None  # discount derived from coupon
+    coupon_code: Optional[str] = None
     total: float
     payment_method: str
     payment_reference: Optional[str] = None

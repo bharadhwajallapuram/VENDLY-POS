@@ -38,6 +38,30 @@ vendly/
 ├── docker-compose.yaml  # Container orchestration
 ├── config.example.yaml  # User configuration template
 └── .env.example         # Environment template
+ 
+
+## ✨ New Features (2025)
+
+Vendly now supports advanced refund and return flows, plus other improvements:
+
+- **Refunds & Returns:**
+	- Partial and full refunds for sales, with inventory adjustment.
+	- Returns flow for items, with employee authorization and reason logging.
+	- Refund/Return endpoints: `/api/v1/sales/{sale_id}/refund` and `/api/v1/sales/{sale_id}/return`.
+	- Frontend UI for refund/return in POS, with sale lookup by ID, phone, or name.
+	- Refund/Return statistics in reports (total refunds, returns, amounts).
+- **Audit Logging:**
+	- All refund/return actions are logged for compliance and review.
+- **Enhanced Reports:**
+	- Dashboard now shows refund/return metrics and amounts.
+- **Security:**
+	- Employee ID required for refund/return actions.
+	- Reason field for tracking refund/return justification.
+- **Other Improvements:**
+	- Improved error handling and feedback in refund/return UI.
+	- Role-based access for sensitive actions.
+
+See the Refund and Returns pages in the POS frontend for a demo, and check the API docs for integration details.
 ```
 
 ## 🚀 Quick Start

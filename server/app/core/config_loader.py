@@ -35,7 +35,7 @@ def load_config() -> dict:
         )
         if example_path.exists():
             print(
-                "⚠️  Warning: Using config.example.yaml - copy to config.yaml for production!"
+                "[WARNING] Using config.example.yaml - copy to config.yaml for production!"
             )
             config_file = example_path
         else:

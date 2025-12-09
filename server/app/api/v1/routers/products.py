@@ -5,6 +5,7 @@ Vendly POS - Products Router
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.products import (
@@ -66,7 +67,21 @@ def create_product(
         is_active=payload.is_active,
     )
     db.add(prod)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        error_str = str(e).lower()
+        if "sku" in error_str:
+            raise HTTPException(409, detail="A product with this SKU already exists")
+        elif "barcode" in error_str:
+            raise HTTPException(
+                409, detail="A product with this barcode already exists"
+            )
+        else:
+            raise HTTPException(
+                409, detail="Product with duplicate unique field already exists"
+            )
     db.refresh(prod)
     return prod
 
@@ -98,7 +113,21 @@ def update_product(
     for field, value in update_data.items():
         setattr(prod, field, value)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        error_str = str(e).lower()
+        if "sku" in error_str:
+            raise HTTPException(409, detail="A product with this SKU already exists")
+        elif "barcode" in error_str:
+            raise HTTPException(
+                409, detail="A product with this barcode already exists"
+            )
+        else:
+            raise HTTPException(
+                409, detail="Product with duplicate unique field already exists"
+            )
     db.refresh(prod)
     return prod
 

@@ -1,14 +1,18 @@
-from pydantic import BaseModel
 from typing import List, Optional
+
+from pydantic import BaseModel
+
 
 class RefundItem(BaseModel):
     sale_item_id: int
     quantity: int
 
+
 class RefundRequest(BaseModel):
     items: List[RefundItem]
     employee_id: str  # Required employee ID for validation
     reason: Optional[str] = None
+
 
 class RefundResponse(BaseModel):
     sale_id: int

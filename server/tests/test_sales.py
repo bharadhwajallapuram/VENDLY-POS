@@ -295,7 +295,10 @@ class TestSalesEndpoints:
         sale_item_id = sale["items"][0]["id"]
 
         # Partial refund (1 out of 3)
-        refund_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        refund_data = {
+            "items": [{"sale_item_id": sale_item_id, "quantity": 1}],
+            "employee_id": "admin@vendly.com",
+        }
         refund_response = client.post(
             f"/api/v1/sales/{sale_id}/refund", json=refund_data, headers=auth_headers
         )
@@ -305,7 +308,10 @@ class TestSalesEndpoints:
         assert refund_result["refund_amount"] > 0
 
         # Full refund (remaining 2 out of 3)
-        refund_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 2}]}
+        refund_data = {
+            "items": [{"sale_item_id": sale_item_id, "quantity": 2}],
+            "employee_id": "admin@vendly.com",
+        }
         refund_response = client.post(
             f"/api/v1/sales/{sale_id}/refund", json=refund_data, headers=auth_headers
         )
@@ -339,7 +345,10 @@ class TestSalesEndpoints:
         sale_item_id = sale["items"][0]["id"]
 
         # Partial return (1 out of 2)
-        return_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        return_data = {
+            "items": [{"sale_item_id": sale_item_id, "quantity": 1}],
+            "employee_id": "admin@vendly.com",
+        }
         return_response = client.post(
             f"/api/v1/sales/{sale_id}/return", json=return_data, headers=auth_headers
         )
@@ -347,10 +356,18 @@ class TestSalesEndpoints:
         assert return_response.status_code in (200, 404)
         if return_response.status_code == 200:
             return_result = return_response.json()
-            assert return_result["status"] in ("partially_returned", "partially_refunded", "returned", "refunded")
+            assert return_result["status"] in (
+                "partially_returned",
+                "partially_refunded",
+                "returned",
+                "refunded",
+            )
 
         # Full return (remaining 1 out of 2)
-        return_data = {"items": [{"sale_item_id": sale_item_id, "quantity": 1}]}
+        return_data = {
+            "items": [{"sale_item_id": sale_item_id, "quantity": 1}],
+            "employee_id": "admin@vendly.com",
+        }
         return_response = client.post(
             f"/api/v1/sales/{sale_id}/return", json=return_data, headers=auth_headers
         )

@@ -65,6 +65,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # Stripe Payments
+    STRIPE_SECRET_KEY: str = Field(default="", alias="STRIPE_SECRET_KEY")
+
     # Kafka (Event Streaming)
     KAFKA_ENABLED: bool = False
     KAFKA_BOOTSTRAP_SERVERS: str = Field(

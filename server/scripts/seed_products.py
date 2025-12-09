@@ -1,10 +1,34 @@
-from app.db.session import Session, engine
 from app.db.models import Product
+from app.db.session import Session, engine
 
 products = [
-    {"name": "Apple", "sku": "APL001", "price": 1.0, "quantity": 100, "min_quantity": 10, "tax_rate": 0.05, "is_active": True},
-    {"name": "Banana", "sku": "BAN001", "price": 0.5, "quantity": 150, "min_quantity": 15, "tax_rate": 0.05, "is_active": True},
-    {"name": "Orange Juice", "sku": "OJ001", "price": 2.5, "quantity": 50, "min_quantity": 5, "tax_rate": 0.12, "is_active": True},
+    {
+        "name": "Apple",
+        "sku": "APL001",
+        "price": 1.0,
+        "quantity": 100,
+        "min_quantity": 10,
+        "tax_rate": 0.05,
+        "is_active": True,
+    },
+    {
+        "name": "Banana",
+        "sku": "BAN001",
+        "price": 0.5,
+        "quantity": 150,
+        "min_quantity": 15,
+        "tax_rate": 0.05,
+        "is_active": True,
+    },
+    {
+        "name": "Orange Juice",
+        "sku": "OJ001",
+        "price": 2.5,
+        "quantity": 50,
+        "min_quantity": 5,
+        "tax_rate": 0.12,
+        "is_active": True,
+    },
 ]
 
 with Session(engine) as session:

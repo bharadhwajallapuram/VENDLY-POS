@@ -1,12 +1,15 @@
 """
 Sales Forecasting Service (Moving Average Example)
 """
-import pandas as pd
+
 from datetime import datetime, timedelta
 from typing import List
 
+import pandas as pd
+
 # Dummy function to simulate sales history retrieval from DB
 # Replace with real DB query in production
+
 
 def get_sales_history(product_id: int, days: int = 60):
     today = datetime.today()

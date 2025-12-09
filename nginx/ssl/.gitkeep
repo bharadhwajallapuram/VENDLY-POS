@@ -1,0 +1,4 @@
+# This directory is for SSL certificates
+# Add your SSL certificates here for HTTPS support
+# - ssl.crt
+# - ssl.key

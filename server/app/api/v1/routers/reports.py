@@ -67,17 +67,23 @@ def get_summary(
 
     # Get refund/return statistics
     refund_q = db.query(m.Sale).filter(
-        m.Sale.status.in_(["refunded", "partially_refunded", "returned", "partially_returned"])
+        m.Sale.status.in_(
+            ["refunded", "partially_refunded", "returned", "partially_returned"]
+        )
     )
     if start_date:
         refund_q = refund_q.filter(m.Sale.created_at >= start_date)
     if end_date:
         refund_q = refund_q.filter(m.Sale.created_at <= end_date + " 23:59:59")
-    
+
     refund_sales = refund_q.all()
-    total_refunds = len([s for s in refund_sales if s.status in ("refunded", "partially_refunded")])
-    total_returns = len([s for s in refund_sales if s.status in ("returned", "partially_returned")])
-    
+    total_refunds = len(
+        [s for s in refund_sales if s.status in ("refunded", "partially_refunded")]
+    )
+    total_returns = len(
+        [s for s in refund_sales if s.status in ("returned", "partially_returned")]
+    )
+
     # Calculate refund amounts (rough estimate based on status changes)
     refund_amount = 0.0
     return_amount = 0.0

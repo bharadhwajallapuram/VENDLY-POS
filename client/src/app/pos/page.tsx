@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PaymentModal from '@/components/PaymentModal';
+import { SplitPayment } from '@/components/SplitPaymentInput';
 import Receipt from '@/components/Receipt';
 import { useRef } from 'react';
 import { useCart } from '@/store/cart';
@@ -180,14 +181,12 @@ function POSContent() {
   }, [appliedCoupon, subtotal]);
 
   // Handle payment
-  async function handlePayment(method: string, amountCents: number) {
+  async function handlePayment(payments: SplitPayment[]) {
     const token = localStorage.getItem('vendly_token');
-    
     if (!token) {
       alert('You must be logged in to complete a sale');
       return;
     }
-    
     // Create or find customer if details provided
     let finalCustomerId = customerId;
     if (!finalCustomerId && (customerName || customerPhone || customerEmail)) {
@@ -214,7 +213,6 @@ function POSContent() {
         console.error('Failed to create customer:', e);
       }
     }
-
     // Build sale payload
     const salePayload = {
       items: cart.lines.map((line) => ({
@@ -223,14 +221,12 @@ function POSContent() {
         unit_price: line.priceCents / 100,
         discount: 0,
       })),
-      payment_method: method,
-      payment_reference: method === 'card' ? `CARD-${Date.now()}` : null,
+      payments,
       discount: orderDiscountCents / 100,
       coupon_code: appliedCoupon || undefined,
       notes: null,
       customer_id: finalCustomerId,
     };
-    
     const response = await fetch(`${API_URL}/api/v1/sales`, {
       method: 'POST',
       headers: {
@@ -239,12 +235,10 @@ function POSContent() {
       },
       body: JSON.stringify(salePayload),
     });
-    
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.detail || 'Failed to create sale');
     }
-    
     const sale = await response.json();
     setLastSaleId(sale.id);
     setLastSale(sale);

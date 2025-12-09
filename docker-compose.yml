@@ -3,8 +3,6 @@
 # Based on BVM-POS Architecture
 # ===========================================
 
-version: '3.9'
-
 services:
   # ============================================
   # Frontend Service (Next.js)

@@ -60,4 +60,6 @@ const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
   }
 );
 
+Receipt.displayName = "Receipt";
+
 export default Receipt;

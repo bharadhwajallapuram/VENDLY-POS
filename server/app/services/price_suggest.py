@@ -1,6 +1,7 @@
 import random
 from typing import List
 
+
 def suggest_price(product_id: int, recent_prices: List[float] = None) -> float:
     """
     Suggest a price for a product based on recent prices (mean + random noise for demo).
