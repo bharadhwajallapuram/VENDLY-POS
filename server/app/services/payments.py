@@ -1,21 +1,30 @@
+from typing import Optional
+
 import stripe
 
 from app.core.config import settings
 
 
 def create_stripe_payment_intent(
-    amount: int, currency: str = "inr", description: str = None
+    amount: int, currency: str = "inr", description: Optional[str] = None
 ) -> str:
     stripe.api_key = settings.STRIPE_SECRET_KEY
     if not stripe.api_key:
         raise ValueError("Stripe secret key is not configured")
-    intent = stripe.PaymentIntent.create(
-        amount=amount,
-        currency=currency,
-        description=description,
-        payment_method_types=["card"],
-    )
-    return intent.client_secret
+
+    create_kwargs: dict[str, object] = {
+        "amount": amount,
+        "currency": currency,
+        "payment_method_types": ["card"],
+    }
+    if description:
+        create_kwargs["description"] = description
+
+    intent = stripe.PaymentIntent.create(**create_kwargs)  # type: ignore[arg-type]
+    client_secret = intent.client_secret
+    if client_secret is None:
+        raise ValueError("Failed to create payment intent - no client secret returned")
+    return client_secret
 
 
 import base64
@@ -26,8 +35,8 @@ import qrcode
 
 
 def create_upi_payment_request(
-    amount: int, vpa: str, name: str = None, note: str = None
-):
+    amount: int, vpa: str, name: Optional[str] = None, note: Optional[str] = None
+) -> tuple[str, str]:
     # UPI deep link format
     upi_url = f"upi://pay?pa={vpa}&pn={name or 'Vendly'}&am={amount/100:.2f}&cu=INR&tn={note or 'Vendly POS'}"
     # Generate QR code as base64

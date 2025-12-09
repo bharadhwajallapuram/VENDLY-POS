@@ -291,13 +291,16 @@ def create_sale(
         tax += item_total * float(product.tax_rate) / 100
 
     # Apply coupon discount on subtotal (after item discounts)
-    if coupon_code:
-        if coupon["type"] == "percent":
-            coupon_discount = round(subtotal * (coupon["value"] / 100), 2)
-            if coupon.get("max_off"):
-                coupon_discount = min(coupon_discount, float(coupon["max_off"]))
+    if coupon_code and coupon is not None:
+        coupon_type = str(coupon["type"])
+        coupon_value = float(coupon["value"])  # type: ignore[arg-type]
+        if coupon_type == "percent":
+            coupon_discount = round(subtotal * (coupon_value / 100), 2)
+            max_off = coupon.get("max_off")
+            if max_off is not None:
+                coupon_discount = min(coupon_discount, float(max_off))  # type: ignore[arg-type]
         else:
-            coupon_discount = float(coupon["value"])
+            coupon_discount = coupon_value
 
     order_discount = payload.discount or 0
     total_discount = order_discount + coupon_discount
