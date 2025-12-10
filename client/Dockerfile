@@ -16,6 +16,9 @@ RUN npm install --frozen-lockfile 2>/dev/null || npm install
 # Copy source code
 COPY . .
 
+# Ensure public folder exists
+RUN mkdir -p public
+
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
