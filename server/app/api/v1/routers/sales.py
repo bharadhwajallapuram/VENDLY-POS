@@ -11,7 +11,15 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.refund import RefundItem, RefundRequest, RefundResponse
-from app.api.v1.schemas.sales import SaleIn, SaleItemOut, SaleOut
+from app.api.v1.schemas.sales import (
+    SaleIn,
+    SaleItemOut,
+    SaleOut,
+    BatchSyncRequest,
+    BatchSyncResponse,
+    SyncResultItem,
+    OfflineSaleIn,
+)
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
 from app.services.receipt import (
@@ -591,3 +599,166 @@ def get_receipt(
     else:
         receipt_content = generate_receipt_html(receipt)
         return HTMLResponse(content=receipt_content)
+
+
+# Batch sync endpoint for offline sales
+@router.post("/batch-sync", response_model=BatchSyncResponse)
+def batch_sync_sales(
+    payload: BatchSyncRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Sync multiple offline sales at once.
+    Called when client reconnects and needs to sync queued sales.
+    """
+    results: list[SyncResultItem] = []
+    synced = 0
+    failed = 0
+
+    for offline_sale in payload.sales:
+        try:
+            # Create or find customer if needed
+            customer_id = offline_sale.customer_id
+            if not customer_id and (
+                offline_sale.customer_name
+                or offline_sale.customer_phone
+                or offline_sale.customer_email
+            ):
+                # Look for existing customer by phone or email
+                existing_customer = None
+                if offline_sale.customer_phone:
+                    existing_customer = db.query(m.Customer).filter(
+                        m.Customer.phone == offline_sale.customer_phone
+                    ).first()
+                elif offline_sale.customer_email:
+                    existing_customer = db.query(m.Customer).filter(
+                        m.Customer.email == offline_sale.customer_email
+                    ).first()
+
+                if existing_customer:
+                    customer_id = existing_customer.id
+                else:
+                    # Create new customer
+                    new_customer = m.Customer(
+                        name=offline_sale.customer_name or "Guest",
+                        phone=offline_sale.customer_phone,
+                        email=offline_sale.customer_email,
+                    )
+                    db.add(new_customer)
+                    db.flush()
+                    customer_id = new_customer.id
+
+            # Validate and calculate totals
+            subtotal = 0.0
+            tax = 0.0
+            coupon_discount = 0.0
+
+            # Validate coupon
+            coupon_code = (offline_sale.coupon_code or "").strip().upper() or None
+            if coupon_code:
+                coupon = COUPONS.get(coupon_code)
+                if not coupon:
+                    raise ValueError(f"Invalid coupon code: {coupon_code}")
+
+            # Calculate totals for all items
+            for item in offline_sale.items:
+                product = db.get(m.Product, item.product_id)
+                if not product:
+                    raise ValueError(f"Product {item.product_id} not found")
+                if product.quantity < item.quantity:
+                    raise ValueError(
+                        f"Insufficient stock for {product.name} (need {item.quantity}, have {product.quantity})"
+                    )
+
+                item_total = (item.unit_price * item.quantity) - item.discount
+                subtotal += item_total
+                tax += item_total * float(product.tax_rate) / 100
+
+            # Apply coupon discount
+            if coupon_code and coupon is not None:
+                coupon_type = str(coupon["type"])
+                coupon_value = float(coupon["value"])  # type: ignore[arg-type]
+                if coupon_type == "percent":
+                    coupon_discount = round(subtotal * (coupon_value / 100), 2)
+                    max_off = coupon.get("max_off")
+                    if max_off is not None:
+                        coupon_discount = min(coupon_discount, float(max_off))  # type: ignore[arg-type]
+                else:
+                    coupon_discount = coupon_value
+
+            order_discount = offline_sale.discount or 0
+            total_discount = order_discount + coupon_discount
+            total = subtotal + tax - total_discount
+            if total < 0:
+                total = 0
+
+            # Create sale
+            notes_text = (offline_sale.notes or "").strip()
+            notes_text += f" [Offline Sync: {offline_sale.created_at}]"
+
+            sale = m.Sale(
+                user_id=user.id,
+                customer_id=customer_id,
+                subtotal=subtotal,
+                tax=tax,
+                discount=total_discount,
+                coupon_code=coupon_code,
+                total=total,
+                payment_method="offline_sync",  # Mark as synced offline payment
+                payment_reference=f"offline_{offline_sale.id}",
+                status="completed",
+                notes=notes_text or None,
+            )
+            db.add(sale)
+            db.flush()
+
+            # Create sale items and update inventory
+            for item in offline_sale.items:
+                product = db.get(m.Product, item.product_id)
+                if not product:
+                    raise ValueError(f"Product {item.product_id} not found")
+
+                item_total = (item.unit_price * item.quantity) - item.discount
+
+                sale_item = m.SaleItem(
+                    sale_id=sale.id,
+                    product_id=item.product_id,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    discount=item.discount,
+                    subtotal=item_total,
+                )
+                db.add(sale_item)
+
+                # Reduce inventory
+                product.quantity -= item.quantity
+
+            db.commit()
+            db.refresh(sale)
+
+            results.append(
+                SyncResultItem(
+                    success=True,
+                    offlineId=offline_sale.id,
+                    serverId=sale.id,
+                )
+            )
+            synced += 1
+
+        except Exception as e:
+            db.rollback()
+            results.append(
+                SyncResultItem(
+                    success=False,
+                    offlineId=offline_sale.id,
+                    error=str(e),
+                )
+            )
+            failed += 1
+
+    return BatchSyncResponse(
+        synced=synced,
+        failed=failed,
+        results=results,
+    )

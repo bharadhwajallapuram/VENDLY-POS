@@ -15,6 +15,46 @@ class SaleItemIn(BaseModel):
     discount: float = 0
 
 
+class OfflinePayment(BaseModel):
+    method: str
+    amount: float
+
+
+class OfflineSaleIn(BaseModel):
+    """Schema for offline sale data that needs to be synced"""
+    id: str  # Offline UUID for tracking
+    items: List[SaleItemIn]
+    payments: List[OfflinePayment]
+    discount: float = 0
+    coupon_code: Optional[str] = None
+    notes: Optional[str] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_email: Optional[str] = None
+    created_at: str  # ISO date string from client
+
+
+class BatchSyncRequest(BaseModel):
+    """Request body for batch sync of offline sales"""
+    sales: List[OfflineSaleIn]
+
+
+class SyncResultItem(BaseModel):
+    """Result for a single synced sale"""
+    success: bool
+    offlineId: str
+    serverId: Optional[int] = None
+    error: Optional[str] = None
+
+
+class BatchSyncResponse(BaseModel):
+    """Response for batch sync operation"""
+    synced: int
+    failed: int
+    results: List[SyncResultItem]
+
+
 class SaleItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
