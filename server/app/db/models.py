@@ -331,5 +331,3 @@ class UserSession(Base):
     # Relationships
     user: Mapped["User"] = relationship()
 
-    # Index for quick lookups
-    __table_args__ = ({"indexes": [{"columns": ["user_id", "is_active"]}]},)
