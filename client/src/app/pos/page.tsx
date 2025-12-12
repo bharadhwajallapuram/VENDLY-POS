@@ -395,16 +395,6 @@ function POSContent() {
     <div className="flex flex-col h-[calc(100vh-100px)]">
       {/* Offline Banner */}
       <OfflineBanner />
-      
-      {/* Offline Status Bar */}
-      <div className="mb-2 flex items-center justify-between bg-white rounded-lg px-4 py-2 shadow-sm">
-        <OfflineIndicator showDetails={true} />
-        {!isOnline && (
-          <span className="text-sm text-gray-500">
-            Sales will be saved locally and synced automatically when online
-          </span>
-        )}
-      </div>
 
       <div className="flex flex-1 gap-4">
         {/* Left: Product Search & Results */}

@@ -15,6 +15,18 @@ interface OfflineIndicatorProps {
 export default function OfflineIndicator({ showDetails = true }: OfflineIndicatorProps) {
   const { isOnline, pendingCount, isSyncing, syncNow, lastSyncTime, lastSyncResult } = useOffline();
 
+  // Show only a small dot indicator
+  if (!showDetails) {
+    return (
+      <div
+        className={`w-2 h-2 rounded-full ${
+          isOnline ? 'bg-green-500' : 'bg-red-500'
+        } ${isSyncing ? 'animate-pulse' : ''}`}
+        title={isOnline ? 'Online' : 'Offline'}
+      />
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       {/* Status Indicator */}

@@ -249,6 +249,27 @@ export const Reports = {
     const query = params.toString() ? `?${params}` : '';
     return apiFetch(`/api/v1/reports/sales${query}`);
   },
+
+  // End-of-Day Reports
+  zReport: (reportDate?: string): Promise<any> => {
+    const params = reportDate ? `?report_date=${reportDate}` : '';
+    return apiFetch(`/api/v1/reports/z-report${params}`);
+  },
+
+  reconcileCash: (actualCash: number, reportDate?: string, notes?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (reportDate) params.append('report_date', reportDate);
+    const query = params.toString() ? `?${params}` : '';
+    return apiFetch(`/api/v1/reports/z-report/reconcile${query}`, {
+      method: 'POST',
+      body: JSON.stringify({ actual_cash: actualCash, notes }),
+    });
+  },
+
+  salesSummary: (reportDate?: string): Promise<any> => {
+    const params = reportDate ? `?report_date=${reportDate}` : '';
+    return apiFetch(`/api/v1/reports/sales-summary${params}`);
+  },
 };
 
 // ===========================================

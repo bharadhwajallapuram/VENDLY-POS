@@ -3,6 +3,13 @@
 
 A modern, enterprise-grade point-of-sale system built with Next.js 14 (React/TypeScript) frontend and FastAPI (Python) backend. Includes trending AI features, real-time event processing, and robust security.
 
+## 📚 Documentation
+
+**For comprehensive documentation, see the [`docs/`](./docs/) folder:**
+- **[Complete Documentation Index](./docs/README.md)** - Start here for all guides
+- **[Offline Mode Guide](./docs/OFFLINE_MODE.md)** - Offline sales queueing & sync
+- **[Granular Permissions Guide](./docs/GRANULAR_PERMISSIONS.md)** - Role-based access control
+
 ## 🏗️ Architecture
 
 Vendly follows a microservices-inspired architecture with event-driven patterns:
