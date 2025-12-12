@@ -307,9 +307,9 @@ def get_z_report(
         payment_methods.append(
             PaymentMethodBreakdown(
                 method=method,
-                count=data["count"],
-                revenue=round(data["revenue"], 2),
-                percentage=round(percentage, 2),
+                count=int(data["count"]),
+                revenue=round(float(data["revenue"]), 2),
+                percentage=round(float(percentage), 2),
             )
         )
 
@@ -319,15 +319,17 @@ def get_z_report(
         for item in sale.items:
             if item.product_id not in product_sales:
                 product = db.get(m.Product, item.product_id)
-                product_sales[item.product_id] = {
-                    "name": product.name if product else "Unknown",
-                    "quantity": 0,
-                    "revenue": 0.0,
-                }
-            product_sales[item.product_id]["quantity"] += item.quantity
-            product_sales[item.product_id]["revenue"] += float(item.subtotal)
-
-    top_products = sorted(
+            product_sales[item.product_id] = {
+                "name": product.name if product else "Unknown",
+                "quantity": 0,
+                "revenue": 0.0,
+            }
+            product_sales[item.product_id]["quantity"] = int(
+                product_sales[item.product_id]["quantity"]
+            ) + int(item.quantity)
+            product_sales[item.product_id]["revenue"] = float(
+                product_sales[item.product_id]["revenue"]
+            ) + float(item.subtotal)    top_products = sorted(
         [
             {
                 "name": p["name"],
@@ -404,7 +406,7 @@ def get_z_report(
 @router.post("/z-report/reconcile")
 def reconcile_cash_drawer(
     report_date: Optional[str] = Query(None),
-    reconciliation: CashReconciliationIn = None,
+    reconciliation: Optional[CashReconciliationIn] = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):

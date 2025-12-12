@@ -197,7 +197,7 @@ def create_error_response(
     message: str,
     status_code: int,
     error_code: str,
-    details: dict = None,
+    details: dict | None = None,
 ) -> dict:
     """Create a standardized error response"""
     return {
