@@ -12,13 +12,13 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.schemas.refund import RefundItem, RefundRequest, RefundResponse
 from app.api.v1.schemas.sales import (
+    BatchSyncRequest,
+    BatchSyncResponse,
+    OfflineSaleIn,
     SaleIn,
     SaleItemOut,
     SaleOut,
-    BatchSyncRequest,
-    BatchSyncResponse,
     SyncResultItem,
-    OfflineSaleIn,
 )
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
