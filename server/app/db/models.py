@@ -330,4 +330,3 @@ class UserSession(Base):
 
     # Relationships
     user: Mapped["User"] = relationship()
-
