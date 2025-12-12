@@ -314,7 +314,7 @@ def get_z_report(
         )
 
     # Top products
-    product_sales = {}
+    product_sales: dict[int, dict[str, int | float | str]] = {}
     for sale in sales:
         for item in sale.items:
             if item.product_id not in product_sales:
