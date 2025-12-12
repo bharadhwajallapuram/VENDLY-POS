@@ -53,7 +53,25 @@ class Settings(BaseSettings):
     RATE_LIMIT_API: str = "100/minute"  # 100 API calls per minute per user
 
     # Audit Logging
-    AUDIT_LOG_ENABLED: bool = True
+    AUDIT_LOG_ENABLED: bool = Field(default=True, alias="AUDIT_LOG_ENABLED")
+    AUDIT_LOG_FILE: str = Field(default="audit.log", alias="AUDIT_LOG_FILE")
+    AUDIT_LOG_LEVEL: str = Field(default="INFO", alias="AUDIT_LOG_LEVEL")
+
+    # Session Management
+    SESSION_TIMEOUT_MINUTES: int = Field(default=15, alias="SESSION_TIMEOUT_MINUTES")
+    SESSION_WARNING_SECONDS: int = Field(default=60, alias="SESSION_WARNING_SECONDS")
+    ACTIVITY_DEBOUNCE_MS: int = Field(default=5000, alias="ACTIVITY_DEBOUNCE_MS")
+
+    # Two-Factor Authentication (2FA)
+    TWO_FACTOR_ENABLED: bool = Field(default=True, alias="TWO_FACTOR_ENABLED")
+    TWO_FACTOR_BACKUP_CODES: int = Field(default=10, alias="TWO_FACTOR_BACKUP_CODES")
+    TWO_FACTOR_TOTP_WINDOW: int = Field(default=1, alias="TWO_FACTOR_TOTP_WINDOW")
+    TWO_FACTOR_REQUIRED_ROLES: List[str] = Field(
+        default=["admin", "manager"], alias="TWO_FACTOR_REQUIRED_ROLES"
+    )
+    TWO_FACTOR_RATE_LIMIT: str = Field(
+        default="5/minute", alias="TWO_FACTOR_RATE_LIMIT"
+    )
 
     # CORS
     CORS_ORIGINS: List[str] = [

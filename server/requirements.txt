@@ -31,6 +31,9 @@ numpy>=1.24.0
 stripe>=7.0.0
 qrcode[pil]>=7.4.0
 
+# Two-Factor Authentication
+pyotp>=2.9.0
+
 # Development & Testing
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
