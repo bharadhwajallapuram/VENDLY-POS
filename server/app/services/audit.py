@@ -18,6 +18,9 @@ class AuditAction(str, Enum):
     LOGIN_FAILED = "login_failed"
     LOGOUT = "logout"
     TOKEN_REFRESH = "token_refresh"
+    TWO_FACTOR_ENABLED = "two_factor_enabled"
+    TWO_FACTOR_DISABLED = "two_factor_disabled"
+    TWO_FACTOR_VERIFIED = "two_factor_verified"
 
     # User management
     USER_CREATED = "user_created"
@@ -25,50 +28,67 @@ class AuditAction(str, Enum):
     USER_DELETED = "user_deleted"
     USER_DEACTIVATED = "user_deactivated"
     PASSWORD_CHANGED = "password_changed"
+    PASSWORD_RESET = "password_reset"
 
     # Product management
     PRODUCT_CREATED = "product_created"
     PRODUCT_UPDATED = "product_updated"
     PRODUCT_DELETED = "product_deleted"
 
-    # Sales
+    # Sales & Transactions (SENSITIVE)
     SALE_COMPLETED = "sale_completed"
-    SALE_VOIDED = "sale_voided"
-    SALE_REFUNDED = "sale_refunded"
+    SALE_VOIDED = "sale_voided"  # SENSITIVE
+    SALE_REFUNDED = "sale_refunded"  # SENSITIVE
+    DISCOUNT_APPLIED = "discount_applied"  # SENSITIVE
+    DISCOUNT_REMOVED = "discount_removed"
+    MANUAL_ADJUSTMENT = "manual_adjustment"  # SENSITIVE
+
+    # Payment
+    PAYMENT_PROCESSED = "payment_processed"
+    PAYMENT_FAILED = "payment_failed"
+    PAYMENT_REFUNDED = "payment_refunded"  # SENSITIVE
 
     # Customer management
     CUSTOMER_CREATED = "customer_created"
     CUSTOMER_UPDATED = "customer_updated"
     CUSTOMER_DELETED = "customer_deleted"
-    LOYALTY_ADJUSTED = "loyalty_adjusted"
+    LOYALTY_ADJUSTED = "loyalty_adjusted"  # SENSITIVE
+
+    # Sessions
+    SESSION_CREATED = "session_created"
+    SESSION_ENDED = "session_ended"
+    SESSION_TIMEOUT = "session_timeout"
 
     # System
     SETTINGS_CHANGED = "settings_changed"
     DATA_EXPORT = "data_export"
+    SECURITY_ALERT = "security_alert"
 
 
 # Configure audit logger
 audit_logger = logging.getLogger("vendly.audit")
-audit_logger.setLevel(logging.INFO)
+log_level = getattr(logging, settings.AUDIT_LOG_LEVEL.upper(), logging.INFO)
+audit_logger.setLevel(log_level)
 
 # Create console handler if not already configured
 if not audit_logger.handlers:
     handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
+    handler.setLevel(log_level)
     formatter = logging.Formatter(
         "%(asctime)s - AUDIT - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     handler.setFormatter(formatter)
     audit_logger.addHandler(handler)
 
-    # Also log to file
-    try:
-        file_handler = logging.FileHandler("audit.log")
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        audit_logger.addHandler(file_handler)
-    except Exception:
-        pass  # File logging optional
+    # Also log to file (configurable location)
+    if settings.AUDIT_LOG_ENABLED:
+        try:
+            file_handler = logging.FileHandler(settings.AUDIT_LOG_FILE)
+            file_handler.setLevel(log_level)
+            file_handler.setFormatter(formatter)
+            audit_logger.addHandler(file_handler)
+        except Exception:
+            pass  # File logging optional
 
 
 def log_audit(
@@ -176,4 +196,227 @@ def log_sale_event(user_id: int, action: AuditAction, sale_id: int, total: float
         target_type="sale",
         target_id=sale_id,
         details={"total": total},
+    )
+
+
+# ============================================================
+# SENSITIVE OPERATIONS LOGGING (Void, Refund, Discount, etc)
+# ============================================================
+
+
+def log_sale_void(
+    user_id: int,
+    sale_id: int,
+    original_total: float,
+    reason: str,
+    authorized_by: Optional[int] = None,
+):
+    """Log sale void (SENSITIVE - requires approval)"""
+    log_audit(
+        AuditAction.SALE_VOIDED,
+        user_id=user_id,
+        target_type="sale",
+        target_id=sale_id,
+        details={
+            "original_total": original_total,
+            "reason": reason,
+            "authorized_by": authorized_by,
+        },
+    )
+
+
+def log_refund(
+    user_id: int,
+    sale_id: int,
+    refund_amount: float,
+    reason: str,
+    payment_method: str = "original",
+):
+    """Log refund (SENSITIVE - tracked for compliance)"""
+    log_audit(
+        AuditAction.SALE_REFUNDED,
+        user_id=user_id,
+        target_type="sale",
+        target_id=sale_id,
+        details={
+            "refund_amount": refund_amount,
+            "reason": reason,
+            "payment_method": payment_method,
+        },
+    )
+
+
+def log_discount_applied(
+    user_id: int,
+    sale_id: int,
+    discount_amount: float,
+    discount_type: str,
+    discount_code: Optional[str] = None,
+):
+    """Log discount application (SENSITIVE - tracking for revenue impact)"""
+    log_audit(
+        AuditAction.DISCOUNT_APPLIED,
+        user_id=user_id,
+        target_type="sale",
+        target_id=sale_id,
+        details={
+            "discount_amount": discount_amount,
+            "discount_type": discount_type,
+            "discount_code": discount_code,
+        },
+    )
+
+
+def log_discount_removed(
+    user_id: int,
+    sale_id: int,
+    discount_amount: float,
+):
+    """Log discount removal"""
+    log_audit(
+        AuditAction.DISCOUNT_REMOVED,
+        user_id=user_id,
+        target_type="sale",
+        target_id=sale_id,
+        details={"discount_amount": discount_amount},
+    )
+
+
+def log_manual_adjustment(
+    user_id: int,
+    target_type: str,
+    target_id: int,
+    adjustment_type: str,
+    adjustment_amount: float,
+    reason: str,
+):
+    """Log manual adjustment (SENSITIVE - direct amount changes)"""
+    log_audit(
+        AuditAction.MANUAL_ADJUSTMENT,
+        user_id=user_id,
+        target_type=target_type,
+        target_id=target_id,
+        details={
+            "adjustment_type": adjustment_type,
+            "adjustment_amount": adjustment_amount,
+            "reason": reason,
+        },
+    )
+
+
+def log_payment_refund(
+    user_id: int,
+    payment_id: int,
+    refund_amount: float,
+    refund_reason: str,
+):
+    """Log payment refund (SENSITIVE)"""
+    log_audit(
+        AuditAction.PAYMENT_REFUNDED,
+        user_id=user_id,
+        target_type="payment",
+        target_id=payment_id,
+        details={
+            "refund_amount": refund_amount,
+            "refund_reason": refund_reason,
+        },
+    )
+
+
+def log_loyalty_adjustment(
+    user_id: int,
+    customer_id: int,
+    points_adjusted: int,
+    reason: str,
+):
+    """Log loyalty points adjustment (SENSITIVE)"""
+    log_audit(
+        AuditAction.LOYALTY_ADJUSTED,
+        user_id=user_id,
+        target_type="customer",
+        target_id=customer_id,
+        details={
+            "points_adjusted": points_adjusted,
+            "reason": reason,
+        },
+    )
+
+
+# ============================================================
+# SESSION & AUTHENTICATION LOGGING
+# ============================================================
+
+
+def log_session_created(user_id: int, session_id: str, ip_address: str):
+    """Log session creation"""
+    log_audit(
+        AuditAction.SESSION_CREATED,
+        user_id=user_id,
+        details={"session_id": session_id},
+        ip_address=ip_address,
+    )
+
+
+def log_session_ended(user_id: int, session_id: str, reason: str = "logout"):
+    """Log session termination"""
+    log_audit(
+        AuditAction.SESSION_ENDED,
+        user_id=user_id,
+        details={
+            "session_id": session_id,
+            "reason": reason,
+        },
+    )
+
+
+def log_session_timeout(user_id: int, session_id: str):
+    """Log session timeout"""
+    log_audit(
+        AuditAction.SESSION_TIMEOUT,
+        user_id=user_id,
+        details={"session_id": session_id},
+    )
+
+
+def log_two_factor_enabled(user_id: int):
+    """Log 2FA enablement"""
+    log_audit(
+        AuditAction.TWO_FACTOR_ENABLED,
+        user_id=user_id,
+    )
+
+
+def log_two_factor_disabled(user_id: int, admin_id: Optional[int] = None):
+    """Log 2FA disablement"""
+    log_audit(
+        AuditAction.TWO_FACTOR_DISABLED,
+        user_id=user_id,
+        details={"disabled_by": admin_id},
+    )
+
+
+def log_two_factor_verified(user_id: int, method: str = "totp"):
+    """Log 2FA verification"""
+    log_audit(
+        AuditAction.TWO_FACTOR_VERIFIED,
+        user_id=user_id,
+        details={"method": method},
+    )
+
+
+def log_security_alert(
+    event_type: str,
+    user_id: Optional[int] = None,
+    details: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+):
+    """Log security alert or anomaly"""
+    log_audit(
+        AuditAction.SECURITY_ALERT,
+        user_id=user_id,
+        details={
+            "event_type": event_type,
+            **(details or {}),
+        },
+        ip_address=ip_address,
     )
