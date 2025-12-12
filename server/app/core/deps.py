@@ -72,15 +72,15 @@ def require_role(allowed_roles: List[str]) -> Callable:
 
 def require_permission(permission: Union[Permission, List[Permission]]) -> Callable:
     """Create a dependency that requires specific permission(s)"""
-    
+
     permissions = [permission] if isinstance(permission, Permission) else permission
 
     def permission_checker(user: m.User = Depends(get_current_user)) -> m.User:
         user_permissions = RolePermissions.get_permissions(user.role)
-        
+
         # Check if user has at least one of the required permissions
         has_permission = any(perm in user_permissions for perm in permissions)
-        
+
         if not has_permission:
             perm_names = [p.value for p in permissions]
             raise HTTPException(
@@ -97,10 +97,10 @@ def require_all_permissions(permissions: List[Permission]) -> Callable:
 
     def permission_checker(user: m.User = Depends(get_current_user)) -> m.User:
         user_permissions = RolePermissions.get_permissions(user.role)
-        
+
         # Check if user has all required permissions
         missing = [p for p in permissions if p not in user_permissions]
-        
+
         if missing:
             missing_names = [p.value for p in missing]
             raise HTTPException(

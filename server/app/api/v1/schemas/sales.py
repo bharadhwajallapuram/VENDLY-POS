@@ -22,6 +22,7 @@ class OfflinePayment(BaseModel):
 
 class OfflineSaleIn(BaseModel):
     """Schema for offline sale data that needs to be synced"""
+
     id: str  # Offline UUID for tracking
     items: List[SaleItemIn]
     payments: List[OfflinePayment]
@@ -37,11 +38,13 @@ class OfflineSaleIn(BaseModel):
 
 class BatchSyncRequest(BaseModel):
     """Request body for batch sync of offline sales"""
+
     sales: List[OfflineSaleIn]
 
 
 class SyncResultItem(BaseModel):
     """Result for a single synced sale"""
+
     success: bool
     offlineId: str
     serverId: Optional[int] = None
@@ -50,6 +53,7 @@ class SyncResultItem(BaseModel):
 
 class BatchSyncResponse(BaseModel):
     """Response for batch sync operation"""
+
     synced: int
     failed: int
     results: List[SyncResultItem]

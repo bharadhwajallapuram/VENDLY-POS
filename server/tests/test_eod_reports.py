@@ -15,14 +15,16 @@ class TestEndOfDayReports:
         """Create sales data for a specific day"""
         # Use UTC for consistency with database timestamps
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        
+
         # Create products
         product1_resp = client.post(
             "/api/v1/products",
             json={"name": "EOD Product A", "price": 50.00, "quantity": 100},
             headers=auth_headers,
         )
-        assert product1_resp.status_code == 201, f"Failed to create product1: {product1_resp.text}"
+        assert (
+            product1_resp.status_code == 201
+        ), f"Failed to create product1: {product1_resp.text}"
         product1 = product1_resp.json()
 
         product2_resp = client.post(
@@ -30,7 +32,9 @@ class TestEndOfDayReports:
             json={"name": "EOD Product B", "price": 30.00, "quantity": 100},
             headers=auth_headers,
         )
-        assert product2_resp.status_code == 201, f"Failed to create product2: {product2_resp.text}"
+        assert (
+            product2_resp.status_code == 201
+        ), f"Failed to create product2: {product2_resp.text}"
         product2 = product2_resp.json()
 
         # Create cash sales
@@ -51,7 +55,9 @@ class TestEndOfDayReports:
                 },
                 headers=auth_headers,
             )
-            assert sale_resp.status_code == 201, f"Failed to create cash sale: {sale_resp.text}"
+            assert (
+                sale_resp.status_code == 201
+            ), f"Failed to create cash sale: {sale_resp.text}"
 
         # Create card sales
         for _ in range(2):
@@ -71,7 +77,9 @@ class TestEndOfDayReports:
                 },
                 headers=auth_headers,
             )
-            assert sale_resp.status_code == 201, f"Failed to create card sale: {sale_resp.text}"
+            assert (
+                sale_resp.status_code == 201
+            ), f"Failed to create card sale: {sale_resp.text}"
 
         return {
             "product1": product1,
@@ -91,7 +99,7 @@ class TestEndOfDayReports:
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check Z-Report structure
         assert "report_date" in data
         assert "report_time" in data
@@ -101,7 +109,7 @@ class TestEndOfDayReports:
         assert "items_sold" in data
         assert "payment_methods" in data
         assert "top_products" in data
-        
+
         # Verify sales data
         assert data["total_sales"] == 5
         assert data["total_revenue"] > 0
@@ -119,7 +127,7 @@ class TestEndOfDayReports:
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check payment methods
         methods = {m["method"]: m for m in data["payment_methods"]}
         assert "cash" in methods
@@ -139,7 +147,7 @@ class TestEndOfDayReports:
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check top products
         assert len(data["top_products"]) > 0
         assert "name" in data["top_products"][0]
@@ -161,9 +169,11 @@ class TestEndOfDayReports:
         z_report = response.json()
 
         # Calculate expected cash from payment methods
-        cash_method = next((m for m in z_report["payment_methods"] if m["method"] == "cash"), None)
+        cash_method = next(
+            (m for m in z_report["payment_methods"] if m["method"] == "cash"), None
+        )
         expected_cash = cash_method["revenue"] if cash_method else 0.0
-        
+
         # Reconcile with matching cash
         reconcile_response = client.post(
             f"/api/v1/reports/z-report/reconcile?report_date={today}",
@@ -176,7 +186,7 @@ class TestEndOfDayReports:
 
         assert reconcile_response.status_code == 200
         result = reconcile_response.json()
-        
+
         # Check reconciliation result
         assert "reconciliation" in result
         assert "status" in result
@@ -187,7 +197,7 @@ class TestEndOfDayReports:
     ):
         """Test cash reconciliation with variance"""
         today = create_daily_sales_data["today"]
-        
+
         # Reconcile with different cash amount
         reconcile_response = client.post(
             f"/api/v1/reports/z-report/reconcile?report_date={today}",
@@ -200,7 +210,7 @@ class TestEndOfDayReports:
 
         assert reconcile_response.status_code == 200
         result = reconcile_response.json()
-        
+
         # Check variance is detected
         assert "reconciliation" in result
         assert result["reconciliation"]["actual_cash"] == 500.00
@@ -218,7 +228,7 @@ class TestEndOfDayReports:
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check summary structure
         assert "date" in data
         assert "total_sales" in data
@@ -226,7 +236,7 @@ class TestEndOfDayReports:
         assert "total_tax" in data
         assert "items_sold" in data
         assert "average_transaction" in data
-        
+
         # Verify values
         assert data["total_sales"] == 5
         assert data["items_sold"] > 0
@@ -259,7 +269,9 @@ class TestEndOfDayReports:
 
     def test_z_report_past_date(self, client: TestClient, auth_headers: dict):
         """Test Z-Report for a past date with no sales"""
-        past_date = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+        past_date = (datetime.now(timezone.utc) - timedelta(days=30)).strftime(
+            "%Y-%m-%d"
+        )
         response = client.get(
             f"/api/v1/reports/z-report?report_date={past_date}",
             headers=auth_headers,
@@ -276,12 +288,12 @@ class TestEndOfDayReports:
     ):
         """Test that Z-Report includes refund and return statistics"""
         today = create_daily_sales_data["today"]
-        
+
         # Get a sale to refund
         sales_response = client.get("/api/v1/sales", headers=auth_headers)
         assert sales_response.status_code == 200
         sales = sales_response.json()
-        
+
         if sales:
             sale_id = sales[0]["id"]
             # Create a refund
@@ -290,7 +302,7 @@ class TestEndOfDayReports:
                 json={"employee_id": "emp1", "reason": "Customer request"},
                 headers=auth_headers,
             )
-        
+
         # Get Z-Report
         response = client.get(
             f"/api/v1/reports/z-report?report_date={today}",
@@ -299,7 +311,7 @@ class TestEndOfDayReports:
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check refund statistics
         assert "total_refunds" in data
         assert "refund_amount" in data

@@ -22,8 +22,10 @@ router = APIRouter()
 # Z-Report & EOD Models
 # =====================================
 
+
 class CashDrawerReconciliation(BaseModel):
     """Cash drawer reconciliation data"""
+
     expected_cash: float
     actual_cash: float
     variance: float
@@ -33,6 +35,7 @@ class CashDrawerReconciliation(BaseModel):
 
 class PaymentMethodBreakdown(BaseModel):
     """Payment method breakdown"""
+
     method: str
     count: int
     revenue: float
@@ -41,33 +44,34 @@ class PaymentMethodBreakdown(BaseModel):
 
 class ZReportData(BaseModel):
     """End-of-day Z-Report data"""
+
     report_date: str
     report_time: str
-    
+
     # Sales summary
     total_sales: int
     total_revenue: float
     total_tax: float
     total_discount: float
-    
+
     # Items
     items_sold: int
-    
+
     # Refunds & Returns
     total_refunds: int
     total_returns: int
     refund_amount: float
     return_amount: float
-    
+
     # Payment breakdown
     payment_methods: List[PaymentMethodBreakdown]
-    
+
     # Top products
     top_products: list
-    
+
     # Cash reconciliation (optional)
     cash_reconciliation: Optional[CashDrawerReconciliation] = None
-    
+
     # Shift info
     shift_start_time: Optional[str] = None
     shift_end_time: Optional[str] = None
@@ -76,6 +80,7 @@ class ZReportData(BaseModel):
 
 class CashReconciliationIn(BaseModel):
     """Cash reconciliation input"""
+
     actual_cash: float
     notes: Optional[str] = None
 
@@ -249,6 +254,7 @@ def get_sales_by_payment(
 # Z-Report (End-of-Day) Endpoints
 # =====================================
 
+
 @router.get("/z-report", response_model=ZReportData)
 def get_z_report(
     report_date: Optional[str] = Query(None),  # YYYY-MM-DD format
@@ -262,34 +268,29 @@ def get_z_report(
     # Default to today if no date provided
     if not report_date:
         report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    
+
     # Parse report date properly
     # When comparing stored UTC times with local date, we need to handle timezone offset
     # Assuming UTC+0 for now, but the key is comparing just the date part
     report_dt = datetime.strptime(report_date, "%Y-%m-%d")
-    
+
     # Get all completed sales and filter by date using string comparison
     # This works better with SQLite's datetime handling
-    sales_q = db.query(m.Sale).filter(
-        m.Sale.status == "completed"
-    )
+    sales_q = db.query(m.Sale).filter(m.Sale.status == "completed")
     sales_list = sales_q.all()
-    
+
     # Filter sales by date (handles timezone properly by comparing date portion only)
     sales = [s for s in sales_list if s.created_at.strftime("%Y-%m-%d") == report_date]
-    
+
     # Basic metrics
     total_sales = len(sales)
     total_revenue = sum(float(s.total) for s in sales) if sales else 0.0
     total_tax = sum(float(s.tax) for s in sales) if sales else 0.0
     total_discount = sum(float(s.discount) for s in sales) if sales else 0.0
-    
+
     # Items sold count
-    items_sold = sum(
-        sum(item.quantity for item in sale.items)
-        for sale in sales
-    )
-    
+    items_sold = sum(sum(item.quantity for item in sale.items) for sale in sales)
+
     # Payment method breakdown
     payment_methods_dict = {}
     for sale in sales:
@@ -298,7 +299,7 @@ def get_z_report(
             payment_methods_dict[method] = {"count": 0, "revenue": 0.0}
         payment_methods_dict[method]["count"] += 1
         payment_methods_dict[method]["revenue"] += float(sale.total)
-    
+
     # Calculate percentages
     payment_methods = []
     for method, data in payment_methods_dict.items():
@@ -308,10 +309,10 @@ def get_z_report(
                 method=method,
                 count=data["count"],
                 revenue=round(data["revenue"], 2),
-                percentage=round(percentage, 2)
+                percentage=round(percentage, 2),
             )
         )
-    
+
     # Top products
     product_sales = {}
     for sale in sales:
@@ -325,7 +326,7 @@ def get_z_report(
                 }
             product_sales[item.product_id]["quantity"] += item.quantity
             product_sales[item.product_id]["revenue"] += float(item.subtotal)
-    
+
     top_products = sorted(
         [
             {
@@ -336,30 +337,50 @@ def get_z_report(
             for p in product_sales.values()
         ],
         key=lambda x: x["revenue"],
-        reverse=True
+        reverse=True,
     )[:10]
-    
+
     # Refunds and returns for the day
-    all_refund_sales = db.query(m.Sale).filter(
-        m.Sale.status.in_(["refunded", "partially_refunded", "returned", "partially_returned"])
-    ).all()
-    refund_sales = [s for s in all_refund_sales if s.created_at.strftime("%Y-%m-%d") == report_date]
-    
-    total_refunds = len([s for s in refund_sales if s.status in ("refunded", "partially_refunded")])
-    total_returns = len([s for s in refund_sales if s.status in ("returned", "partially_returned")])
-    
+    all_refund_sales = (
+        db.query(m.Sale)
+        .filter(
+            m.Sale.status.in_(
+                ["refunded", "partially_refunded", "returned", "partially_returned"]
+            )
+        )
+        .all()
+    )
+    refund_sales = [
+        s for s in all_refund_sales if s.created_at.strftime("%Y-%m-%d") == report_date
+    ]
+
+    total_refunds = len(
+        [s for s in refund_sales if s.status in ("refunded", "partially_refunded")]
+    )
+    total_returns = len(
+        [s for s in refund_sales if s.status in ("returned", "partially_returned")]
+    )
+
     refund_amount = 0.0
     return_amount = 0.0
     for sale in refund_sales:
         if sale.status in ("refunded", "partially_refunded"):
-            refund_amount += float(sale.total) if sale.status == "refunded" else float(sale.total) * 0.5
+            refund_amount += (
+                float(sale.total)
+                if sale.status == "refunded"
+                else float(sale.total) * 0.5
+            )
         elif sale.status in ("returned", "partially_returned"):
-            return_amount += float(sale.total) if sale.status == "returned" else float(sale.total) * 0.5
-    
+            return_amount += (
+                float(sale.total)
+                if sale.status == "returned"
+                else float(sale.total) * 0.5
+            )
+
     # Report timing
     now = datetime.now()
     report_time = now.strftime("%H:%M:%S")
-    
+
     return ZReportData(
         report_date=report_date,
         report_time=report_time,
@@ -393,42 +414,46 @@ def reconcile_cash_drawer(
     """
     if not report_date:
         report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    
+
     # Get all cash sales and filter by date
-    all_cash_sales = db.query(m.Sale).filter(
-        m.Sale.status == "completed",
-        m.Sale.payment_method == "cash"
-    ).all()
-    
-    cash_sales = [s for s in all_cash_sales if s.created_at.strftime("%Y-%m-%d") == report_date]
-    
+    all_cash_sales = (
+        db.query(m.Sale)
+        .filter(m.Sale.status == "completed", m.Sale.payment_method == "cash")
+        .all()
+    )
+
+    cash_sales = [
+        s for s in all_cash_sales if s.created_at.strftime("%Y-%m-%d") == report_date
+    ]
+
     # Calculate expected cash
     expected_cash = sum(float(s.total) for s in cash_sales) if cash_sales else 0.0
-    
+
     # Get actual cash from reconciliation
     actual_cash = reconciliation.actual_cash if reconciliation else 0.0
-    
+
     # Calculate variance
     variance = actual_cash - expected_cash
     variance_percentage = (variance / expected_cash * 100) if expected_cash > 0 else 0
-    
+
     # Create reconciliation record
     reconciliation_data = CashDrawerReconciliation(
         expected_cash=round(expected_cash, 2),
         actual_cash=round(actual_cash, 2),
         variance=round(variance, 2),
         variance_percentage=round(variance_percentage, 2),
-        notes=reconciliation.notes if reconciliation else None
+        notes=reconciliation.notes if reconciliation else None,
     )
-    
+
     return {
         "report_date": report_date,
         "reconciliation": reconciliation_data,
         "status": "success" if abs(variance) < 1.0 else "variance_detected",
         "message": (
-            "Cash drawer reconciled successfully" if abs(variance) < 1.0
+            "Cash drawer reconciled successfully"
+            if abs(variance) < 1.0
             else f"Variance of ${abs(variance):.2f} detected"
-        )
+        ),
     }
 
 
@@ -441,24 +466,19 @@ def get_sales_summary(
     """Get daily sales summary without cash reconciliation details"""
     if not report_date:
         report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    
+
     # Get all completed sales and filter by date
-    all_sales = db.query(m.Sale).filter(
-        m.Sale.status == "completed"
-    ).all()
-    
+    all_sales = db.query(m.Sale).filter(m.Sale.status == "completed").all()
+
     sales = [s for s in all_sales if s.created_at.strftime("%Y-%m-%d") == report_date]
-    
+
     total_sales = len(sales)
     total_revenue = sum(float(s.total) for s in sales) if sales else 0.0
     total_tax = sum(float(s.tax) for s in sales) if sales else 0.0
     total_discount = sum(float(s.discount) for s in sales) if sales else 0.0
-    
-    items_sold = sum(
-        sum(item.quantity for item in sale.items)
-        for sale in sales
-    )
-    
+
+    items_sold = sum(sum(item.quantity for item in sale.items) for sale in sales)
+
     return {
         "date": report_date,
         "total_sales": total_sales,
@@ -466,5 +486,7 @@ def get_sales_summary(
         "total_tax": round(total_tax, 2),
         "total_discount": round(total_discount, 2),
         "items_sold": items_sold,
-        "average_transaction": round(total_revenue / total_sales, 2) if total_sales > 0 else 0,
+        "average_transaction": (
+            round(total_revenue / total_sales, 2) if total_sales > 0 else 0
+        ),
     }

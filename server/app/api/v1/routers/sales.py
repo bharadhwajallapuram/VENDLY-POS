@@ -628,13 +628,17 @@ def batch_sync_sales(
                 # Look for existing customer by phone or email
                 existing_customer = None
                 if offline_sale.customer_phone:
-                    existing_customer = db.query(m.Customer).filter(
-                        m.Customer.phone == offline_sale.customer_phone
-                    ).first()
+                    existing_customer = (
+                        db.query(m.Customer)
+                        .filter(m.Customer.phone == offline_sale.customer_phone)
+                        .first()
+                    )
                 elif offline_sale.customer_email:
-                    existing_customer = db.query(m.Customer).filter(
-                        m.Customer.email == offline_sale.customer_email
-                    ).first()
+                    existing_customer = (
+                        db.query(m.Customer)
+                        .filter(m.Customer.email == offline_sale.customer_email)
+                        .first()
+                    )
 
                 if existing_customer:
                     customer_id = existing_customer.id
