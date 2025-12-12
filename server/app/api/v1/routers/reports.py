@@ -324,19 +324,23 @@ def get_z_report(
                     "quantity": 0,
                     "revenue": 0.0,
                 }
-            product_sales[item.product_id]["quantity"] += item.quantity
-            product_sales[item.product_id]["revenue"] += float(item.subtotal)
+            product_sales[item.product_id]["quantity"] = int(
+                product_sales[item.product_id]["quantity"]
+            ) + int(item.quantity)
+            product_sales[item.product_id]["revenue"] = float(
+                product_sales[item.product_id]["revenue"]
+            ) + float(item.subtotal)
 
     top_products = sorted(
         [
             {
                 "name": p["name"],
                 "quantity": p["quantity"],
-                "revenue": round(p["revenue"], 2),
+                "revenue": round(float(p["revenue"]), 2),
             }
             for p in product_sales.values()
         ],
-        key=lambda x: x["revenue"],
+        key=lambda x: float(x["revenue"]),
         reverse=True,
     )[:10]
 
