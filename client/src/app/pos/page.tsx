@@ -9,10 +9,12 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import PaymentModal from '@/components/PaymentModal';
 import { SplitPayment } from '@/components/SplitPaymentInput';
 import Receipt from '@/components/Receipt';
+import OfflineIndicator, { OfflineBanner } from '@/components/OfflineIndicator';
 import { useRef } from 'react';
 import { useCart } from '@/store/cart';
 import { useAuth } from '@/store/auth';
 import { API_URL } from '@/lib/api';
+import { useOffline } from '@/lib/useOffline';
 
 // Simple product type for now
 interface SimpleProduct {
@@ -27,8 +29,10 @@ function POSContent() {
   const receiptRef = useRef<HTMLDivElement>(null);
   const cart = useCart();
   const { user } = useAuth();
+  const { isOnline, pendingCount, queueOfflineSale, syncNow, isSyncing } = useOffline();
   
   const [query, setQuery] = useState('');
+  const [isOfflineSale, setIsOfflineSale] = useState(false);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [payOpen, setPayOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -180,13 +184,76 @@ function POSContent() {
     }
   }, [appliedCoupon, subtotal]);
 
-  // Handle payment
+  // Handle payment (supports offline mode)
   async function handlePayment(payments: SplitPayment[]) {
     const token = localStorage.getItem('vendly_token');
     if (!token) {
       alert('You must be logged in to complete a sale');
       return;
     }
+
+    // Build sale items
+    const saleItems = cart.lines.map((line) => ({
+      product_id: parseInt(line.variantId),
+      quantity: line.qty,
+      unit_price: line.priceCents / 100,
+      discount: 0,
+    }));
+
+    // Check if we're offline
+    if (!isOnline) {
+      // Queue the sale for later sync
+      const offlineSale = queueOfflineSale({
+        items: saleItems,
+        payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
+        discount: orderDiscountCents / 100,
+        coupon_code: appliedCoupon || undefined,
+        notes: undefined,
+        customer_id: customerId || undefined,
+        customer_name: customerName || undefined,
+        customer_phone: customerPhone || undefined,
+        customer_email: customerEmail || undefined,
+      });
+
+      // Create a local sale object for receipt display
+      const localSale = {
+        id: offlineSale.id,
+        items: cart.lines.map((line) => ({
+          product_name: line.name,
+          quantity: line.qty,
+          unit_price: line.priceCents / 100,
+        })),
+        subtotal: subtotal / 100,
+        tax: tax / 100,
+        discount: totalDiscountCents / 100,
+        coupon_code: appliedCoupon,
+        total: total / 100,
+        created_at: offlineSale.created_at,
+        is_offline: true,
+      };
+
+      setLastSaleId(null);
+      setLastSale(localSale);
+      setIsOfflineSale(true);
+      cart.clear();
+      setPayOpen(false);
+      setShowReceiptPrompt(true);
+      
+      // Reset customer info
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerEmail('');
+      setCustomerId(null);
+      setCustomerLoyaltyPoints(0);
+      setRedeemingPoints(0);
+      setCouponCode('');
+      setAppliedCoupon(null);
+      setCouponDiscountCents(0);
+      setOrderDiscount(0);
+      return;
+    }
+
+    // Online mode - proceed with normal API call
     // Create or find customer if details provided
     let finalCustomerId = customerId;
     if (!finalCustomerId && (customerName || customerPhone || customerEmail)) {
@@ -215,33 +282,67 @@ function POSContent() {
     }
     // Build sale payload
     const salePayload = {
-      items: cart.lines.map((line) => ({
-        product_id: parseInt(line.variantId),
-        quantity: line.qty,
-        unit_price: line.priceCents / 100,
-        discount: 0,
-      })),
+      items: saleItems,
       payments,
       discount: orderDiscountCents / 100,
       coupon_code: appliedCoupon || undefined,
       notes: null,
       customer_id: finalCustomerId,
     };
-    const response = await fetch(`${API_URL}/api/v1/sales`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(salePayload),
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.detail || 'Failed to create sale');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/v1/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(salePayload),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to create sale');
+      }
+      const sale = await response.json();
+      setLastSaleId(sale.id);
+      setLastSale(sale);
+      setIsOfflineSale(false);
+    } catch (error) {
+      // Network error - queue as offline sale
+      console.warn('Network error, queuing sale for offline sync:', error);
+      const offlineSale = queueOfflineSale({
+        items: saleItems,
+        payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
+        discount: orderDiscountCents / 100,
+        coupon_code: appliedCoupon || undefined,
+        notes: undefined,
+        customer_id: customerId || undefined,
+        customer_name: customerName || undefined,
+        customer_phone: customerPhone || undefined,
+        customer_email: customerEmail || undefined,
+      });
+
+      const localSale = {
+        id: offlineSale.id,
+        items: cart.lines.map((line) => ({
+          product_name: line.name,
+          quantity: line.qty,
+          unit_price: line.priceCents / 100,
+        })),
+        subtotal: subtotal / 100,
+        tax: tax / 100,
+        discount: totalDiscountCents / 100,
+        coupon_code: appliedCoupon,
+        total: total / 100,
+        created_at: offlineSale.created_at,
+        is_offline: true,
+      };
+
+      setLastSaleId(null);
+      setLastSale(localSale);
+      setIsOfflineSale(true);
     }
-    const sale = await response.json();
-    setLastSaleId(sale.id);
-    setLastSale(sale);
+    
     cart.clear();
     setPayOpen(false);
     setShowReceiptPrompt(true);
@@ -287,15 +388,20 @@ function POSContent() {
   function closeReceiptPrompt() {
     setShowReceiptPrompt(false);
     setLastSaleId(null);
+    setIsOfflineSale(false);
   }
 
   return (
-    <div className="flex h-[calc(100vh-100px)] gap-4">
-      {/* Left: Product Search & Results */}
-      <div className="flex-1 flex flex-col">
-        {/* Search Bar */}
-        <div className="mb-4 flex gap-2">
-          <input
+    <div className="flex flex-col h-[calc(100vh-100px)]">
+      {/* Offline Banner */}
+      <OfflineBanner />
+
+      <div className="flex flex-1 gap-4">
+        {/* Left: Product Search & Results */}
+        <div className="flex-1 flex flex-col">
+          {/* Search Bar */}
+          <div className="mb-4 flex gap-2">
+            <input
             className="input flex-1"
             placeholder="Search products by name or SKU..."
             value={query}
@@ -642,14 +748,27 @@ function POSContent() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <div className="text-center mb-6">
-              <div className="text-4xl mb-2">✅</div>
-              <h2 className="text-xl font-semibold text-green-600">Payment Successful!</h2>
-              <p className="text-gray-500 mt-2">Sale #{lastSaleId} completed</p>
+              <div className="text-4xl mb-2">{isOfflineSale ? '📱' : '✅'}</div>
+              <h2 className={`text-xl font-semibold ${isOfflineSale ? 'text-orange-600' : 'text-green-600'}`}>
+                {isOfflineSale ? 'Sale Saved Offline!' : 'Payment Successful!'}
+              </h2>
+              <p className="text-gray-500 mt-2">
+                {isOfflineSale 
+                  ? 'Will sync when back online' 
+                  : `Sale #${lastSaleId} completed`}
+              </p>
+              {isOfflineSale && (
+                <div className="mt-3 px-3 py-2 bg-orange-50 rounded-lg">
+                  <p className="text-xs text-orange-700">
+                    📡 This sale is stored locally and will automatically sync to the server when you&apos;re back online.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="mb-4 flex justify-center">
               <div ref={receiptRef}>
                 <Receipt
-                  saleId={lastSaleId!}
+                  saleId={lastSaleId || lastSale.id}
                   items={lastSale.items?.map((item: any) => ({
                     name: item.product_name || item.name,
                     price: Math.round(item.unit_price * 100),
@@ -680,6 +799,7 @@ function POSContent() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

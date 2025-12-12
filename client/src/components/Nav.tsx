@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useRoleCheck } from '@/store/auth';
+import OfflineIndicator from './OfflineIndicator';
 
 export default function Nav() {
   const router = useRouter();
@@ -22,6 +23,19 @@ export default function Nav() {
   }, []);
 
   const isAuthenticated = mounted && !!token;
+
+  const getRoleStyles = (role: string) => {
+    const roleStyles: Record<string, string> = {
+      admin: 'bg-red-100 text-red-800',
+      manager: 'bg-purple-100 text-purple-800',
+      cashier: 'bg-blue-100 text-blue-800',
+    };
+    return roleStyles[role] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getLinkStyles = (isCurrentPage: boolean) => {
+    return `hover:text-primary-600 ${isCurrentPage ? 'font-semibold text-primary-600' : ''}`;
+  };
 
   const handleLogout = () => {
     clearAuth();
@@ -41,13 +55,13 @@ export default function Nav() {
           <div className="flex items-center gap-4 text-sm">
             <Link
               href="/returns"
-              className={`hover:text-primary-600 ${isActive('/returns') ? 'font-semibold text-primary-600' : ''}`}
+              className={getLinkStyles(isActive('/returns'))}
             >
               Refund/Return
             </Link>
             <Link
               href="/pos"
-              className={`hover:text-primary-600 ${isActive('/pos') ? 'font-semibold text-primary-600' : ''}`}
+              className={getLinkStyles(isActive('/pos'))}
             >
               POS
             </Link>
@@ -56,25 +70,25 @@ export default function Nav() {
               <>
                 <Link
                   href="/products"
-                  className={`hover:text-primary-600 ${isActive('/products') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/products'))}
                 >
                   Products
                 </Link>
                 <Link
                   href="/inventory"
-                  className={`hover:text-primary-600 ${isActive('/inventory') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/inventory'))}
                 >
                   Inventory
                 </Link>
                 <Link
                   href="/settings/discounts"
-                  className={`hover:text-primary-600 ${isActive('/settings/discounts') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/settings/discounts'))}
                 >
                   Discounts
                 </Link>
                 <Link
                   href="/reports"
-                  className={`hover:text-primary-600 ${isActive('/reports') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/reports'))}
                 >
                   Reports
                 </Link>
@@ -85,19 +99,19 @@ export default function Nav() {
               <>
                 <Link
                   href="/customers"
-                  className={`hover:text-primary-600 ${isActive('/customers') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/customers'))}
                 >
                   Customers
                 </Link>
                 <Link
                   href="/users"
-                  className={`hover:text-primary-600 ${isActive('/users') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/users'))}
                 >
                   Users
                 </Link>
                 <Link
                   href="/settings"
-                  className={`hover:text-primary-600 ${isActive('/settings') ? 'font-semibold text-primary-600' : ''}`}
+                  className={getLinkStyles(isActive('/settings'))}
                 >
                   Settings
                 </Link>
@@ -113,19 +127,16 @@ export default function Nav() {
             <>
               <div className="text-sm text-gray-600 flex items-center gap-2">
                 <span>{user?.full_name || user?.email}</span>
-                {user?.role && (
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'admin'
-                        ? 'bg-red-100 text-red-800'
-                        : user.role === 'manager'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}
-                  >
-                    {user.role}
-                  </span>
-                )}
+                <div className="flex items-center gap-1">
+                  <OfflineIndicator showDetails={false} />
+                  {user?.role && (
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleStyles(user.role)}`}
+                    >
+                      {user.role}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleLogout}

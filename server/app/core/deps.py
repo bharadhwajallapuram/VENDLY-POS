@@ -1,5 +1,5 @@
 # app/core/deps.py
-from typing import Callable, Generator, List
+from typing import Callable, Generator, List, Union
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.permissions import Permission, RolePermissions
 from app.db import models as m
 from app.db.session import SessionLocal
 
@@ -67,3 +68,45 @@ def require_role(allowed_roles: List[str]) -> Callable:
         return user
 
     return role_checker
+
+
+def require_permission(permission: Union[Permission, List[Permission]]) -> Callable:
+    """Create a dependency that requires specific permission(s)"""
+
+    permissions = [permission] if isinstance(permission, Permission) else permission
+
+    def permission_checker(user: m.User = Depends(get_current_user)) -> m.User:
+        user_permissions = RolePermissions.get_permissions(user.role)
+
+        # Check if user has at least one of the required permissions
+        has_permission = any(perm in user_permissions for perm in permissions)
+
+        if not has_permission:
+            perm_names = [p.value for p in permissions]
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required permission: {', '.join(perm_names)}",
+            )
+        return user
+
+    return permission_checker
+
+
+def require_all_permissions(permissions: List[Permission]) -> Callable:
+    """Create a dependency that requires ALL specified permissions"""
+
+    def permission_checker(user: m.User = Depends(get_current_user)) -> m.User:
+        user_permissions = RolePermissions.get_permissions(user.role)
+
+        # Check if user has all required permissions
+        missing = [p for p in permissions if p not in user_permissions]
+
+        if missing:
+            missing_names = [p.value for p in missing]
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Missing permissions: {', '.join(missing_names)}",
+            )
+        return user
+
+    return permission_checker
