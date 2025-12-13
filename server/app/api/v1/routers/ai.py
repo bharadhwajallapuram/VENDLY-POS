@@ -54,7 +54,7 @@ class AnomalyDetectResponse(BaseModel):
 @router.post("/anomaly", response_model=AnomalyDetectResponse)
 def detect_anomalies(request: AnomalyDetectRequest):
     # Use z-score anomaly detection
-    sales_data = [item.dict() for item in request.sales_data]
+    sales_data = [item.model_dump() for item in request.sales_data]
     anomalies = anomaly_service.detect_anomalies(
         sales_data, threshold=request.threshold
     )

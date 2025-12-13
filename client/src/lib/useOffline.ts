@@ -132,6 +132,7 @@ export function useOffline(): UseOfflineReturn {
   }, [refreshQueueState, syncNow]);
 
   // Periodic sync when online (every 30 seconds)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isOnline) return;
 
@@ -145,6 +146,7 @@ export function useOffline(): UseOfflineReturn {
   }, [isOnline, isSyncing, syncNow]);
 
   // Initial sync on mount if online and has pending
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOnline && getPendingCount() > 0) {
       syncNow();

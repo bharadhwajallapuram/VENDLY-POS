@@ -33,6 +33,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
         try {
           const userInfo = await me();
           setUser({
+            id: userInfo.id,
             email: userInfo.email,
             role: userInfo.role as UserRole,
             full_name: userInfo.full_name,

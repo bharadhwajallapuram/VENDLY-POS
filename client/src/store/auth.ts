@@ -151,6 +151,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 };
 
 export interface User {
+  id: number;
   email: string;
   role: UserRole;
   full_name?: string;

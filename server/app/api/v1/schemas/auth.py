@@ -17,6 +17,23 @@ class TokenOut(BaseModel):
     expires_in: int
 
 
+class TwoFactorRequiredResponse(BaseModel):
+    """Response when 2FA is required for login"""
+
+    requires_2fa: bool = True
+    user_id: int
+    email: str
+    temp_token: str  # Temporary token to verify 2FA, expires in 5 minutes
+
+
+class TwoFactorVerifyLoginIn(BaseModel):
+    """Verify 2FA code during login"""
+
+    temp_token: str
+    token: str = Field(..., min_length=6, max_length=6)  # TOTP code
+    backup_code: Optional[str] = None  # Alternative: backup code
+
+
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
@@ -25,6 +42,7 @@ class RegisterIn(BaseModel):
 
 
 class UserOut(BaseModel):
+    id: int
     email: EmailStr
     full_name: Optional[str] = None
     role: Role = "cashier"

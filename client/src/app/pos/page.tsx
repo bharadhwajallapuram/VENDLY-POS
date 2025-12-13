@@ -4,7 +4,7 @@
 // Vendly POS - Point of Sale Page
 // ===========================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PaymentModal from '@/components/PaymentModal';
 import { SplitPayment } from '@/components/SplitPaymentInput';
@@ -24,6 +24,13 @@ interface SimpleProduct {
   sku?: string;
   quantity: number;
 }
+
+// Basic coupons in sync with backend
+const COUPONS: Record<string, { type: 'percent' | 'amount'; value: number; max_off?: number; stackable: boolean }> = {
+  SAVE10: { type: 'percent', value: 10, stackable: true },
+  WELCOME15: { type: 'percent', value: 15, max_off: 25, stackable: false },
+  FLAT5: { type: 'amount', value: 5, stackable: true },
+};
 
 function POSContent() {
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -52,13 +59,6 @@ function POSContent() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerId, setCustomerId] = useState<number | null>(null);
-
-  // Basic coupons in sync with backend
-  const coupons: Record<string, { type: 'percent' | 'amount'; value: number; max_off?: number; stackable: boolean }> = {
-    SAVE10: { type: 'percent', value: 10, stackable: true },
-    WELCOME15: { type: 'percent', value: 15, max_off: 25, stackable: false },
-    FLAT5: { type: 'amount', value: 5, stackable: true },
-  };
 
   // Loyalty points (1 point = $0.01, 100 points = $1)
   const [customerLoyaltyPoints, setCustomerLoyaltyPoints] = useState(0);
@@ -114,10 +114,10 @@ function POSContent() {
   const total = Math.max(0, subtotal + tax - totalDiscountCents);
 
   // Check if applied coupon is non-stackable
-  const isNonStackableCouponApplied = appliedCoupon ? !coupons[appliedCoupon]?.stackable : false;
+  const isNonStackableCouponApplied = appliedCoupon ? !COUPONS[appliedCoupon]?.stackable : false;
 
-  function calculateCouponDiscount(code: string, baseCents: number) {
-    const coupon = coupons[code];
+  const calculateCouponDiscount = useCallback((code: string, baseCents: number) => {
+    const coupon = COUPONS[code];
     if (!coupon) return 0;
     if (coupon.type === 'percent') {
       const raw = (baseCents * coupon.value) / 100;
@@ -125,7 +125,7 @@ function POSContent() {
       return Math.round(capped);
     }
     return Math.round(coupon.value * 100);
-  }
+  }, []);
 
   function applyCoupon() {
     const code = couponCode.trim().toUpperCase();
@@ -136,7 +136,7 @@ function POSContent() {
       return;
     }
     
-    const coupon = coupons[code];
+    const coupon = COUPONS[code];
     if (!coupon) {
       setAppliedCoupon(null);
       setCouponDiscountCents(0);
@@ -182,7 +182,7 @@ function POSContent() {
     if (appliedCoupon) {
       setCouponDiscountCents(calculateCouponDiscount(appliedCoupon, subtotal));
     }
-  }, [appliedCoupon, subtotal]);
+  }, [appliedCoupon, subtotal, calculateCouponDiscount]);
 
   // Handle payment (supports offline mode)
   async function handlePayment(payments: SplitPayment[]) {

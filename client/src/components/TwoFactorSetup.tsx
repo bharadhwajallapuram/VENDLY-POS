@@ -54,7 +54,7 @@ export function TwoFactorSetup({
     setError('');
 
     try {
-      const response = await api.post('/auth/2fa/setup', {
+      const response = await api.post('/api/v1/auth/2fa/setup', {
         user_id: userId,
       });
 
@@ -81,7 +81,7 @@ export function TwoFactorSetup({
     setError('');
 
     try {
-      const response = await api.post('/auth/2fa/verify', {
+      const response = await api.post('/api/v1/auth/2fa/verify', {
         user_id: userId,
         token: verificationCode,
       });

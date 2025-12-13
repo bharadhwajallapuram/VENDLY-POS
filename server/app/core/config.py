@@ -73,6 +73,26 @@ class Settings(BaseSettings):
         default="5/minute", alias="TWO_FACTOR_RATE_LIMIT"
     )
 
+    # Email Configuration (for 2FA and notifications)
+    SMTP_ENABLED: bool = Field(default=False, alias="SMTP_ENABLED")
+    SMTP_HOST: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
+    SMTP_PORT: int = Field(default=587, alias="SMTP_PORT")
+    SMTP_USER: str = Field(default="", alias="SMTP_USER")
+    SMTP_PASSWORD: str = Field(default="", alias="SMTP_PASSWORD")
+    SMTP_FROM: str = Field(default="noreply@vendly.com", alias="SMTP_FROM")
+    SMTP_TLS: bool = Field(default=True, alias="SMTP_TLS")
+
+    # SMS Configuration (for 2FA)
+    SMS_ENABLED: bool = Field(default=False, alias="SMS_ENABLED")
+    SMS_PROVIDER: str = Field(
+        default="twilio", alias="SMS_PROVIDER"
+    )  # twilio, aws_sns, nexmo
+    TWILIO_ENABLED: bool = Field(default=False, alias="TWILIO_ENABLED")
+    TWILIO_ACCOUNT_SID: str = Field(default="", alias="TWILIO_ACCOUNT_SID")
+    TWILIO_AUTH_TOKEN: str = Field(default="", alias="TWILIO_AUTH_TOKEN")
+    TWILIO_PHONE_NUMBER: str = Field(default="", alias="TWILIO_PHONE_NUMBER")
+    TWILIO_WHATSAPP_NUMBER: str = Field(default="", alias="TWILIO_WHATSAPP_NUMBER")
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
