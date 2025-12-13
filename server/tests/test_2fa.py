@@ -302,9 +302,7 @@ class Test2FAManagement:
         # Old codes should be different from new codes
         assert new_backup_codes != old_backup_codes
 
-    def test_admin_disable_2fa_for_user(
-        self, client: TestClient, auth_headers: dict
-    ):
+    def test_admin_disable_2fa_for_user(self, client: TestClient, auth_headers: dict):
         """Test admin disabling 2FA for another user"""
         # Setup and enable 2FA for user
         setup_response = client.post(

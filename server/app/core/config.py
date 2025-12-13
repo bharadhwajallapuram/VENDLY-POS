@@ -84,7 +84,9 @@ class Settings(BaseSettings):
 
     # SMS Configuration (for 2FA)
     SMS_ENABLED: bool = Field(default=False, alias="SMS_ENABLED")
-    SMS_PROVIDER: str = Field(default="twilio", alias="SMS_PROVIDER")  # twilio, aws_sns, nexmo
+    SMS_PROVIDER: str = Field(
+        default="twilio", alias="SMS_PROVIDER"
+    )  # twilio, aws_sns, nexmo
     TWILIO_ENABLED: bool = Field(default=False, alias="TWILIO_ENABLED")
     TWILIO_ACCOUNT_SID: str = Field(default="", alias="TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN: str = Field(default="", alias="TWILIO_AUTH_TOKEN")

@@ -19,6 +19,7 @@ class TokenOut(BaseModel):
 
 class TwoFactorRequiredResponse(BaseModel):
     """Response when 2FA is required for login"""
+
     requires_2fa: bool = True
     user_id: int
     email: str
@@ -27,6 +28,7 @@ class TwoFactorRequiredResponse(BaseModel):
 
 class TwoFactorVerifyLoginIn(BaseModel):
     """Verify 2FA code during login"""
+
     temp_token: str
     token: str = Field(..., min_length=6, max_length=6)  # TOTP code
     backup_code: Optional[str] = None  # Alternative: backup code

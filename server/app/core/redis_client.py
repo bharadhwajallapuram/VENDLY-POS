@@ -50,7 +50,9 @@ class RedisClient:
             self._client.ping()
             logger.info("✓ Connected to Redis")
         except Exception as e:
-            logger.warning(f"Failed to connect to Redis: {e}. Using in-memory fallback.")
+            logger.warning(
+                f"Failed to connect to Redis: {e}. Using in-memory fallback."
+            )
             self._client = None
 
     def set(self, key: str, value: Any, ttl: int) -> bool:

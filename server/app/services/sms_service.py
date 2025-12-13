@@ -21,9 +21,7 @@ class SMSService:
         return "".join(random.choices(string.digits, k=length))
 
     @staticmethod
-    def send_2fa_code(
-        phone: str, code: str, provider: SMSProvider = "twilio"
-    ) -> bool:
+    def send_2fa_code(phone: str, code: str, provider: SMSProvider = "twilio") -> bool:
         """
         Send 2FA code via SMS
 

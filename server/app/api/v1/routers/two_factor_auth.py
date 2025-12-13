@@ -88,7 +88,7 @@ async def setup_2fa(
 
     # Check if user already has an unverified 2FA setup in progress
     existing_2fa = TwoFactorAuthDB.get_2fa(db, user.id)
-    
+
     if existing_2fa and not existing_2fa.is_enabled:
         # Reuse existing unverified setup
         secret = existing_2fa.secret
@@ -108,7 +108,9 @@ async def setup_2fa(
         backup_codes = TwoFactorAuthService.get_backup_codes()
     else:
         # Reuse existing backup codes from the current setup
-        backup_codes = existing_2fa.backup_codes.split(",") if existing_2fa.backup_codes else []
+        backup_codes = (
+            existing_2fa.backup_codes.split(",") if existing_2fa.backup_codes else []
+        )
 
     # Store pending 2FA config (will update existing if present)
     if not existing_2fa or existing_2fa.is_enabled:
