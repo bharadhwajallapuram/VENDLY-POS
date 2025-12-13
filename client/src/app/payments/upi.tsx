@@ -62,7 +62,10 @@ export default function UPIPaymentPage() {
             <button className="absolute top-2 right-2 text-gray-500" onClick={() => setShowModal(false)}>&times;</button>
             <h3 className="text-lg font-semibold mb-2">Scan QR or Pay with UPI App</h3>
             {qr && (
-              <img src={`data:image/png;base64,${qr}`} alt="UPI QR" className="w-48 h-48 mx-auto mb-2" />
+              <div className="w-48 h-48 mx-auto mb-2 relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`data:image/png;base64,${qr}`} alt="UPI QR" className="w-full h-full object-contain" />
+              </div>
             )}
             <a href={upiUrl} target="_blank" rel="noopener noreferrer" className="block text-blue-600 underline mt-2 mb-2">Open in UPI App</a>
             <p className="text-sm text-gray-600 mb-2">After payment, click below to confirm:</p>

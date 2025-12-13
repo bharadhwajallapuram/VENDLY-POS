@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
-from app.schemas.auth import UserResponse
 from app.services.audit import (
     log_two_factor_disabled,
     log_two_factor_enabled,
@@ -22,7 +21,7 @@ from app.services.two_factor_auth import (
     TwoFactorAuthService,
 )
 
-router = APIRouter(prefix="/api/v1/auth/2fa", tags=["2fa"])
+router = APIRouter(prefix="/2fa", tags=["2fa"])
 
 
 # ============================================================
@@ -77,7 +76,7 @@ async def setup_2fa(
 ):
     """
     Start 2FA setup process
-    Generates secret and QR code
+    Generates secret and QR code, or returns existing unverified setup
     """
     # Get user
     user = db.query(m.User).filter(m.User.id == request.user_id).first()
@@ -87,8 +86,15 @@ async def setup_2fa(
             detail="User not found",
         )
 
-    # Generate secret
-    secret = TwoFactorAuthService.generate_secret()
+    # Check if user already has an unverified 2FA setup in progress
+    existing_2fa = TwoFactorAuthDB.get_2fa(db, user.id)
+    
+    if existing_2fa and not existing_2fa.is_enabled:
+        # Reuse existing unverified setup
+        secret = existing_2fa.secret
+    else:
+        # Generate new secret
+        secret = TwoFactorAuthService.generate_secret()
 
     # Generate QR code
     qr_code = TwoFactorAuthService.get_qr_code(
@@ -97,11 +103,18 @@ async def setup_2fa(
         issuer="Vendly POS",
     )
 
-    # Generate backup codes
-    backup_codes = TwoFactorAuthService.get_backup_codes()
+    # Generate backup codes if new setup
+    if not existing_2fa or existing_2fa.is_enabled:
+        backup_codes = TwoFactorAuthService.get_backup_codes()
+    else:
+        # Reuse existing backup codes from the current setup
+        backup_codes = existing_2fa.backup_codes.split(",") if existing_2fa.backup_codes else []
 
-    # Store pending 2FA config
-    TwoFactorAuthDB.enable_2fa(db, user.id, secret, backup_codes)
+    # Store pending 2FA config (will update existing if present)
+    if not existing_2fa or existing_2fa.is_enabled:
+        # New setup or user re-enabling after disabling
+        TwoFactorAuthDB.enable_2fa(db, user.id, secret, backup_codes)
+    # else: reusing existing setup, no need to update
 
     return TwoFactorSetupResponse(
         secret=secret,

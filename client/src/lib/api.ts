@@ -53,11 +53,16 @@ export async function apiFetch<T>(
 // ===========================================
 
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
+  access_token?: string;
+  token_type?: string;
+  requires_2fa?: boolean;
+  temp_token?: string;
+  user_id?: number;
+  email?: string;
 }
 
 export interface UserInfo {
+  id: number;
   email: string;
   role: string;
   full_name?: string;

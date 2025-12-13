@@ -9,6 +9,7 @@ A modern, enterprise-grade point-of-sale system built with Next.js 14 (React/Typ
 - **[Complete Documentation Index](./docs/README.md)** - Start here for all guides
 - **[Offline Mode Guide](./docs/OFFLINE_MODE.md)** - Offline sales queueing & sync
 - **[Granular Permissions Guide](./docs/GRANULAR_PERMISSIONS.md)** - Role-based access control
+- **[Production Deployment Guide](./PRODUCTION_DEPLOYMENT.md)** - Redis, Email & SMS setup for production
 
 ## 🏗️ Architecture
 
@@ -49,24 +50,43 @@ vendly/
 
 ## ✨ New Features (2025)
 
-Vendly now supports advanced refund and return flows, plus other improvements:
+Vendly now supports advanced refund and return flows, two-factor authentication, plus other improvements:
 
-- **Refunds & Returns:**
-	- Partial and full refunds for sales, with inventory adjustment.
-	- Returns flow for items, with employee authorization and reason logging.
-	- Refund/Return endpoints: `/api/v1/sales/{sale_id}/refund` and `/api/v1/sales/{sale_id}/return`.
-	- Frontend UI for refund/return in POS, with sale lookup by ID, phone, or name.
-	- Refund/Return statistics in reports (total refunds, returns, amounts).
-- **Audit Logging:**
-	- All refund/return actions are logged for compliance and review.
-- **Enhanced Reports:**
-	- Dashboard now shows refund/return metrics and amounts.
-- **Security:**
-	- Employee ID required for refund/return actions.
-	- Reason field for tracking refund/return justification.
-- **Other Improvements:**
-	- Improved error handling and feedback in refund/return UI.
-	- Role-based access for sensitive actions.
+### Refunds & Returns
+- Partial and full refunds for sales, with inventory adjustment.
+- Returns flow for items, with employee authorization and reason logging.
+- Refund/Return endpoints: `/api/v1/sales/{sale_id}/refund` and `/api/v1/sales/{sale_id}/return`.
+- Frontend UI for refund/return in POS, with sale lookup by ID, phone, or name.
+- Refund/Return statistics in reports (total refunds, returns, amounts).
+
+### Two-Factor Authentication (2FA) ✅
+- **TOTP-based 2FA** (Time-based One-Time Password via Google Authenticator, Microsoft Authenticator, Authy, etc.)
+- **Backup codes** (10 codes generated per user for account recovery)
+- **Audit logging** of all 2FA events (enable, disable, verification)
+- **API endpoints:**
+  - `POST /api/v1/auth/2fa/setup` - Initialize 2FA setup
+  - `POST /api/v1/auth/2fa/verify` - Verify and enable 2FA
+  - `POST /api/v1/auth/2fa/verify-login` - Verify 2FA during login
+  - `POST /api/v1/auth/2fa/disable` - Disable 2FA
+  - `GET /api/v1/auth/2fa/status` - Check 2FA status
+  - `POST /api/v1/auth/2fa/regenerate-backup-codes` - Generate new backup codes
+  - `POST /api/v1/auth/2fa/admin/disable/{user_id}` - Admin override
+- **Frontend component** (`TwoFactorSetup.tsx`) ready for integration in settings
+
+### Audit Logging & Session Management
+- All refund/return actions are logged for compliance and review.
+- Session timeout with configurable inactivity period
+- Audit trail for all sensitive operations (voids, discounts, logins, 2FA)
+
+### Enhanced Reports
+- Dashboard now shows refund/return metrics and amounts.
+- Audit logs for compliance review
+
+### Security Improvements
+- Employee ID required for refund/return actions.
+- Reason field for tracking refund/return justification.
+- Two-factor authentication for additional account security.
+- Role-based access for sensitive actions.
 
 See the Refund and Returns pages in the POS frontend for a demo, and check the API docs for integration details.
 ```

@@ -4,7 +4,7 @@
 // Vendly POS - End-of-Day Reports Page
 // ===========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Reports } from '@/lib/api';
 
@@ -59,7 +59,7 @@ function EODReportsContent() {
   const [reconcileResult, setReconcileResult] = useState<any>(null);
   const [error, setError] = useState('');
 
-  const loadZReport = async () => {
+  const loadZReport = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -73,7 +73,7 @@ function EODReportsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reportDate]);
 
   const handleReconcileCash = async () => {
     if (!cashAmount) {
@@ -101,7 +101,7 @@ function EODReportsContent() {
 
   useEffect(() => {
     loadZReport();
-  }, [reportDate]);
+  }, [loadZReport]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
