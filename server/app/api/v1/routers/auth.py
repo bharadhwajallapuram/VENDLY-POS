@@ -1,18 +1,19 @@
+import json
+import secrets
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from datetime import datetime, UTC, timedelta
-import secrets
-import json
 
 from app.api.v1.schemas.auth import (
     LoginIn,
     TokenOut,
-    UserOut,
     TwoFactorRequiredResponse,
     TwoFactorVerifyLoginIn,
+    UserOut,
 )
-from app.core.deps import get_current_user, get_db
 from app.core.config import settings
+from app.core.deps import get_current_user, get_db
 from app.core.redis_client import get_token_store
 from app.db import models as m
 from app.services.audit import log_login_failed, log_login_success

@@ -5,7 +5,7 @@ Email service for sending 2FA codes and notifications
 import logging
 import random
 import string
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
