@@ -4,13 +4,13 @@
 // Vendly POS - Point of Sale Page
 // ===========================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PaymentModal from '@/components/PaymentModal';
 import { SplitPayment } from '@/components/SplitPaymentInput';
 import Receipt from '@/components/Receipt';
 import OfflineIndicator, { OfflineBanner } from '@/components/OfflineIndicator';
-import { useRef } from 'react';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { useCart } from '@/store/cart';
 import { useAuth } from '@/store/auth';
 import { API_URL } from '@/lib/api';
@@ -34,13 +34,17 @@ const COUPONS: Record<string, { type: 'percent' | 'amount'; value: number; max_o
 
 function POSContent() {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const lastScanTimeRef = useRef<number>(0);
   const cart = useCart();
   const { user } = useAuth();
   const { isOnline, pendingCount, queueOfflineSale, syncNow, isSyncing } = useOffline();
   
   const [query, setQuery] = useState('');
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
   const [isOfflineSale, setIsOfflineSale] = useState(false);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
+  const [scannedProduct, setScannedProduct] = useState<SimpleProduct | null>(null);
+  const [showScannedProductModal, setShowScannedProductModal] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -88,13 +92,90 @@ function POSContent() {
       setLoading(false);
     }
   }
-
   // Filter products by search query
   const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.sku?.toLowerCase().includes(query.toLowerCase())
   );
+
+  // Handle barcode scan - fetch product from backend
+  const handleBarcodeScanned = useCallback(async (barcode: string) => {
+    // Prevent duplicate scans within 500ms
+    const now = Date.now();
+    if (now - lastScanTimeRef.current < 500) {
+      return;
+    }
+    lastScanTimeRef.current = now;
+
+    try {
+      const token = localStorage.getItem('vendly_token');
+      
+      // Check if token exists
+      if (!token) {
+        setScanFeedback(`✗ Session expired. Please log in again.`);
+        return;
+      }
+      
+      console.log('📱 Scanning barcode:', barcode);
+      
+      // Search for product by barcode or SKU
+      const response = await fetch(`${API_URL}/api/v1/products?query=${encodeURIComponent(barcode)}&limit=10`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.status === 401) {
+        // Token invalid - clear it and show error
+        localStorage.removeItem('vendly_token');
+        setScanFeedback(`✗ Session expired. Please log in again.`);
+        return;
+      }
+      
+      if (!response.ok) {
+        console.error('Backend error:', response.status, response.statusText);
+        setScanFeedback(`✗ Error fetching product. Try again.`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('📦 Backend response:', data);
+      const items = Array.isArray(data) ? data : (data.items || []);
+      
+      console.log('🔍 All matching items:', items.map((p: any) => ({ id: p.id, name: p.name, barcode: p.barcode, sku: p.sku })));
+      
+      // IMPORTANT: Only accept products with EXACT barcode or SKU match
+      // This prevents partial matches from the backend search
+      let product = items.find((p: any) => 
+        (p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase() === barcode.toLowerCase())
+      );
+      
+      console.log('🎯 Exact match found:', product ? { id: product.id, name: product.name, barcode: product.barcode, sku: product.sku } : 'None');
+      
+      if (product) {
+        // Automatically add product to cart
+        console.log('✅ Adding to cart:', product.name);
+        cart.add({
+          variantId: String(product.id),
+          name: product.name,
+          qty: 1,
+          priceCents: Math.round(product.price * 100),
+        });
+        // No feedback for successful additions
+        setScanFeedback(null);
+      } else {
+        // Product not found - show message with error styling
+        console.log('❌ No exact barcode match found');
+        setScanFeedback(`✗ Product not found`);
+      }
+    } catch (err) {
+      console.error('Error scanning barcode:', err);
+      setScanFeedback(`✗ Error processing barcode`);
+    }
+  }, [cart]);
 
   // Add product to cart
   function addToCart(product: SimpleProduct) {
@@ -396,21 +477,29 @@ function POSContent() {
       {/* Offline Banner */}
       <OfflineBanner />
 
+      {/* Barcode Scanner */}
+      <BarcodeScanner 
+        onBarcodeScanned={handleBarcodeScanned}
+        feedback={scanFeedback}
+        onFeedbackDismiss={() => setScanFeedback(null)}
+        debounceMs={300}
+      />
+
       <div className="flex flex-1 gap-4">
         {/* Left: Product Search & Results */}
         <div className="flex-1 flex flex-col">
           {/* Search Bar */}
           <div className="mb-4 flex gap-2">
             <input
-            className="input flex-1"
-            placeholder="Search products by name or SKU..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button className="btn btn-primary" onClick={loadProducts} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
-        </div>
+              className="input flex-1"
+              placeholder="Search products by name, SKU, or scan barcode..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <button className="btn btn-primary" onClick={loadProducts} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
 
         {/* Product Grid */}
         <div className="flex-1 overflow-auto">
@@ -794,6 +883,61 @@ function POSContent() {
                 className="w-full py-2 text-gray-500 hover:text-gray-700"
               >
                 Skip / New Sale
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scanned Product Details Modal */}
+      {showScannedProductModal && scannedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Product Scanned</h2>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-sm font-semibold text-gray-600">Product Name</label>
+                <p className="text-lg font-medium text-gray-900">{scannedProduct.name}</p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-semibold text-gray-600">SKU / Barcode</label>
+                <p className="text-lg font-mono text-gray-900">{scannedProduct.sku || 'N/A'}</p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-semibold text-gray-600">Price</label>
+                <p className="text-2xl font-bold text-green-600">${(scannedProduct.price || 0).toFixed(2)}</p>
+              </div>
+
+              {scannedProduct.quantity !== undefined && (
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">Stock Available</label>
+                  <p className="text-lg text-gray-900">{scannedProduct.quantity} units</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  addToCart(scannedProduct);
+                  setShowScannedProductModal(false);
+                  setScannedProduct(null);
+                }}
+                className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition"
+              >
+                ✓ Add to Cart
+              </button>
+              <button
+                onClick={() => {
+                  setShowScannedProductModal(false);
+                  setScannedProduct(null);
+                }}
+                className="flex-1 py-3 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 font-semibold transition"
+              >
+                ✕ Cancel
               </button>
             </div>
           </div>

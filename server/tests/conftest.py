@@ -13,6 +13,11 @@ from sqlalchemy.pool import StaticPool
 # Set test environment before importing app
 os.environ["TESTING"] = "1"
 os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["APP_ENV"] = "testing"
+os.environ["DEBUG"] = "true"
+os.environ["SECRET_KEY"] = "test-secret-key-12345678901234567890"
+os.environ["JWT_SECRET"] = "test-jwt-secret-key-1234567890123456789"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from app.core.deps import get_db
 from app.core.security import hash_password

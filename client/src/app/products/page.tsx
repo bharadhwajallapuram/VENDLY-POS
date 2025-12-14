@@ -4,9 +4,11 @@
 // Vendly POS - Products Page
 // ===========================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { BarcodeScanner, useBarcodeScanner } from '@/components/BarcodeScanner';
 import { Products, ProductOut, ProductIn } from '@/lib/api';
+import { API_URL } from '@/lib/api';
 
 function ProductsContent() {
   const [items, setItems] = useState<ProductOut[]>([]);
@@ -14,6 +16,7 @@ function ProductsContent() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductOut | null>(null);
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProductIn>({
     name: '',
     sku: '',
@@ -39,6 +42,70 @@ function ProductsContent() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Use barcode scanner hook - fetch product from backend
+  useBarcodeScanner(
+    async (barcode: string) => {
+      try {
+        // Check if product with this barcode already exists locally
+        const existingProduct = items.find(
+          (p) => p.barcode?.toLowerCase() === barcode.toLowerCase() || 
+                 p.sku?.toLowerCase() === barcode.toLowerCase()
+        );
+        
+        if (existingProduct) {
+          // Open edit modal for existing product
+          openEditModal(existingProduct);
+          setScanFeedback(`✓ Found: ${existingProduct.name}`);
+        } else {
+          // Check backend to ensure barcode doesn't exist
+          const token = localStorage.getItem('vendly_token');
+          const response = await fetch(`${API_URL}/api/v1/products?query=${encodeURIComponent(barcode)}&limit=5`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const backendItems = Array.isArray(data) ? data : (data.items || []);
+            const backendProduct = backendItems.find((p: any) =>
+              p.barcode?.toLowerCase() === barcode.toLowerCase()
+            );
+            
+            if (backendProduct) {
+              // Product exists in backend - open edit modal
+              openEditModal(backendProduct);
+              setScanFeedback(`✓ Found: ${backendProduct.name}`);
+              return;
+            }
+          }
+          
+          // Barcode doesn't exist - Open add modal with barcode pre-filled
+          setEditingProduct(null);
+          setFormData({
+            name: '',
+            sku: '',
+            barcode: barcode,
+            description: '',
+            price: 0,
+            cost: 0,
+            quantity: 0,
+            min_quantity: 0,
+            tax_rate: 8,
+            is_active: true,
+          });
+          setShowModal(true);
+          setScanFeedback(`✓ Ready to create product with barcode: ${barcode}`);
+        }
+      } catch (err) {
+        console.error('Error processing barcode:', err);
+        setScanFeedback(`✗ Error processing barcode`);
+      }
+    },
+    6,
+    150,
+    true,
+    'Products-Page'
+  );
 
   function openAddModal() {
     setEditingProduct(null);
@@ -85,8 +152,17 @@ function ProductsContent() {
         setItems([created, ...items]);
       }
       setShowModal(false);
-    } catch (err) {
-      alert('Failed to save product: ' + err);
+    } catch (err: any) {
+      const errorMessage = err?.message || String(err);
+      
+      // Check for session expired errors
+      if (errorMessage.includes('Session expired') || errorMessage.includes('401')) {
+        alert('Your session has expired. Please log in again.');
+        // Optionally redirect to login
+        window.location.href = '/login';
+      } else {
+        alert('Failed to save product: ' + errorMessage);
+      }
     }
   }
 
@@ -98,6 +174,40 @@ function ProductsContent() {
 
   return (
     <div className="space-y-6">
+      {/* Barcode Scanner */}
+      <BarcodeScanner 
+        onBarcodeScanned={(barcode) => {
+          // Check if product with this barcode already exists
+          const existingProduct = items.find(
+            (p) => p.barcode?.toLowerCase() === barcode.toLowerCase() || 
+                   p.sku?.toLowerCase() === barcode.toLowerCase()
+          );
+          
+          if (existingProduct) {
+            openEditModal(existingProduct);
+            setScanFeedback(`✓ Found: ${existingProduct.name}`);
+          } else {
+            setEditingProduct(null);
+            setFormData({
+              name: '',
+              sku: '',
+              barcode: barcode,
+              description: '',
+              price: 0,
+              cost: 0,
+              quantity: 0,
+              min_quantity: 0,
+              tax_rate: 8,
+              is_active: true,
+            });
+            setShowModal(true);
+            setScanFeedback(`✓ Ready to create product with barcode: ${barcode}`);
+          }
+        }}
+        feedback={scanFeedback}
+        onFeedbackDismiss={() => setScanFeedback(null)}
+      />
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Products</h1>
         <button className="btn btn-success" onClick={openAddModal}>
@@ -234,14 +344,15 @@ function ProductsContent() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Price *</label>
+                  <label className="block text-sm font-medium mb-1">Price * {formData.price <= 0 && <span className="text-red-500 text-xs">(must be greater than 0)</span>}</label>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min="0.01"
                     className="input w-full"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    value={formData.price || ''}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : 0 })}
+                    placeholder="0.00"
                     required
                   />
                 </div>
@@ -252,8 +363,9 @@ function ProductsContent() {
                     step="0.01"
                     min="0"
                     className="input w-full"
-                    value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
+                    value={formData.cost || ''}
+                    onChange={(e) => setFormData({ ...formData, cost: e.target.value ? parseFloat(e.target.value) : 0 })}
+                    placeholder="0.00"
                   />
                 </div>
               </div>
@@ -265,8 +377,9 @@ function ProductsContent() {
                     type="number"
                     min="0"
                     className="input w-full"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    value={formData.quantity || ''}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value ? parseInt(e.target.value) : 0 })}
+                    placeholder="0"
                   />
                 </div>
                 <div>
@@ -275,8 +388,9 @@ function ProductsContent() {
                     type="number"
                     min="0"
                     className="input w-full"
-                    value={formData.min_quantity}
-                    onChange={(e) => setFormData({ ...formData, min_quantity: parseInt(e.target.value) || 0 })}
+                    value={formData.min_quantity || ''}
+                    onChange={(e) => setFormData({ ...formData, min_quantity: e.target.value ? parseInt(e.target.value) : 0 })}
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -315,7 +429,12 @@ function ProductsContent() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-success">
+                <button 
+                  type="submit" 
+                  className="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={formData.price <= 0}
+                  title={formData.price <= 0 ? 'Price must be greater than 0' : ''}
+                >
                   {editingProduct ? 'Save Changes' : 'Create Product'}
                 </button>
               </div>

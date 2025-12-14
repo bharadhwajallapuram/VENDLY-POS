@@ -16,6 +16,7 @@ from app.api.v1.schemas.products import (
 )
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
+from app.services.price_suggest import get_price_recommendations
 
 router = APIRouter()
 
@@ -52,9 +53,25 @@ def create_product(
     payload: ProductIn, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
     """Create a new product"""
+    # Check if barcode already exists
+    if payload.barcode:
+        existing_barcode = (
+            db.query(m.Product).filter(m.Product.barcode == payload.barcode).first()
+        )
+        if existing_barcode:
+            raise HTTPException(
+                409,
+                detail=f"A product with barcode {payload.barcode} already exists: {existing_barcode.name}",
+            )
+
+    # Auto-generate SKU from barcode if not provided
+    sku = payload.sku
+    if not sku and payload.barcode:
+        sku = f"SKU-{payload.barcode}"
+
     prod = m.Product(
         name=payload.name,
-        sku=payload.sku,
+        sku=sku,
         barcode=payload.barcode,
         description=payload.description,
         price=payload.price,
@@ -84,6 +101,30 @@ def create_product(
             )
     db.refresh(prod)
     return prod
+
+
+@router.get("/price-suggestions/{product_name}")
+async def get_price_suggestions(
+    product_name: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Get price suggestions from Amazon and Walmart for a product.
+    Returns list of price recommendations with source and details.
+    """
+    if not product_name or len(product_name) < 2:
+        raise HTTPException(400, detail="Product name must be at least 2 characters")
+
+    try:
+        recommendations = await get_price_recommendations(product_name)
+        return {
+            "product_name": product_name,
+            "suggestions": recommendations,
+            "count": len(recommendations),
+        }
+    except Exception as e:
+        raise HTTPException(500, detail=f"Failed to fetch price suggestions: {str(e)}")
 
 
 @router.get("/{product_id}", response_model=ProductOut)

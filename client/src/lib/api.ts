@@ -17,6 +17,11 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = getToken();
   
+  // Check if token exists for protected endpoints
+  if (!token && !endpoint.includes('/auth/')) {
+    throw new Error('Session expired. Please log in again.');
+  }
+  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -31,6 +36,16 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    
+    // Handle token errors specifically
+    if (response.status === 401) {
+      // Clear invalid token
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('vendly_token');
+      }
+      throw new Error('Session expired. Please log in again.');
+    }
+    
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
