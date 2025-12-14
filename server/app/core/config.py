@@ -6,7 +6,7 @@
 import os
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,9 +21,9 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Vendly POS"
-    APP_ENV: str = Field(default="development", alias="APP_ENV")
-    DEBUG: bool = Field(default=True, alias="DEBUG")
-    SECRET_KEY: str = Field(default="change-me-in-production", alias="SECRET_KEY")
+    APP_ENV: str = Field(default="production", alias="APP_ENV")
+    DEBUG: bool = Field(default=False, alias="DEBUG")
+    SECRET_KEY: str = Field(default="", alias="SECRET_KEY")
 
     # Database
     DATABASE_URL: str = Field(
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     CACHE_TTL: int = 3600  # 1 hour
 
     # JWT Authentication
-    JWT_SECRET: str = Field(default="change-me-in-production", alias="JWT_SECRET")
+    JWT_SECRET: str = Field(default="", alias="JWT_SECRET")
     JWT_ALG: str = "HS256"
     ACCESS_TTL_MIN: int = 30  # Token expires after 30 minutes
     REFRESH_TTL_DAYS: int = 7
@@ -125,5 +125,42 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"
     STORAGE_PATH: str = "./uploads"
 
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str, info) -> str:
+        """Ensure SECRET_KEY is set in production"""
+        app_env = info.data.get("APP_ENV", "production")
+        if app_env == "production" and not v:
+            raise ValueError(
+                "SECRET_KEY is required in production. "
+                "Generate with: openssl rand -hex 32"
+            )
+        return v
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def validate_jwt_secret(cls, v: str, info) -> str:
+        """Ensure JWT_SECRET is set in production"""
+        app_env = info.data.get("APP_ENV", "production")
+        if app_env == "production" and not v:
+            raise ValueError(
+                "JWT_SECRET is required in production. "
+                "Generate with: openssl rand -hex 32"
+            )
+        return v
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str, info) -> str:
+        """Ensure DATABASE_URL doesn't contain default password in production"""
+        app_env = info.data.get("APP_ENV", "production")
+        if app_env == "production" and "changeme" in v.lower():
+            raise ValueError(
+                "DATABASE_URL contains default password. "
+                "Use a strong database password in production."
+            )
+        return v
+
 
 settings = Settings()
+

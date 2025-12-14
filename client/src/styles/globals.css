@@ -8,6 +8,14 @@
   --background-end-rgb: 255, 255, 255;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -17,6 +25,8 @@ body {
     )
     rgb(var(--background-start-rgb));
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar */
@@ -45,33 +55,128 @@ body {
   outline-offset: 2px;
 }
 
-/* Button base styles */
+/* Button base styles - Touch friendly */
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+  @apply px-3 py-2 md:px-4 md:py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[44px] md:min-h-[40px];
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-primary {
-  @apply bg-black text-white hover:bg-gray-800 focus:ring-gray-500;
+  @apply bg-black text-white hover:bg-gray-800 focus:ring-gray-500 active:bg-gray-900;
 }
 
 .btn-secondary {
-  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400;
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400 active:bg-gray-300;
 }
 
 .btn-danger {
-  @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 active:bg-red-800;
 }
 
 .btn-success {
-  @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+  @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 active:bg-green-800;
 }
 
-/* Input styles */
+.btn-info {
+  @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 active:bg-blue-800;
+}
+
+.btn-sm {
+  @apply px-2 py-1 md:px-3 md:py-1.5 text-sm min-h-[36px] md:min-h-[36px];
+}
+
+.btn-lg {
+  @apply px-4 py-3 md:px-6 md:py-3 text-lg min-h-[48px] md:min-h-[48px];
+}
+
+.btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Input styles - Touch friendly */
 .input {
-  @apply border border-gray-300 rounded-lg px-3 py-2 w-full focus:border-primary-500 focus:ring-1 focus:ring-primary-500;
+  @apply border border-gray-300 rounded-lg px-3 py-2 md:px-3 md:py-2 w-full focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-base md:text-sm min-h-[44px] md:min-h-[40px];
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input:focus {
+  @apply border-primary-500 ring-1 ring-primary-500;
 }
 
 /* Card styles */
 .card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6;
+}
+
+/* Responsive container utilities */
+.container-responsive {
+  @apply px-3 md:px-4 lg:px-6;
+}
+
+/* Table responsive wrapper */
+.table-responsive {
+  @apply overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6;
+}
+
+/* Grid responsive utilities */
+.grid-auto {
+  @apply grid gap-3 md:gap-4;
+}
+
+/* Modal responsive */
+.modal {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+}
+
+.modal-content {
+  @apply bg-white rounded-lg w-full max-w-sm md:max-w-md lg:max-w-lg max-h-[90vh] overflow-y-auto;
+}
+
+.modal-content.lg {
+  @apply md:max-w-2xl;
+}
+
+/* Touch target sizing */
+@media (hover: none) and (pointer: coarse) {
+  .btn,
+  .input,
+  button,
+  a[role="button"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .card {
+    @apply p-3;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .btn {
+    @apply py-1 min-h-[36px];
+  }
+
+  .input {
+    @apply py-1 min-h-[36px];
+  }
+
+  .card {
+    @apply p-3;
+  }
 }

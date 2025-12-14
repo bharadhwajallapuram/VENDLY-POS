@@ -146,12 +146,11 @@ export function useOffline(): UseOfflineReturn {
   }, [isOnline, isSyncing, syncNow]);
 
   // Initial sync on mount if online and has pending
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOnline && getPendingCount() > 0) {
       syncNow();
     }
-  }, []); // Only on mount
+  }, [isOnline, syncNow]);
 
   return {
     isOnline,
