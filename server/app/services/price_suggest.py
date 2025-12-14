@@ -1,9 +1,10 @@
-import random
 import asyncio
-from typing import List, Optional, Dict, Any
-import aiohttp
-from datetime import datetime, timedelta
 import logging
+import random
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,9 @@ async def fetch_amazon_price(product_name: str) -> Optional[Dict[str, Any]]:
     Returns: {"source": "Amazon", "price": float, "url": str, "title": str}
     """
     try:
-        from bs4 import BeautifulSoup
         import urllib.parse
+
+        from bs4 import BeautifulSoup
 
         search_query = urllib.parse.quote(product_name)
         url = f"https://www.amazon.com/s?k={search_query}"
@@ -89,8 +91,9 @@ async def fetch_walmart_price(product_name: str) -> Optional[Dict[str, Any]]:
     Returns: {"source": "Walmart", "price": float, "url": str, "title": str}
     """
     try:
-        from bs4 import BeautifulSoup
         import urllib.parse
+
+        from bs4 import BeautifulSoup
 
         search_query = urllib.parse.quote(product_name)
         url = f"https://www.walmart.com/search?q={search_query}"

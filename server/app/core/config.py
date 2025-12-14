@@ -128,7 +128,7 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str, info) -> str:
-        """Ensure SECRET_KEY is set in production"""
+        """Ensure SECRET_KEY is set in production (not testing)"""
         app_env = info.data.get("APP_ENV", "production")
         if app_env == "production" and not v:
             raise ValueError(
@@ -140,7 +140,7 @@ class Settings(BaseSettings):
     @field_validator("JWT_SECRET")
     @classmethod
     def validate_jwt_secret(cls, v: str, info) -> str:
-        """Ensure JWT_SECRET is set in production"""
+        """Ensure JWT_SECRET is set in production (not testing)"""
         app_env = info.data.get("APP_ENV", "production")
         if app_env == "production" and not v:
             raise ValueError(

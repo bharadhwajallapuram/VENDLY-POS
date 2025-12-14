@@ -47,7 +47,7 @@ class SaleCreatedEvent(BaseEvent):
     total_amount: float = 0.0
     tax_amount: float = 0.0
     discount_amount: float = 0.0
-    items: list = None
+    items: Optional[list[Any]] = None
     payment_method: str = ""
     customer_id: Optional[str] = None
     
