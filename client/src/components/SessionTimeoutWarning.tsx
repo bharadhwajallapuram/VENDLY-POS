@@ -88,7 +88,7 @@ export function SessionTimeoutWarning({
           {/* Stay Logged In Button */}
           <button
             onClick={onExtend}
-            className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+            className="flex-1 px-4 py-2 text-white bg-gray-800 hover:bg-gray-900 rounded-lg font-medium transition-colors"
           >
             Stay Logged In
           </button>

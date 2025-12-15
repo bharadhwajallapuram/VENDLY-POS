@@ -298,6 +298,31 @@ class TwoFactorAuth(Base):
     user: Mapped["User"] = relationship()
 
 
+# ---------- Purchase Orders ----------
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("products.id"), nullable=False
+    )
+    product_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    supplier_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(50), default="pending", nullable=False
+    )  # pending, ordered, received, cancelled
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship()
+
+
 # ---------- User Sessions ----------
 class UserSession(Base):
     __tablename__ = "user_sessions"

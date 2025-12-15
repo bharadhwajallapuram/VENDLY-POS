@@ -109,7 +109,7 @@ const SplitPaymentInput: React.FC<SplitPaymentInputProps> = ({ total, onChange, 
               placeholder="Reference/Txn ID"
             />
           )}
-          <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={addPayment}>
+          <button className="bg-gray-800 text-white px-3 py-1 rounded" onClick={addPayment}>
             Add
           </button>
         </div>

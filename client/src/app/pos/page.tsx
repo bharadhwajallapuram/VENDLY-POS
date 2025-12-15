@@ -15,6 +15,8 @@ import { useCart } from '@/store/cart';
 import { useAuth } from '@/store/auth';
 import { API_URL } from '@/lib/api';
 import { useOffline } from '@/lib/useOffline';
+import { toastManager } from '@/components/Toast';
+import { useInventorySync } from '@/hooks/useInventorySync';
 
 // Simple product type for now
 interface SimpleProduct {
@@ -74,6 +76,44 @@ function POSContent() {
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Listen for inventory updates via WebSocket
+  useInventorySync({
+    endpoint: 'inventory',
+    onInventoryUpdate: (data) => {
+      // Update product stock in real-time - force complete array update
+      setProducts((prev) => {
+        const updated = prev.map((p) =>
+          p.id === data.product_id 
+            ? { ...p, quantity: data.new_qty } 
+            : p
+        );
+        // Create new array reference to force re-render
+        return [...updated];
+      });
+      
+      // Update cart stock limits if product is in cart
+      const variantId = String(data.product_id);
+      cart.updateStock(variantId, data.new_qty);
+      
+      console.log(`📦 Stock updated: Product ${data.product_id} → ${data.new_qty} units`);
+    },
+    onLowStock: (data) => {
+      setProducts((prev) => [...prev.map((p) =>
+        p.id === data.product_id ? { ...p, quantity: data.new_qty } : p
+      )]);
+      
+      cart.updateStock(String(data.product_id), data.new_qty);
+    },
+    onOutOfStock: (data) => {
+      setProducts((prev) => [...prev.map((p) =>
+        p.id === data.product_id ? { ...p, quantity: 0 } : p
+      )]);
+      
+      cart.updateStock(String(data.product_id), 0);
+      console.log(`🔴 Out of stock: Product ${data.product_id}`);
+    },
+  });
 
   async function loadProducts() {
     setLoading(true);
@@ -179,12 +219,23 @@ function POSContent() {
 
   // Add product to cart
   function addToCart(product: SimpleProduct) {
-    cart.add({
+    // Check if product has available stock
+    if (product.quantity <= 0) {
+      toastManager.error(`${product.name} is out of stock`);
+      return;
+    }
+
+    const success = cart.add({
       variantId: String(product.id),
       name: product.name,
       qty: 1,
       priceCents: Math.round(product.price * 100),
+      availableStock: product.quantity,
     });
+
+    if (!success) {
+      toastManager.warning(`Cannot add more. Only ${product.quantity} units available.`);
+    }
   }
 
   // Calculate totals
@@ -515,11 +566,11 @@ function POSContent() {
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="card p-3 text-left hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  className="card p-3 text-left hover:bg-gray-50 hover:border-gray-300 transition-colors"
                 >
                   <div className="font-medium truncate">{product.name}</div>
                   <div className="text-sm text-gray-500">{product.sku || 'No SKU'}</div>
-                  <div className="text-lg font-bold text-blue-600 mt-1">
+                  <div className="text-lg font-bold text-gray-900 mt-1">
                     ${product.price.toFixed(2)}
                   </div>
                   <div className="text-xs text-gray-400">Stock: {product.quantity}</div>
@@ -563,7 +614,13 @@ function POSContent() {
                   <span className="w-8 text-center">{line.qty}</span>
                   <button
                     className="w-6 h-6 rounded bg-gray-200 hover:bg-gray-300"
-                    onClick={() => cart.inc(line.variantId)}
+                    onClick={() => {
+                      const success = cart.inc(line.variantId);
+                      if (!success) {
+                        const maxStock = line.availableStock || '?';
+                        toastManager.warning(`Only ${maxStock} units available in stock.`);
+                      }
+                    }}
                   >
                     +
                   </button>
@@ -874,7 +931,7 @@ function POSContent() {
             <div className="space-y-3">
               <button
                 onClick={printInAppReceipt}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center justify-center gap-2"
               >
                 🖨️ Print Receipt
               </button>

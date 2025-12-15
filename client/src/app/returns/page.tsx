@@ -112,7 +112,7 @@ export default function ReturnsPage() {
           className="border p-2 flex-1"
           placeholder={searchType === "id" ? "Enter Sale ID" : searchType === "phone" ? "Enter Phone" : "Enter Name"}
         />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={fetchSales}>
+        <button className="bg-gray-800 text-white px-4 py-2 rounded" onClick={fetchSales}>
           Lookup
         </button>
       </div>
@@ -123,7 +123,7 @@ export default function ReturnsPage() {
             {salesList.map((s: any) => (
               <li key={s.id} className="flex justify-between items-center py-1 border-b last:border-b-0">
                 <span>Sale #{s.id} - {s.created_at ? new Date(s.created_at).toLocaleString() : ""}</span>
-                <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={() => selectSale(s)}>Select</button>
+                <button className="bg-gray-700 text-white px-2 py-1 rounded text-xs" onClick={() => selectSale(s)}>Select</button>
               </li>
             ))}
           </ul>
@@ -131,7 +131,7 @@ export default function ReturnsPage() {
       )}
       <div className="mb-4 flex gap-2">
         <button
-          className={`px-4 py-2 rounded ${mode === "refund" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+          className={`px-4 py-2 rounded ${mode === "refund" ? "bg-gray-700 text-white" : "bg-gray-200"}`}
           onClick={() => setMode("refund")}
         >
           Refund

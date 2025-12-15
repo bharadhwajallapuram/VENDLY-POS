@@ -128,7 +128,7 @@ function UsersContent() {
       case 'admin':
         return 'bg-purple-100 text-purple-700';
       case 'manager':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-gray-100 text-gray-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -210,7 +210,7 @@ function UsersContent() {
                     <td className="py-3 px-2 text-right">
                       <button
                         onClick={() => openEditModal(user)}
-                        className="text-blue-600 hover:underline mr-3"
+                        className="text-gray-700 hover:underline mr-3"
                       >
                         Edit
                       </button>

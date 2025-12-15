@@ -309,7 +309,7 @@ function CustomersContent() {
                     <td className="py-3 px-2 md:px-4 text-right">
                       <button
                         onClick={() => openLoyaltyModal(customer)}
-                        className="text-blue-600 hover:underline font-medium text-xs md:text-sm"
+                        className="text-gray-700 hover:underline font-medium text-xs md:text-sm"
                       >
                         {customer.loyalty_points}
                       </button>
@@ -329,13 +329,13 @@ function CustomersContent() {
                       <div className="flex gap-1 justify-center flex-wrap">
                         <button
                           onClick={() => openDetailModal(customer)}
-                          className="text-blue-600 hover:underline text-xs px-2 py-1 rounded hover:bg-blue-50"
+                          className="text-gray-700 hover:underline text-xs px-2 py-1 rounded hover:bg-gray-50"
                         >
                           View
                         </button>
                         <button
                           onClick={() => openEditModal(customer)}
-                          className="text-blue-600 hover:underline text-xs px-2 py-1 rounded hover:bg-blue-50"
+                          className="text-gray-700 hover:underline text-xs px-2 py-1 rounded hover:bg-gray-50"
                         >
                           Edit
                         </button>
@@ -398,7 +398,7 @@ function CustomersContent() {
                 <div className="space-y-4 text-sm">
                   <div>
                     <p className="text-gray-500 text-xs">Current Points</p>
-                    <p className="text-3xl font-bold text-blue-600">{selectedCustomer.loyalty_points}</p>
+                    <p className="text-3xl font-bold text-gray-900">{selectedCustomer.loyalty_points}</p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-xs">Status</p>
@@ -614,11 +614,11 @@ function CustomersContent() {
               </button>
             </div>
 
-            <div className="bg-blue-50 p-4 md:p-5 rounded-lg mb-6">
+            <div className="bg-gray-50 p-4 md:p-5 rounded-lg mb-6">
               <p className="text-xs md:text-sm text-gray-600">Customer</p>
               <p className="text-lg md:text-xl font-bold">{loyaltyCustomer.name}</p>
               <p className="text-xs md:text-sm text-gray-600 mt-3">Current Points</p>
-              <p className="text-3xl md:text-4xl font-bold text-blue-600">{loyaltyCustomer.loyalty_points}</p>
+              <p className="text-3xl md:text-4xl font-bold text-gray-900">{loyaltyCustomer.loyalty_points}</p>
             </div>
 
             <form onSubmit={handleLoyaltyAdjust} className="space-y-3 md:space-y-4">
