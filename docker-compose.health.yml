@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  # Backend API with health checks and Sentry monitoring
+  api:
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8000/health/detailed",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      # Sentry Error Tracking
+      - SENTRY_ENABLED=true
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-development}
+      - SENTRY_TRACES_SAMPLE_RATE=0.5
+      - APP_VERSION=2.0.0
+
+      # Backup Configuration
+      - BACKUP_ENABLED=true
+      - BACKUP_PROVIDER=local
+      - BACKUP_LOCAL_PATH=./backups
+      - BACKUP_RETENTION_DAYS=30
+      - BACKUP_SCHEDULE_TYPE=daily
+      - BACKUP_SCHEDULE_TIME=02:00
+      - SCHEDULER_ENABLED=true
+
+  # Frontend with health checks
+  web:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    environment:
+      # Sentry Configuration for Frontend
+      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
+      - NEXT_PUBLIC_SENTRY_ENVIRONMENT=${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-development}
+      - NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.5
+      - NEXT_PUBLIC_APP_VERSION=2.0.0
+
+  # PostgreSQL Database with health checks
+  postgres:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Redis with health checks
+  redis:
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Adminer (Database UI) - Optional
+  # Helpful for quick backup verification and database inspection
+  adminer:
+    image: adminer:latest
+    container_name: vendly-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    networks:
+      - vendly-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backups:
+    driver: local
+
+networks:
+  vendly-network:
+    driver: bridge

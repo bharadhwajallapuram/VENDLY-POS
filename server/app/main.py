@@ -10,7 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.routers import api_router
 from app.core.config import settings
+from app.core.error_tracking import sentry_config
 from app.services.metrics import MetricsMiddleware, get_metrics_endpoint
+
+# Initialize Sentry error tracking
+sentry_config.init_backend()
 
 
 def init_database():

@@ -14,13 +14,15 @@ Welcome to Vendly POS! This comprehensive guide covers all features, systems, ar
 6. [Granular Permissions System](#-granular-permissions-system)
 7. [End-of-Day Reports & Z-Reports](#-end-of-day-reports--z-reports)
 8. [Cloud Backup System](#-cloud-backup-system)
-9. [Error Handling & CI/CD](#-error-handling--cicd-pipeline-safety)
-10. [Security](#-security)
-11. [Common Commands](#-common-commands)
-12. [Monitoring & Observability](#-monitoring--observability)
-13. [Feature Documentation](#-feature-documentation)
-14. [Contributing](#-contributing)
-15. [Support](#-support)
+9. [Tax Management (GST/VAT)](#-tax-management-gstvat)
+10. [Legal Documents (Privacy & Terms)](#-legal-documents-privacy--terms)
+11. [Error Handling & CI/CD](#-error-handling--cicd-pipeline-safety)
+12. [Security](#-security)
+13. [Common Commands](#-common-commands)
+14. [Monitoring & Observability](#-monitoring--observability)
+15. [Feature Documentation](#-feature-documentation)
+16. [Contributing](#-contributing)
+17. [Support](#-support)
 
 ---
 
@@ -1186,11 +1188,417 @@ Complete disaster recovery support:
 
 ---
 
+## 💰 Tax Management (GST/VAT)
+
+### Overview
+
+Vendly POS includes comprehensive tax management supporting multiple global tax systems including:
+- **GST** (India, Australia, New Zealand, Singapore)
+- **VAT** (UK, EU countries)
+- **Sales Tax** (US states, Canada)
+- **Custom tax rates** for other regions
+
+### Key Features
+
+#### 1. Multi-Region Tax Support
+```
+Supported Regions:
+- India (GST): CGST, SGST, IGST
+- Australia (GST): Single rate
+- New Zealand (GST): Single rate
+- Singapore (GST): Single rate
+- UK (VAT): Standard & reduced rates
+- EU (VAT): Standard rates
+- Canada: GST/HST
+- US: State-based sales tax
+- Other: Custom regions
+```
+
+#### 2. Flexible Tax Configuration
+- **Tax Rates Management**: Create, update, and manage tax rates by region
+- **Effective Dates**: Set when rates become active/inactive
+- **State-Level Support**: US state codes for granular control
+- **Compound Tax**: Support for multi-tier taxes (India GST with CGST + SGST)
+- **Reverse Charge**: Enable/disable reverse charge mechanism
+- **Tax Invoicing**: Generate tax-compliant invoices
+
+#### 3. Tax Calculations
+- **Simple Tax**: Single tax rate application
+- **Compound Tax**: Multiple taxes applied in sequence (e.g., CGST + SGST = 18%)
+- **Rounding Methods**: Round, truncate, or ceiling options
+- **Tax Exemption**: Mark customers as tax-exempt
+- **Audit Trail**: All calculations recorded for compliance
+
+#### 4. Tax Reporting
+- **By Region**: Aggregate tax collection by region
+- **By Tax Type**: GST, VAT, Sales Tax breakdowns
+- **By Rate**: Summary by individual rate
+- **Date Ranges**: Filter reports by date period
+- **Export Ready**: Data suitable for tax filing
+
+### API Endpoints
+
+#### Tax Rates
+```bash
+# Get tax rates
+GET /api/v1/tax/rates?region=in&tax_type=gst
+
+# Create new tax rate (admin only)
+POST /api/v1/tax/rates
+{
+  "region": "in",
+  "tax_type": "gst",
+  "name": "CGST",
+  "rate": 9.0
+}
+
+# Update tax rate
+PUT /api/v1/tax/rates/{rate_id}
+{
+  "rate": 9.0,
+  "is_active": true
+}
+```
+
+#### Tax Configuration
+```bash
+# Get store tax config
+GET /api/v1/tax/config/{region}
+
+# Update configuration
+PUT /api/v1/tax/config/{config_id}
+{
+  "tax_id": "27AAPFU0142R1Z0",
+  "enable_compound_tax": true,
+  "enable_tax_invoice": true
+}
+```
+
+#### Tax Calculations
+```bash
+# Calculate single tax
+POST /api/v1/tax/calculate?subtotal=1000&tax_rate_id=5
+Response: { "tax_amount": 90, "tax_rate": 9.0, "tax_type": "gst" }
+
+# Calculate compound tax (GST)
+POST /api/v1/tax/calculate-compound?subtotal=1000&tax_rate_ids=1,2
+Response: {
+  "total_tax": 180,
+  "subtotal": 1000,
+  "total_with_tax": 1180,
+  "calculations": [...]
+}
+```
+
+#### Tax Reports
+```bash
+# Get tax report by region
+GET /api/v1/tax/report?region=in&start_date=2024-01-01&end_date=2024-12-31
+
+# Get summary by tax rate
+GET /api/v1/tax/report/by-rate?start_date=2024-01-01
+```
+
+### Database Models
+
+```python
+# Tax rates configuration
+class TaxRate(Base):
+    id: int
+    region: str  # in, au, uk, us, ca, etc.
+    tax_type: str  # gst, vat, sales_tax
+    name: str  # CGST, SGST, Standard VAT, etc.
+    rate: float  # 9.0, 18.0, 20.0, etc.
+    state_code: Optional[str]  # CA, NY, etc.
+    is_active: bool
+    effective_from: datetime
+    effective_to: Optional[datetime]
+
+# Store-level configuration
+class TaxConfiguration(Base):
+    id: int
+    user_id: int
+    region: str
+    tax_id: Optional[str]  # GST ID, VAT ID
+    is_tax_exempt: bool
+    enable_compound_tax: bool
+    enable_reverse_charge: bool
+    enable_tax_invoice: bool
+    rounding_method: str
+
+# Audit trail for tax calculations
+class TaxCalculation(Base):
+    id: int
+    sale_id: int
+    tax_rate_id: int
+    subtotal: float
+    tax_amount: float
+    tax_rate: float
+    tax_type: str
+    is_compound: bool
+    created_at: datetime
+```
+
+### Setup Example: India GST
+
+```python
+from app.services.tax_service import TaxService, setup_default_tax_rates
+
+# Initialize database with default rates
+setup_default_tax_rates(db)
+
+# Get service
+tax_service = TaxService(db)
+
+# Create config
+config = tax_service.get_or_create_config(user_id=1, region="in")
+tax_service.update_config(
+    config.id,
+    tax_id="27AAPFU0142R1Z0",
+    enable_compound_tax=True
+)
+
+# Calculate GST (CGST 9% + SGST 9%)
+result = tax_service.calculate_compound_tax(
+    subtotal=1000.0,
+    tax_rate_ids=[1, 2]  # CGST and SGST
+)
+# Result: total_tax=180, total_with_tax=1180
+```
+
+### Integration with Sales
+
+Tax calculations are automatically integrated into the sales workflow:
+1. When creating a sale, the system determines applicable tax rates
+2. Tax is calculated and recorded
+3. Receipt includes tax breakdown
+4. Calculation is logged for reporting
+
+---
+
+## 📜 Legal Documents (Privacy & Terms)
+
+### Overview
+
+Vendly POS provides a complete legal documents management system for:
+- **Privacy Policy**: Inform users about data collection and usage
+- **Terms of Service**: Establish usage agreements
+- **Return Policy**: Define return and exchange procedures
+- **Warranty Policy**: Document product warranties
+- **Cookie Policy**: Explain cookie usage
+
+### Key Features
+
+#### 1. Document Management
+- **Versioning**: Track all document versions
+- **Active/Inactive**: Only active documents are shown to users
+- **HTML Rendering**: Store both markdown and rendered HTML
+- **Display Order**: Control the order in which documents appear
+- **Acceptance Required**: Mark documents that require user acceptance
+
+#### 2. Consent Tracking
+- **User Acceptance**: Track which employees accepted documents
+- **Customer Acceptance**: Track customer acceptance (during login/signup)
+- **IP & User Agent**: Record device info for compliance
+- **Timestamp Logging**: Know exactly when acceptance occurred
+- **Acceptance Report**: Generate compliance reports
+
+#### 3. Consent Workflows
+- **Get Required Consents**: Fetch all documents requiring acceptance
+- **Get Pending Consents**: Show documents user hasn't accepted yet
+- **Accept Single Document**: Record acceptance of one document
+- **Accept All**: Batch accept all required documents (e.g., during onboarding)
+
+#### 4. Compliance & Audit
+- **Audit Trail**: All acceptances logged with timestamps
+- **Acceptance Reports**: Count acceptances by document and date
+- **Version Tracking**: Know which version was accepted
+- **GDPR Ready**: Supports data collection consents
+
+### API Endpoints
+
+#### Document Management
+```bash
+# Create new document version
+POST /api/v1/legal/documents
+{
+  "doc_type": "privacy_policy",
+  "title": "Privacy Policy",
+  "content": "# Our Privacy Policy\n...",
+  "requires_acceptance": true
+}
+
+# Get all active documents
+GET /api/v1/legal/documents
+
+# Get specific document type (latest active version)
+GET /api/v1/legal/documents/type/privacy_policy
+
+# Get all versions of a document
+GET /api/v1/legal/documents/type/privacy_policy/versions
+
+# Update a document
+PUT /api/v1/legal/documents/{doc_id}
+{
+  "title": "Privacy Policy v2",
+  "content": "Updated content..."
+}
+```
+
+#### Consent Management
+```bash
+# Get all required consents (with acceptance status)
+GET /api/v1/legal/consent
+Response: [
+  {
+    "id": 1,
+    "doc_type": "privacy_policy",
+    "title": "Privacy Policy",
+    "content": "...",
+    "version": 2,
+    "requires_acceptance": true,
+    "has_accepted": false
+  }
+]
+
+# Get pending documents (not yet accepted)
+GET /api/v1/legal/pending-consents
+Response: [...]
+
+# Accept single document
+POST /api/v1/legal/accept/{doc_id}
+Response: { "id": 1, "legal_document_id": 1, "accepted_at": "2024-12-15..." }
+
+# Accept all required documents at once
+POST /api/v1/legal/accept-all
+Response: [{ acceptance1 }, { acceptance2 }, ...]
+
+# Get user's acceptance history
+GET /api/v1/legal/user-acceptances
+Response: [...]
+```
+
+#### Reporting
+```bash
+# Get acceptance statistics
+GET /api/v1/legal/report/acceptance/privacy_policy?start_date=2024-01-01
+Response: {
+  "doc_type": "privacy_policy",
+  "total_acceptances": 125,
+  "by_users": 45,
+  "by_customers": 80,
+  "first_acceptance": "2024-01-05T10:30:00",
+  "last_acceptance": "2024-12-15T14:22:00"
+}
+```
+
+### Database Models
+
+```python
+# Legal documents with versioning
+class LegalDocument(Base):
+    id: int
+    doc_type: str  # privacy_policy, terms_of_service, etc.
+    version: int
+    title: str
+    content: str  # Markdown
+    content_html: Optional[str]  # Rendered HTML
+    is_active: bool
+    requires_acceptance: bool
+    display_order: int
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+# Track who accepted what document
+class LegalDocumentAcceptance(Base):
+    id: int
+    legal_document_id: int
+    user_id: Optional[int]  # Employee
+    customer_id: Optional[int]  # Customer
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    accepted_at: datetime
+```
+
+### Setup Example
+
+```python
+from app.services.legal_service import LegalService, setup_default_documents
+
+# Initialize with default documents
+setup_default_documents(db, admin_user_id=1)
+
+# Get service
+legal_service = LegalService(db)
+
+# Create new document
+doc = legal_service.create_document(
+    doc_type="privacy_policy",
+    title="Privacy Policy v2",
+    content="Updated privacy policy content...",
+    created_by_user_id=1,
+    requires_acceptance=True
+)
+
+# Get pending consents for user
+pending = legal_service.get_pending_consents(user_id=user.id)
+
+# User accepts all required documents
+acceptances = legal_service.accept_all_required(
+    user_id=user.id,
+    ip_address=request.client.host,
+    user_agent=request.headers.get("user-agent")
+)
+
+# Generate acceptance report
+report = legal_service.get_acceptance_report(
+    "privacy_policy",
+    start_date=datetime(2024, 1, 1)
+)
+```
+
+### Frontend Integration
+
+```typescript
+import { Legal } from '@/lib/api';
+
+// Get pending consents to show on login
+const pending = await Legal.getPendingConsents();
+
+if (pending.length > 0) {
+  // Show consent modal
+  showConsentModal(pending);
+}
+
+// User accepts
+await Legal.acceptAll();
+
+// Get acceptance history
+const history = await Legal.getUserAcceptances();
+```
+
+### Compliance Checklist
+
+- [x] Privacy Policy management
+- [x] Terms of Service versioning
+- [x] Acceptance tracking
+- [x] GDPR-ready consent workflow
+- [x] Audit trail with timestamps
+- [x] IP and device logging
+- [x] Acceptance reports
+- [x] Multiple document types
+- [x] HTML and markdown support
+- [x] Automatic default documents
+
+---
+
 ## 🛡️ Error Handling & CI/CD Pipeline Safety
 
 ### Overview
 
 Error handling standards and CI/CD safeguards prevent pipeline failures due to unhandled errors or hardcoded error messages.
+
 
 ### Best Practices
 
@@ -1367,16 +1775,146 @@ npm run test:server      # Backend tests
 
 ## 📊 Monitoring & Observability
 
-### Health Checks
-- Frontend health: http://localhost:3000/health
-- Backend health: http://localhost:8000/health
-- API Docs: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+### Error Tracking (Sentry)
+
+**Setup:**
+1. Create Sentry project at https://sentry.io
+2. Add to `.env`:
+   ```env
+   SENTRY_ENABLED=true
+   SENTRY_DSN=https://your-key@sentry.io/project-id
+   SENTRY_ENVIRONMENT=production
+   SENTRY_TRACES_SAMPLE_RATE=0.1
+   ```
+3. Add to `client/.env.local`:
+   ```env
+   NEXT_PUBLIC_SENTRY_DSN=https://your-key@sentry.io/project-id
+   NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
+   ```
+
+**Features:**
+- Real-time error notification with stack traces
+- Performance monitoring (P95, P99 latencies)
+- User session tracking and breadcrumbs
+- Automatic sensitive data filtering
+- Release version tracking
+
+**Using Sentry:**
+```python
+# Backend: Errors are automatically captured
+# Manual capture:
+from app.core.error_tracking import sentry_config
+sentry_config.capture_exception(error, context={"user_id": 123})
+sentry_config.capture_message("Important event", level="warning")
+```
+
+```typescript
+// Frontend: Automatic error capture
+import { captureException, addBreadcrumb } from "@/lib/sentry";
+captureException(error, { page: "/checkout" });
+addBreadcrumb("User started checkout", "user-action");
+```
+
+### Health Check Endpoints
+
+**Kubernetes-Ready Health Checks:**
+
+| Endpoint | Purpose | Status Code |
+|----------|---------|-------------|
+| `GET /api/v1/health/` | Basic health (load balancer) | 200 OK |
+| `GET /api/v1/health/live` | Liveness probe (K8s) | 200/503 |
+| `GET /api/v1/health/ready` | Readiness probe (K8s) | 200/503 |
+| `GET /api/v1/health/startup` | Startup probe (K8s) | 200/503 |
+| `GET /api/v1/health/detailed` | Complete system status | 200/503 |
+
+**Test locally:**
+```bash
+curl http://localhost:8000/api/v1/health/detailed | jq
+```
+
+**Response includes:**
+- API status
+- Database connectivity and response time
+- Redis cache status and memory usage
+- Kafka connectivity (if enabled)
+- Overall system status
+
+### Automated Database Backups
+
+**Configuration:**
+```env
+BACKUP_ENABLED=true
+BACKUP_PROVIDER=local              # local, s3, azure, gcs
+BACKUP_LOCAL_PATH=./backups
+BACKUP_SCHEDULE_TYPE=daily         # hourly, daily, weekly, monthly
+BACKUP_SCHEDULE_TIME=02:00
+BACKUP_RETENTION_DAYS=30
+SCHEDULER_ENABLED=true
+```
+
+**Commands:**
+```bash
+# Create backup
+python scripts/backup_manager.py backup --db-url $DATABASE_URL
+
+# List backups
+python scripts/backup_manager.py list --backup-path ./backups
+
+# Verify backup integrity
+python scripts/backup_manager.py verify --backup ./backups/vendly_backup_20240115_023000.sql.gz
+
+# Restore from backup
+python scripts/backup_manager.py restore --backup ./backups/vendly_backup_20240115_023000.sql.gz
+```
+
+**Cloud Backup (AWS S3):**
+```env
+BACKUP_PROVIDER=s3
+AWS_ACCESS_KEY_ID=xxx
+AWS_SECRET_ACCESS_KEY=xxx
+AWS_REGION=us-east-1
+BACKUP_BUCKET=vendly-backups
+```
+
+### Docker & Kubernetes Health Monitoring
+
+**Docker:**
+- Health checks configured in Dockerfile
+- Status visible in `docker ps` output
+- Use: `docker compose -f docker-compose.health.yml up`
+
+**Kubernetes:**
+- Liveness probe: Restarts unhealthy pods
+- Readiness probe: Removes from service load balancer
+- Startup probe: Gives apps time to initialize
+- All probes use the health endpoints above
+
+**Monitor K8s:**
+```bash
+kubectl get pods -w                          # Watch pod status
+kubectl describe pod <pod-name>              # View probe details
+kubectl logs <pod-name>                      # Check logs
+kubectl get events --sort-by='.lastTimestamp'  # View events
+```
 
 ### Prometheus Metrics
 - Backend metrics: http://localhost:8000/metrics
 - Prometheus UI: http://localhost:9090
 - Grafana: http://localhost:3001 (admin/admin)
+- Dashboard: Import `monitoring/grafana-dashboard.json`
+
+### Quick Testing
+
+```bash
+# Test all health endpoints
+python scripts/test_monitoring.py
+
+# Test with custom URL
+python scripts/test_monitoring.py --base-url http://localhost:8000
+
+# Test backups
+python scripts/backup_manager.py list
+```
 
 ---
 

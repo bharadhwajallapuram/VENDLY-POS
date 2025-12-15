@@ -503,6 +503,223 @@ export const couponsApi = {
 };
 
 // ===========================================
+// Tax Configuration
+// ===========================================
+
+export interface TaxRate {
+  id: number;
+  region: string;
+  tax_type: string;
+  name: string;
+  rate: number;
+  state_code?: string;
+  is_active: boolean;
+  effective_from: string;
+  effective_to?: string;
+  description?: string;
+}
+
+export interface TaxConfiguration {
+  id: number;
+  region: string;
+  tax_id?: string;
+  is_tax_exempt: boolean;
+  enable_compound_tax: boolean;
+  enable_reverse_charge: boolean;
+  enable_tax_invoice: boolean;
+  rounding_method: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxCalculationResult {
+  tax_amount: number;
+  tax_rate: number;
+  tax_type: string;
+  taxable_base: number;
+}
+
+export interface TaxReport {
+  region: string;
+  period: { start_date?: string; end_date?: string };
+  total_subtotal: number;
+  total_tax: number;
+  total_with_tax: number;
+  by_type: Record<string, any>;
+}
+
+export const Tax = {
+  getRates: (region?: string, taxType?: string, isActive?: boolean): Promise<TaxRate[]> => {
+    const params = new URLSearchParams();
+    if (region) params.append('region', region);
+    if (taxType) params.append('tax_type', taxType);
+    if (isActive !== undefined) params.append('is_active', String(isActive));
+    const query = params.toString() ? `?${params}` : '';
+    return apiFetch(`/api/v1/tax/rates${query}`);
+  },
+
+  getRate: (rateId: number): Promise<TaxRate> => {
+    return apiFetch(`/api/v1/tax/rates/${rateId}`);
+  },
+
+  createRate: (data: Partial<TaxRate>): Promise<TaxRate> => {
+    return apiFetch('/api/v1/tax/rates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateRate: (rateId: number, data: Partial<TaxRate>): Promise<TaxRate> => {
+    return apiFetch(`/api/v1/tax/rates/${rateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getConfig: (region: string): Promise<TaxConfiguration> => {
+    return apiFetch(`/api/v1/tax/config/${region}`);
+  },
+
+  updateConfig: (configId: number, data: Partial<TaxConfiguration>): Promise<TaxConfiguration> => {
+    return apiFetch(`/api/v1/tax/config/${configId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  calculate: (subtotal: number, taxRateId: number): Promise<TaxCalculationResult> => {
+    return apiFetch(`/api/v1/tax/calculate?subtotal=${subtotal}&tax_rate_id=${taxRateId}`, {
+      method: 'POST',
+    });
+  },
+
+  calculateCompound: (subtotal: number, taxRateIds: number[]): Promise<any> => {
+    return apiFetch(`/api/v1/tax/calculate-compound?subtotal=${subtotal}&tax_rate_ids=${taxRateIds.join(',')}`, {
+      method: 'POST',
+    });
+  },
+
+  getReport: (region: string, taxType?: string, startDate?: string, endDate?: string): Promise<TaxReport> => {
+    const params = new URLSearchParams({ region });
+    if (taxType) params.append('tax_type', taxType);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const query = `?${params}`;
+    return apiFetch(`/api/v1/tax/report${query}`);
+  },
+
+  getReportByRate: (startDate?: string, endDate?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const query = params.toString() ? `?${params}` : '';
+    return apiFetch(`/api/v1/tax/report/by-rate${query}`);
+  },
+};
+
+// ===========================================
+// Legal Documents
+// ===========================================
+
+export interface LegalDocument {
+  id: number;
+  doc_type: string;
+  version: number;
+  title: string;
+  content: string;
+  content_html?: string;
+  is_active: boolean;
+  requires_acceptance: boolean;
+  display_order: number;
+  created_by_user_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Consent {
+  id: number;
+  doc_type: string;
+  title: string;
+  content: string;
+  content_html?: string;
+  version: number;
+  requires_acceptance: boolean;
+  has_accepted: boolean;
+}
+
+export interface AcceptanceRecord {
+  id: number;
+  legal_document_id: number;
+  user_id?: number;
+  customer_id?: number;
+  ip_address?: string;
+  accepted_at: string;
+}
+
+export const Legal = {
+  createDocument: (data: Partial<LegalDocument>): Promise<LegalDocument> => {
+    return apiFetch('/api/v1/legal/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  listDocuments: (): Promise<LegalDocument[]> => {
+    return apiFetch('/api/v1/legal/documents');
+  },
+
+  getDocument: (docType: string): Promise<LegalDocument> => {
+    return apiFetch(`/api/v1/legal/documents/type/${docType}`);
+  },
+
+  getDocumentVersions: (docType: string): Promise<LegalDocument[]> => {
+    return apiFetch(`/api/v1/legal/documents/type/${docType}/versions`);
+  },
+
+  getDocumentById: (docId: number): Promise<LegalDocument> => {
+    return apiFetch(`/api/v1/legal/documents/${docId}`);
+  },
+
+  updateDocument: (docId: number, data: Partial<LegalDocument>): Promise<LegalDocument> => {
+    return apiFetch(`/api/v1/legal/documents/${docId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getRequiredConsents: (): Promise<Consent[]> => {
+    return apiFetch('/api/v1/legal/consent');
+  },
+
+  getPendingConsents: (): Promise<Consent[]> => {
+    return apiFetch('/api/v1/legal/pending-consents');
+  },
+
+  acceptDocument: (docId: number): Promise<AcceptanceRecord> => {
+    return apiFetch(`/api/v1/legal/accept/${docId}`, {
+      method: 'POST',
+    });
+  },
+
+  acceptAll: (): Promise<AcceptanceRecord[]> => {
+    return apiFetch('/api/v1/legal/accept-all', {
+      method: 'POST',
+    });
+  },
+
+  getUserAcceptances: (): Promise<AcceptanceRecord[]> => {
+    return apiFetch('/api/v1/legal/user-acceptances');
+  },
+
+  getAcceptanceReport: (docType: string, startDate?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    const query = params.toString() ? `?${params}` : '';
+    return apiFetch(`/api/v1/legal/report/acceptance/${docType}${query}`);
+  },
+};
+
+// ===========================================
 // WebSocket
 // ===========================================
 
@@ -527,3 +744,4 @@ export function createWebSocket(onMessage: (data: unknown) => void): WebSocket |
   
   return ws;
 }
+

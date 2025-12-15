@@ -6,14 +6,17 @@ from . import (
     backups,
     coupons,
     customers,
+    health,
     integrations,
     inventory,
+    legal,
     payments,
     peripherals,
     products,
     purchase_orders,
     reports,
     sales,
+    tax,
     two_factor_auth,
     users,
     websocket,
@@ -21,6 +24,7 @@ from . import (
 )
 
 api_router = APIRouter()
+api_router.include_router(health.router)
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(two_factor_auth.router, prefix="/auth", tags=["2fa"])
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
@@ -42,3 +46,5 @@ api_router.include_router(coupons.router, prefix="/coupons", tags=["coupons"])
 api_router.include_router(backups.router, tags=["backups"])
 api_router.include_router(integrations.router, tags=["integrations"])
 api_router.include_router(peripherals.router, tags=["peripherals"])
+api_router.include_router(tax.router, tags=["tax"])
+api_router.include_router(legal.router, tags=["legal"])

@@ -54,20 +54,33 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+          # Liveness probe - checks if pod is alive
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: 8000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 40
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: 3
+          # Readiness probe - checks if pod is ready to serve traffic
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
+            failureThreshold: 3
+          # Startup probe - checks if pod has started
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
       restartPolicy: Always
 
 ---
@@ -110,18 +123,23 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "200m"
+          # Frontend health checks - simple path checks
           livenessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
       restartPolicy: Always
 
 ---
