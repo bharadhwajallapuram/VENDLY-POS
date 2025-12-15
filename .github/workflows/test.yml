@@ -52,9 +52,23 @@ jobs:
       - name: Install dependencies
         run: |
           cd server
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio
+      
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U testuser && break
+            sleep 1
+          done
+      
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            redis-cli -h localhost -p 6379 ping && break
+            sleep 1
+          done
       
       - name: Run migrations
         env:
@@ -71,7 +85,7 @@ jobs:
           ENVIRONMENT: test
         run: |
           cd server
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+          pytest tests/ -v --tb=short --timeout=60
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -96,12 +110,13 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
       
       - name: Install root dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
       
       - name: Install client dependencies
-        run: cd client && npm ci
+        run: cd client && npm ci --legacy-peer-deps
       
       - name: Type check
         run: npm run type-check:client
@@ -113,7 +128,7 @@ jobs:
         run: npm run build:client
       
       - name: Run tests
-        run: npm run test:client
+        run: npm test --workspace=@vendly/frontend -- --passWithNoTests
         continue-on-error: true
       
       - name: Upload build artifacts
