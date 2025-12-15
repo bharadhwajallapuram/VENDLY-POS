@@ -37,7 +37,7 @@ qrcode[pil]>=7.4.0
 pyotp>=2.9.0
 
 # Printer & Barcode Support
-python-barcode>=1.14.0  # Barcode generation (Code128, EAN, UPC, etc.)
+python-barcode>=0.16.0  # Barcode generation (Code128, EAN, UPC, etc.)
 pyusb>=1.2.1  # USB printer detection and control
 pillow>=10.0.0  # Image processing for barcodes
 
