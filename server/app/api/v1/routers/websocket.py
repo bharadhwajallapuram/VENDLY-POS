@@ -4,11 +4,12 @@ Vendly POS - WebSocket Router
 Real-time communication endpoints for inventory, sales, and notifications
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 import logging
 from typing import Optional
 
-from app.core.websocket import ws_manager, WSEventType
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+
+from app.core.websocket import WSEventType, ws_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["websocket"])

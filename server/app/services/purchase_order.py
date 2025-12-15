@@ -1,8 +1,10 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from app.db.models import PurchaseOrder, Product
-from app.services.inventory import InventoryService
 from datetime import datetime
+
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from app.db.models import Product, PurchaseOrder
+from app.services.inventory import InventoryService
 
 
 class PurchaseOrderService:

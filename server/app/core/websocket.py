@@ -6,11 +6,12 @@ Real-time event broadcasting for inventory, sales, and system events
 
 import asyncio
 import json
+import logging
 from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Set, Dict, Any, Optional, Callable, Awaitable
+from typing import Any, Awaitable, Callable, Dict, Optional, Set
+
 from fastapi import WebSocket, WebSocketDisconnect
-import logging
 
 logger = logging.getLogger(__name__)
 

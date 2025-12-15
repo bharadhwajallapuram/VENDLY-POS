@@ -4,6 +4,9 @@ Vendly POS - Inventory Routes
 API endpoints for inventory management and tracking
 """
 
+import json
+from typing import Optional
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -13,13 +16,11 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from sqlalchemy.orm import Session
-from typing import Optional
-import json
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db
 from app.core.permissions import Permission
-from app.services.inventory import InventoryService
 from app.db import models as m
+from app.services.inventory import InventoryService
 from app.services.ws_manager import manager
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])

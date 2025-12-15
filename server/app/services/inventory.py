@@ -5,12 +5,13 @@ Inventory management with real-time updates and low-stock alerts
 """
 
 import logging
-from typing import Optional, Dict, Any, List, Tuple
-from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy.orm import Session
+
+from app.core.websocket import InventoryUpdateData, WSEventType, ws_manager
 from app.db import models as m
-from app.core.websocket import ws_manager, InventoryUpdateData, WSEventType
 
 logger = logging.getLogger(__name__)
 
