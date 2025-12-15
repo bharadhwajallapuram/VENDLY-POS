@@ -161,6 +161,14 @@ class Settings(BaseSettings):
     SCHEDULER_JOB_DEFAULTS_MAX_INSTANCES: int = Field(default=1)
     SCHEDULER_JOB_DEFAULTS_COALESCE: bool = Field(default=True)
 
+    # Error Tracking and Monitoring (Sentry)
+    SENTRY_ENABLED: bool = Field(default=False, alias="SENTRY_ENABLED")
+    SENTRY_DSN: str = Field(default="", alias="SENTRY_DSN")
+    SENTRY_ENVIRONMENT: str = Field(default="production", alias="SENTRY_ENVIRONMENT")
+    SENTRY_TRACES_SAMPLE_RATE: float = Field(
+        default=0.1, alias="SENTRY_TRACES_SAMPLE_RATE"
+    )
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str, info) -> str:

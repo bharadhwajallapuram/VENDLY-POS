@@ -1,0 +1,80 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, develop, feature/**]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # SonarQube disabled - requires SONAR_TOKEN and SONAR_HOST_URL secrets
+  # To enable: Set up secrets at https://github.com/YOUR_OWNER/VENDLY-POS/settings/secrets/actions
+  # sonarqube:
+  #   name: SonarQube Code Analysis
+  #   runs-on: ubuntu-latest
+  #   
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     
+  #     - name: SonarQube Scan
+  #       uses: SonarSource/sonarqube-scan-action@master
+  #       env:
+  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #       with:
+  #         args: >
+  #           -Dsonar.projectKey=vendly
+  #           -Dsonar.sources=server/app,client/src
+  #           -Dsonar.exclusions=**/tests/**,**/node_modules/**,**/.next/**
+  #           -Dsonar.coverage.exclusions=**/migrations/**
+
+  snyk-scan:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+      
+      - name: Run Snyk on frontend dependencies
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci && cd client && npm ci
+      
+      - name: Build
+        run: npm run build:client
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          configPath: './client/lighthouserc.json'
+          temporaryPublicStorage: true
+        continue-on-error: true

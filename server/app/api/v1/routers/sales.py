@@ -28,6 +28,7 @@ from app.services.receipt import (
     generate_receipt_html,
     generate_receipt_text,
 )
+from app.services.tax_service import TaxService
 from app.services.ws_manager import manager
 
 router = APIRouter()
@@ -274,10 +275,14 @@ def create_sale(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """Create a new sale (checkout)"""
+    """Create a new sale (checkout) with automatic tax calculation"""
+    # Initialize tax service
+    tax_service = TaxService(db)
+
     # Calculate totals
     subtotal = 0.0
     tax = 0.0
+    tax_calculations: List[dict] = []  # Track all tax calculations
 
     # Validate coupon (if provided)
     coupon_code = (payload.coupon_code or "").strip().upper() or None
@@ -366,6 +371,30 @@ def create_sale(
 
     db.commit()
     db.refresh(sale)
+
+    # Record tax calculation for audit trail (if tax rates are configured)
+    try:
+        # Try to get default tax rate for this store
+        tax_config = tax_service.get_or_create_config(
+            user_id=user.id, region="in"
+        )  # Default to India
+        if tax_config and tax_config.default_tax_rate_id:
+            tax_service.record_calculation(
+                sale_id=sale.id,
+                tax_rate_id=tax_config.default_tax_rate_id,
+                subtotal=subtotal,
+                tax_amount=tax,
+                tax_rate=(
+                    tax_config.default_tax_rate.rate
+                    if tax_config.default_tax_rate
+                    else 0.0
+                ),
+                tax_type="gst",
+                is_compound=False,
+            )
+    except Exception as e:
+        # Tax recording is optional, don't fail the sale if it fails
+        print(f"Warning: Failed to record tax calculation: {e}")
 
     # Award loyalty points: 10 points per $1 spent
     if sale.customer_id:

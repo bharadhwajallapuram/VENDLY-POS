@@ -183,6 +183,9 @@ class Sale(Base):
     items: Mapped[List["SaleItem"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
     )
+    tax_calculations: Mapped[List["TaxCalculation"]] = relationship(
+        back_populates="sale", cascade="all, delete-orphan"
+    )
 
 
 class SaleItem(Base):
@@ -430,3 +433,204 @@ class UserSession(Base):
 
     # Relationships
     user: Mapped["User"] = relationship()
+
+
+# ---------- Tax Configuration ----------
+class TaxRegion(str, PyEnum):
+    """Supported tax regions"""
+
+    us = "us"  # US Sales Tax
+    ca = "ca"  # Canada GST/HST
+    uk = "uk"  # UK VAT
+    eu = "eu"  # EU VAT
+    au = "au"  # Australia GST
+    in_ = "in"  # India GST
+    sg = "sg"  # Singapore GST
+    nz = "nz"  # New Zealand GST
+    other = "other"  # Custom/Other
+
+
+class TaxRate(Base):
+    """Tax rates by region, category, and jurisdiction"""
+
+    __tablename__ = "tax_rates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    region: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    tax_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # gst, vat, sales_tax
+    name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # e.g., "GST", "CGST", "SGST"
+    rate: Mapped[float] = mapped_column(
+        Numeric(5, 2), nullable=False
+    )  # e.g., 18.0 for 18%
+    state_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )  # e.g., "CA" for California
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, index=True
+    )
+    effective_from: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    effective_to: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class TaxConfiguration(Base):
+    """Store-level tax configuration"""
+
+    __tablename__ = "tax_configurations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    region: Mapped[str] = mapped_column(String(10), nullable=False)
+    tax_id: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # GST ID, VAT ID, etc.
+    is_tax_exempt: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    default_tax_rate_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("tax_rates.id"), nullable=True
+    )
+    enable_compound_tax: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )  # For India GST
+    enable_reverse_charge: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    enable_tax_invoice: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    rounding_method: Mapped[str] = mapped_column(
+        String(20), default="round", nullable=False
+    )  # round, truncate, ceiling
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    default_tax_rate: Mapped[Optional["TaxRate"]] = relationship(
+        foreign_keys=[default_tax_rate_id]
+    )
+
+
+class TaxCalculation(Base):
+    """Tax calculation history for reporting and audit"""
+
+    __tablename__ = "tax_calculations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sale_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("sales.id"), nullable=False, index=True
+    )
+    tax_rate_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tax_rates.id"), nullable=False
+    )
+    subtotal: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    tax_amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    tax_rate: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    tax_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # gst, vat, sales_tax
+    is_compound: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    base_calculation_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("tax_calculations.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+
+    # Relationships
+    sale: Mapped["Sale"] = relationship(back_populates="tax_calculations")
+    tax_rate_ref: Mapped["TaxRate"] = relationship(foreign_keys=[tax_rate_id])
+
+
+# ---------- Legal Documents ----------
+class LegalDocumentType(str, PyEnum):
+    """Types of legal documents"""
+
+    privacy_policy = "privacy_policy"
+    terms_of_service = "terms_of_service"
+    return_policy = "return_policy"
+    warranty_policy = "warranty_policy"
+    cookie_policy = "cookie_policy"
+
+
+class LegalDocument(Base):
+    """Legal documents (privacy policy, terms, etc.) with versioning"""
+
+    __tablename__ = "legal_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    doc_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_html: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # Rendered HTML version
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, index=True
+    )
+    requires_acceptance: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by_user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    created_by: Mapped["User"] = relationship(foreign_keys=[created_by_user_id])
+    acceptances: Mapped[List["LegalDocumentAcceptance"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class LegalDocumentAcceptance(Base):
+    """Track acceptance of legal documents by users/customers"""
+
+    __tablename__ = "legal_document_acceptances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    legal_document_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("legal_documents.id"), nullable=False, index=True
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True
+    )  # Employee
+    customer_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("customers.id"), nullable=True, index=True
+    )  # Customer
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    accepted_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+
+    # Relationships
+    document: Mapped["LegalDocument"] = relationship(back_populates="acceptances")
+    user: Mapped[Optional["User"]] = relationship(foreign_keys=[user_id])
+    customer: Mapped[Optional["Customer"]] = relationship(foreign_keys=[customer_id])
