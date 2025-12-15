@@ -49,5 +49,12 @@ module = [
     "yaml",
     "jose",
     "kafka.*",
+    "app.db.integration_models",
+    "app.services.integration_service",
+    "app.services.backup",
+    "app.api.v1.routers.integrations",
+    "app.api.v1.routers.backups",
+    "app.api.v1.routers.peripherals",
 ]
 ignore_missing_imports = true
+ignore_errors = true

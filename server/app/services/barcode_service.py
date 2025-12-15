@@ -241,7 +241,7 @@ class BarcodeService:
                 return BarcodeService._validate_code39(data)
             elif format == BarcodeFormat.QR_CODE:
                 return BarcodeService._validate_qr_code(data)
-            elif format == BarcodeFormat.DATAMATRIX:
+            elif format == BarcodeFormat.DATA_MATRIX:
                 return {
                     "valid": True,
                     "message": "DataMatrix validation not implemented",
