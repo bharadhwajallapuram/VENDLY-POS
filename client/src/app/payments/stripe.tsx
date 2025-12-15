@@ -47,7 +47,7 @@ function PaymentForm({ clientSecret, amount, onSuccess, onError }: { clientSecre
       <CardElement className="border p-2 rounded" />
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+        className="bg-gray-800 text-white px-4 py-2 rounded w-full"
         disabled={processing}
       >
         {processing ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
@@ -95,7 +95,7 @@ export default function StripePaymentPage() {
         step={1}
       />
       <button
-        className="bg-blue-600 text-white px-4 py-2 rounded"
+        className="bg-gray-800 text-white px-4 py-2 rounded"
         onClick={createPaymentIntent}
       >
         Pay with Card / Wallet

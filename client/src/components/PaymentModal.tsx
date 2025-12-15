@@ -326,7 +326,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   onClick={() => setSelectedMethod(method.code)}
                   className={`p-3 rounded-lg border-2 text-center transition-colors ${
                     selectedMethod === method.code
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      ? 'border-gray-500 bg-gray-50 text-gray-700'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -362,7 +362,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </Elements>
             ) : (
               <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-800"></div>
                 <span className="ml-2 text-gray-500">Loading payment form...</span>
               </div>
             )}

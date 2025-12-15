@@ -72,7 +72,7 @@ export default function RefundPage() {
           className="border p-2 flex-1"
           placeholder="Enter Sale ID"
         />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={fetchSale}>
+        <button className="bg-gray-800 text-white px-4 py-2 rounded" onClick={fetchSale}>
           Lookup
         </button>
       </div>

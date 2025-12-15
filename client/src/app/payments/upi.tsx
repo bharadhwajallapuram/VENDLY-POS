@@ -67,7 +67,7 @@ export default function UPIPaymentPage() {
                 <img src={`data:image/png;base64,${qr}`} alt="UPI QR" className="w-full h-full object-contain" />
               </div>
             )}
-            <a href={upiUrl} target="_blank" rel="noopener noreferrer" className="block text-blue-600 underline mt-2 mb-2">Open in UPI App</a>
+            <a href={upiUrl} target="_blank" rel="noopener noreferrer" className="block text-gray-800 underline mt-2 mb-2">Open in UPI App</a>
             <p className="text-sm text-gray-600 mb-2">After payment, click below to confirm:</p>
             <button
               className="bg-green-600 text-white px-4 py-2 rounded w-full"

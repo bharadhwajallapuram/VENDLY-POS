@@ -44,8 +44,8 @@ export class ErrorBoundary extends React.Component<
 
       return (
         <div className="min-h-[400px] flex items-center justify-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto text-center">
-            <div className="text-red-600 text-4xl mb-4">⚠️</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto text-center" role="alert" aria-live="assertive">
+            <div className="text-red-600 text-4xl mb-4" aria-hidden="true">⚠️</div>
             <h2 className="text-lg font-semibold text-red-800 mb-2">
               Something went wrong
             </h2>
@@ -54,7 +54,8 @@ export class ErrorBoundary extends React.Component<
             </p>
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+              aria-label="Try again"
             >
               Try Again
             </button>
@@ -116,15 +117,17 @@ export function ErrorMessage({
     <div
       className={`bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative ${className}`}
       role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
     >
       <span className="block sm:inline">{error}</span>
       {onDismiss && (
         <button
           onClick={onDismiss}
-          className="absolute top-0 bottom-0 right-0 px-4 py-3 text-red-700 hover:text-red-900"
-          aria-label="Dismiss"
+          className="absolute top-0 bottom-0 right-0 px-4 py-3 text-red-700 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+          aria-label="Dismiss error message"
         >
-          <span className="text-xl">&times;</span>
+          <span className="text-xl" aria-hidden="true">&times;</span>
         </button>
       )}
     </div>
@@ -148,16 +151,18 @@ export function SuccessMessage({
   return (
     <div
       className={`bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative ${className}`}
-      role="alert"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <span className="block sm:inline">{message}</span>
       {onDismiss && (
         <button
           onClick={onDismiss}
-          className="absolute top-0 bottom-0 right-0 px-4 py-3 text-green-700 hover:text-green-900"
-          aria-label="Dismiss"
+          className="absolute top-0 bottom-0 right-0 px-4 py-3 text-green-700 hover:text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+          aria-label="Dismiss success message"
         >
-          <span className="text-xl">&times;</span>
+          <span className="text-xl" aria-hidden="true">&times;</span>
         </button>
       )}
     </div>
@@ -182,10 +187,12 @@ export function LoadingSpinner({
 
   return (
     <div
-      className={`${sizeClasses[size]} border-gray-300 border-t-blue-600 rounded-full animate-spin ${className}`}
+      className={`${sizeClasses[size]} border-gray-300 border-t-gray-800 rounded-full animate-spin ${className}`}
       role="status"
       aria-label="Loading"
-    />
+    >
+      <span className="sr-only">Loading...</span>
+    </div>
   );
 }
 

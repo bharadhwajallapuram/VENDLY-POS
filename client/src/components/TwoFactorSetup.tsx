@@ -134,19 +134,19 @@ export function TwoFactorSetup({
 
             <div className="space-y-3 mb-6 text-sm text-gray-600">
               <div className="flex gap-3">
-                <span className="text-blue-600 font-bold">1</span>
+                <span className="text-gray-900 font-bold">1</span>
                 <span>Install an authenticator app (Google Authenticator, Authy, etc.)</span>
               </div>
               <div className="flex gap-3">
-                <span className="text-blue-600 font-bold">2</span>
+                <span className="text-gray-900 font-bold">2</span>
                 <span>Scan the QR code</span>
               </div>
               <div className="flex gap-3">
-                <span className="text-blue-600 font-bold">3</span>
+                <span className="text-gray-900 font-bold">3</span>
                 <span>Enter the 6-digit code to verify</span>
               </div>
               <div className="flex gap-3">
-                <span className="text-blue-600 font-bold">4</span>
+                <span className="text-gray-900 font-bold">4</span>
                 <span>Save your backup codes</span>
               </div>
             </div>
@@ -161,7 +161,7 @@ export function TwoFactorSetup({
               <button
                 onClick={handleStartSetup}
                 disabled={loading}
-                className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-lg font-medium transition-colors"
+                className="flex-1 px-4 py-2 text-white bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 rounded-lg font-medium transition-colors"
               >
                 {loading ? 'Loading...' : 'Next'}
               </button>
@@ -203,7 +203,7 @@ export function TwoFactorSetup({
 
             <button
               onClick={() => setSetupStep('verify')}
-              className="w-full px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+              className="w-full px-4 py-2 text-white bg-gray-800 hover:bg-gray-900 rounded-lg font-medium transition-colors"
             >
               Next: Verify Code
             </button>
@@ -230,7 +230,7 @@ export function TwoFactorSetup({
               placeholder="000000"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono mb-6 focus:outline-none focus:border-blue-600"
+              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono mb-6 focus:outline-none focus:border-gray-600"
             />
 
             <div className="flex gap-3">
@@ -247,7 +247,7 @@ export function TwoFactorSetup({
               <button
                 onClick={handleVerifyCode}
                 disabled={loading || verificationCode.length !== 6}
-                className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-lg font-medium transition-colors"
+                className="flex-1 px-4 py-2 text-white bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 rounded-lg font-medium transition-colors"
               >
                 {loading ? 'Verifying...' : 'Verify'}
               </button>

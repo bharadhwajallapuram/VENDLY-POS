@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
 import Nav from '@/components/Nav';
+import Toast from '@/components/Toast';
+import InventoryNotifications from '@/components/InventoryNotifications';
 
 export const metadata: Metadata = {
   title: 'Vendly POS',
@@ -28,6 +30,8 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-gray-50">
         <Nav />
+        <Toast />
+        <InventoryNotifications />
         <main className="max-w-7xl mx-auto py-4 md:py-6 px-3 md:px-4">
           {children}
         </main>

@@ -62,7 +62,7 @@ export default function OfflineIndicator({ showDetails = true }: OfflineIndicato
               className={`text-xs px-2 py-1 rounded ${
                 isSyncing
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
               title="Sync pending sales now"
             >

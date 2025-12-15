@@ -10,15 +10,17 @@ export interface CartLine {
   name: string;
   qty: number;
   priceCents: number;
+  availableStock?: number; // Track available stock for validation
 }
 
 interface CartState {
   lines: CartLine[];
-  add: (line: CartLine) => void;
-  inc: (variantId: string) => void;
+  add: (line: CartLine) => boolean; // Returns true if added, false if exceeds stock
+  inc: (variantId: string) => boolean; // Returns true if incremented, false if exceeds stock
   dec: (variantId: string) => void;
   remove: (variantId: string) => void;
   clear: () => void;
+  updateStock: (variantId: string, newStock: number) => void; // Update available stock for a cart line
   subtotal: () => number;
   itemCount: () => number;
 }
@@ -28,26 +30,54 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       lines: [],
 
-      add: (line) =>
-        set((state) => {
-          const existing = state.lines.findIndex((l) => l.variantId === line.variantId);
-          if (existing > -1) {
-            const updated = [...state.lines];
-            updated[existing] = {
-              ...updated[existing],
-              qty: updated[existing].qty + line.qty,
+      add: (line) => {
+        const state = get();
+        const existing = state.lines.find((l) => l.variantId === line.variantId);
+        const currentQty = existing?.qty || 0;
+        const maxStock = line.availableStock || Infinity;
+
+        // Check if adding would exceed stock
+        if (currentQty + line.qty > maxStock) {
+          return false; // Exceeded stock
+        }
+
+        set((s) => {
+          const existingIdx = s.lines.findIndex((l) => l.variantId === line.variantId);
+          if (existingIdx > -1) {
+            const updated = [...s.lines];
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              qty: updated[existingIdx].qty + line.qty,
             };
             return { lines: updated };
           }
-          return { lines: [line, ...state.lines] };
-        }),
+          return { lines: [line, ...s.lines] };
+        });
 
-      inc: (variantId) =>
-        set((state) => ({
-          lines: state.lines.map((l) =>
+        return true; // Successfully added
+      },
+
+      inc: (variantId) => {
+        const state = get();
+        const line = state.lines.find((l) => l.variantId === variantId);
+        
+        if (!line) return false;
+
+        const maxStock = line.availableStock || Infinity;
+        
+        // Check if incrementing would exceed stock
+        if (line.qty + 1 > maxStock) {
+          return false; // Exceeded stock
+        }
+
+        set((s) => ({
+          lines: s.lines.map((l) =>
             l.variantId === variantId ? { ...l, qty: l.qty + 1 } : l
           ),
-        })),
+        }));
+
+        return true; // Successfully incremented
+      },
 
       dec: (variantId) =>
         set((state) => ({
@@ -62,6 +92,13 @@ export const useCart = create<CartState>()(
         })),
 
       clear: () => set({ lines: [] }),
+
+      updateStock: (variantId, newStock) =>
+        set((state) => ({
+          lines: state.lines.map((l) =>
+            l.variantId === variantId ? { ...l, availableStock: newStock } : l
+          ),
+        })),
 
       subtotal: () => get().lines.reduce((sum, l) => sum + l.qty * l.priceCents, 0),
 

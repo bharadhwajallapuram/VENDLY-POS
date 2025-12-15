@@ -221,7 +221,8 @@ export async function syncAllSales(token: string): Promise<{
   results: SyncResult[];
 }> {
   const queue = getQueuedSales();
-  const pending = queue.filter(sale => !sale.synced && sale.retryCount < OFFLINE_CONFIG.MAX_RETRIES);
+  // Only filter out sales that are already synced. Don't limit retries - keep trying.
+  const pending = queue.filter(sale => !sale.synced);
   
   const results: SyncResult[] = [];
   let synced = 0;
@@ -256,14 +257,26 @@ export async function batchSyncSales(token: string): Promise<{
   results: SyncResult[];
 }> {
   const queue = getQueuedSales();
-  const pending = queue.filter(sale => !sale.synced && sale.retryCount < OFFLINE_CONFIG.MAX_RETRIES);
+  console.log('[Batch Sync] Total queued sales:', queue.length);
+  console.log('[Batch Sync] Queue contents:', queue);
+  
+  // Log detailed info about why each sale is filtered
+  queue.forEach((sale, idx) => {
+    console.log(`[Batch Sync] Sale ${idx}: id=${sale.id}, synced=${sale.synced}, retryCount=${sale.retryCount}, maxRetries=${OFFLINE_CONFIG.MAX_RETRIES}`);
+  });
+  
+  // Only filter out sales that are already synced. Don't limit retries - keep trying.
+  const pending = queue.filter(sale => !sale.synced);
+  console.log('[Batch Sync] Pending sales:', pending.length, pending);
   
   if (pending.length === 0) {
+    console.log('[Batch Sync] No pending sales to sync');
     return { synced: 0, failed: 0, results: [] };
   }
 
   try {
     // Try batch endpoint first
+    console.log('[Batch Sync] Calling batch-sync endpoint with', pending.length, 'sales');
     const response = await fetch(`${API_URL}/api/v1/sales/batch-sync`, {
       method: 'POST',
       headers: {
@@ -273,8 +286,10 @@ export async function batchSyncSales(token: string): Promise<{
       body: JSON.stringify({ sales: pending }),
     });
 
+    console.log('[Batch Sync] Response status:', response.status);
     if (response.ok) {
       const data = await response.json();
+      console.log('[Batch Sync] Response data:', data);
       
       // Process results
       const results: SyncResult[] = data.results || [];
@@ -310,3 +325,14 @@ export async function batchSyncSales(token: string): Promise<{
     return syncAllSales(token);
   }
 }
+
+// Debug utility - expose to window for console access
+if (typeof window !== 'undefined') {
+  (window as any).__vendly_offline_debug = {
+    getQueue: getQueuedSales,
+    clearQueue,
+    getPendingCount,
+    removeAll: clearQueue,
+  };
+}
+
