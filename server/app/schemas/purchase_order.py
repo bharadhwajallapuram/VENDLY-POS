@@ -2,11 +2,13 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
+
 class PurchaseOrderCreate(BaseModel):
     product_id: int
     quantity: int
     supplier_notes: Optional[str] = None
     status: Optional[str] = "pending"
+
 
 class PurchaseOrderResponse(BaseModel):
     id: int

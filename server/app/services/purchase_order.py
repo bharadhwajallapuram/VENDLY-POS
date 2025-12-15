@@ -4,6 +4,7 @@ from app.db.models import PurchaseOrder, Product
 from app.services.inventory import InventoryService
 from datetime import datetime
 
+
 class PurchaseOrderService:
     def __init__(self, db: Session):
         self.db = db
@@ -20,7 +21,7 @@ class PurchaseOrderService:
         product = self.db.query(Product).filter(Product.id == product_id).first()
         if not product:
             raise ValueError(f"Product {product_id} not found")
-        
+
         if quantity <= 0:
             raise ValueError("Quantity must be positive")
 
@@ -46,10 +47,10 @@ class PurchaseOrderService:
     ) -> list[PurchaseOrder]:
         """List purchase orders"""
         query = self.db.query(PurchaseOrder).order_by(desc(PurchaseOrder.created_at))
-        
+
         if status:
             query = query.filter(PurchaseOrder.status == status)
-        
+
         return query.offset(skip).limit(limit).all()
 
     def get_purchase_order(self, order_id: int) -> PurchaseOrder:
@@ -60,15 +61,19 @@ class PurchaseOrderService:
         """Update purchase order status"""
         valid_statuses = ["pending", "ordered", "received", "cancelled"]
         if status not in valid_statuses:
-            raise ValueError(f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+            raise ValueError(
+                f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            )
 
-        order = self.db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
+        order = (
+            self.db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
+        )
         if not order:
             return None
 
         order.status = status
         order.updated_at = datetime.utcnow()
-        
+
         # If received, update inventory and broadcast the change
         if status == "received":
             await InventoryService.update_inventory(
@@ -76,7 +81,7 @@ class PurchaseOrderService:
                 order.product_id,
                 order.quantity,
                 reason=f"Purchase order #{order_id} received",
-                broadcast=True
+                broadcast=True,
             )
 
         self.db.commit()

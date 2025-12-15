@@ -25,8 +25,12 @@ api_router.include_router(products.router, prefix="/products", tags=["products"]
 api_router.include_router(sales.router, prefix="/sales", tags=["sales"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
-api_router.include_router(inventory.router, tags=["inventory"])  # Has prefix in router itself
-api_router.include_router(websocket.router, tags=["websocket"])  # Has prefix in router itself
+api_router.include_router(
+    inventory.router, tags=["inventory"]
+)  # Has prefix in router itself
+api_router.include_router(
+    websocket.router, tags=["websocket"]
+)  # Has prefix in router itself
 api_router.include_router(ws.router, tags=["websocket"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(purchase_orders.router, tags=["purchase-orders"])

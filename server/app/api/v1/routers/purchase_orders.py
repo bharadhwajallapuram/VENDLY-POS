@@ -1,6 +1,7 @@
 """
 Purchase Orders Router
 """
+
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.core.deps import get_db
@@ -8,6 +9,7 @@ from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderRespons
 from app.services.purchase_order import PurchaseOrderService
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase-orders"])
+
 
 @router.post("", response_model=PurchaseOrderResponse)
 async def create_purchase_order(
@@ -27,7 +29,10 @@ async def create_purchase_order(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating purchase order: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error creating purchase order: {str(e)}"
+        )
+
 
 @router.get("", response_model=list[PurchaseOrderResponse])
 async def list_purchase_orders(
@@ -41,6 +46,7 @@ async def list_purchase_orders(
     orders = service.list_purchase_orders(skip=skip, limit=limit, status=status)
     return orders
 
+
 @router.get("/{order_id}", response_model=PurchaseOrderResponse)
 async def get_purchase_order(
     order_id: int,
@@ -52,6 +58,7 @@ async def get_purchase_order(
     if not order:
         raise HTTPException(status_code=404, detail="Purchase order not found")
     return order
+
 
 @router.patch("/{order_id}", response_model=PurchaseOrderResponse)
 async def update_purchase_order(
