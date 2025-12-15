@@ -3,8 +3,9 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # --- make the backend root importable ---
 # env.py is at: app/db/migrations/env.py

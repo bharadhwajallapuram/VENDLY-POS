@@ -3,10 +3,13 @@ from fastapi import APIRouter
 from . import (
     ai,
     auth,
+    backups,
     coupons,
     customers,
+    integrations,
     inventory,
     payments,
+    peripherals,
     products,
     purchase_orders,
     reports,
@@ -36,3 +39,6 @@ api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(purchase_orders.router, tags=["purchase-orders"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 api_router.include_router(coupons.router, prefix="/coupons", tags=["coupons"])
+api_router.include_router(backups.router, tags=["backups"])
+api_router.include_router(integrations.router, tags=["integrations"])
+api_router.include_router(peripherals.router, tags=["peripherals"])

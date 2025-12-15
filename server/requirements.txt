@@ -36,6 +36,19 @@ qrcode[pil]>=7.4.0
 # Two-Factor Authentication
 pyotp>=2.9.0
 
+# Printer & Barcode Support
+python-barcode>=0.16.0  # Barcode generation (Code128, EAN, UPC, etc.)
+pyusb>=1.2.1  # USB printer detection and control
+pillow>=10.0.0  # Image processing for barcodes
+
+# Cloud Storage & Backup
+boto3>=1.26.0  # AWS S3
+azure-storage-blob>=12.18.0  # Azure Blob Storage
+google-cloud-storage>=2.10.0  # Google Cloud Storage
+
+# Task Scheduling
+apscheduler>=3.10.0
+
 # Development & Testing
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
