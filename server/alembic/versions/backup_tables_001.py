@@ -3,9 +3,9 @@ Alembic migration for backup-related tables
 Run with: alembic upgrade head
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "backup_tables_001"
 down_revision = None
