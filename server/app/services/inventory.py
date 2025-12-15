@@ -289,8 +289,14 @@ class InventoryService:
         """
         try:
             for item in sale_items:
-                product_id = item.get("product_id")
-                qty = item.get("quantity", 0)
+                product_id_raw: Any = item.get("product_id")
+                product_id: int = int(product_id_raw) if product_id_raw and isinstance(product_id_raw, (int, float)) else 0
+                
+                if product_id <= 0:
+                    return False, "Invalid product_id in sale_items"
+                
+                qty_raw: Any = item.get("quantity")
+                qty: int = int(qty_raw) if qty_raw and isinstance(qty_raw, (int, float)) else 0
 
                 product = db.get(m.Product, product_id)
                 if not product:

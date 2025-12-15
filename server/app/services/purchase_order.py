@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -15,7 +16,7 @@ class PurchaseOrderService:
         self,
         product_id: int,
         quantity: int,
-        supplier_notes: str = None,
+        supplier_notes: Optional[str] = None,
         status: str = "pending",
     ) -> PurchaseOrder:
         """Create a new purchase order"""
@@ -45,7 +46,7 @@ class PurchaseOrderService:
         self,
         skip: int = 0,
         limit: int = 50,
-        status: str = None,
+        status: Optional[str] = None,
     ) -> list[PurchaseOrder]:
         """List purchase orders"""
         query = self.db.query(PurchaseOrder).order_by(desc(PurchaseOrder.created_at))
@@ -55,11 +56,11 @@ class PurchaseOrderService:
 
         return query.offset(skip).limit(limit).all()
 
-    def get_purchase_order(self, order_id: int) -> PurchaseOrder:
+    def get_purchase_order(self, order_id: int) -> Optional[PurchaseOrder]:
         """Get a specific purchase order"""
         return self.db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
 
-    async def update_status(self, order_id: int, status: str) -> PurchaseOrder:
+    async def update_status(self, order_id: int, status: str) -> Optional[PurchaseOrder]:
         """Update purchase order status"""
         valid_statuses = ["pending", "ordered", "received", "cancelled"]
         if status not in valid_statuses:

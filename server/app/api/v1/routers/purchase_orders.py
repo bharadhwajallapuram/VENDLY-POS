@@ -1,6 +1,6 @@
-"""
-Purchase Orders Router
-"""
+"""Purchase Orders Router"""
+
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -23,7 +23,7 @@ async def create_purchase_order(
         order = service.create_purchase_order(
             product_id=order_data.product_id,
             quantity=order_data.quantity,
-            supplier_notes=order_data.supplier_notes,
+            supplier_notes=order_data.supplier_notes or None,
             status=order_data.status or "pending",
         )
         return order
@@ -39,7 +39,7 @@ async def create_purchase_order(
 async def list_purchase_orders(
     skip: int = 0,
     limit: int = 50,
-    status: str = None,
+    status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """List all purchase orders"""
