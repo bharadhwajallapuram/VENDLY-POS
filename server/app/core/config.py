@@ -125,6 +125,42 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"
     STORAGE_PATH: str = "./uploads"
 
+    # Cloud Backup Configuration
+    BACKUP_ENABLED: bool = Field(default=True, alias="BACKUP_ENABLED")
+    BACKUP_PROVIDER: str = Field(
+        default="local", alias="BACKUP_PROVIDER"
+    )  # s3, azure, gcs, local
+    BACKUP_BUCKET: str = Field(default="vendly-backups", alias="BACKUP_BUCKET")
+    BACKUP_LOCAL_PATH: str = Field(default="./backups", alias="BACKUP_LOCAL_PATH")
+
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID: str = Field(default="", alias="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(default="", alias="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="us-east-1", alias="AWS_REGION")
+
+    # Azure Storage Configuration
+    AZURE_STORAGE_CONNECTION_STRING: str = Field(
+        default="", alias="AZURE_STORAGE_CONNECTION_STRING"
+    )
+
+    # Google Cloud Storage Configuration
+    GCS_PROJECT_ID: str = Field(default="", alias="GCS_PROJECT_ID")
+    GCS_CREDENTIALS: Optional[str] = Field(default=None, alias="GCS_CREDENTIALS")
+
+    # Backup Schedule Defaults
+    BACKUP_SCHEDULE_TYPE: str = Field(
+        default="daily", alias="BACKUP_SCHEDULE_TYPE"
+    )  # hourly, daily, weekly, monthly
+    BACKUP_SCHEDULE_TIME: str = Field(
+        default="02:00", alias="BACKUP_SCHEDULE_TIME"
+    )  # Format: HH:MM
+    BACKUP_RETENTION_DAYS: int = Field(default=30, alias="BACKUP_RETENTION_DAYS")
+
+    # APScheduler Configuration
+    SCHEDULER_ENABLED: bool = Field(default=True, alias="SCHEDULER_ENABLED")
+    SCHEDULER_JOB_DEFAULTS_MAX_INSTANCES: int = Field(default=1)
+    SCHEDULER_JOB_DEFAULTS_COALESCE: bool = Field(default=True)
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str, info) -> str:

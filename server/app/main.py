@@ -58,6 +58,17 @@ async def lifespan(app: FastAPI):
         # Initialize database
         init_database()
 
+        # Initialize backup scheduler if enabled
+        if settings.BACKUP_ENABLED and settings.SCHEDULER_ENABLED:
+            try:
+                from app.services.backup_scheduler import get_backup_scheduler
+
+                scheduler = get_backup_scheduler()
+                scheduler.start()
+                print("[OK] Backup scheduler initialized")
+            except Exception as e:
+                print(f"[WARNING] Backup scheduler initialization failed: {e}")
+
         # Initialize Kafka producer if enabled
         if settings.KAFKA_ENABLED:
             try:
@@ -72,6 +83,16 @@ async def lifespan(app: FastAPI):
 
         # Shutdown
         print(f"[SHUTDOWN] Shutting down {settings.APP_NAME}")
+
+        # Stop backup scheduler
+        try:
+            from app.services.backup_scheduler import get_backup_scheduler
+
+            scheduler = get_backup_scheduler()
+            if scheduler.is_running:
+                scheduler.stop()
+        except Exception:
+            pass
 
         if settings.KAFKA_ENABLED:
             try:

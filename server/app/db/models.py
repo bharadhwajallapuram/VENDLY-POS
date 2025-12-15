@@ -298,6 +298,81 @@ class TwoFactorAuth(Base):
     user: Mapped["User"] = relationship()
 
 
+# ---------- Backup Management ----------
+class BackupJob(Base):
+    """Scheduled backup jobs"""
+
+    __tablename__ = "backup_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    backup_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # sales, inventory, full
+    schedule_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # daily, weekly, monthly, hourly
+    schedule_time: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # e.g., "02:00" for 2 AM
+    retention_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_run_status: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # completed, failed, pending
+    next_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, onupdate=func.now(), nullable=True
+    )
+
+    # Relationships
+    logs: Mapped[List["BackupLog"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+
+
+class BackupLog(Base):
+    """Backup execution logs"""
+
+    __tablename__ = "backup_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("backup_jobs.id"), nullable=True, index=True
+    )
+    backup_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    backup_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # pending, in_progress, completed, failed
+    file_key: Mapped[Optional[str]] = mapped_column(
+        String(500), nullable=True
+    )  # Path in cloud storage
+    file_size: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )  # Size in bytes
+    record_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False, index=True
+    )
+
+    # Relationships
+    job: Mapped[Optional["BackupJob"]] = relationship(back_populates="logs")
+
+
 # ---------- Purchase Orders ----------
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"

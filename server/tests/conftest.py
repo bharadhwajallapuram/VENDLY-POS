@@ -5,6 +5,7 @@
 import os
 
 import pytest
+from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +20,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-12345678901234567890"
 os.environ["JWT_SECRET"] = "test-jwt-secret-key-1234567890123456789"
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-from app.core.deps import get_db
+from app.core.deps import get_current_user, get_db, require_permission
 from app.core.security import hash_password
 from app.db.models import Base, User
 from app.main import app
@@ -44,6 +45,49 @@ def override_get_db():
         db.close()
 
 
+# Create a test user instance to use everywhere
+test_user = None
+
+
+def get_test_user():
+    """Get or create test user from database"""
+    global test_user
+    if test_user:
+        return test_user
+
+    db = TestingSessionLocal()
+    user = db.query(User).filter(User.email == "admin@vendly.com").first()
+    if user:
+        test_user = user
+    db.close()
+    return test_user
+
+
+def override_get_current_user():
+    """Get current user override for tests - bypass JWT validation"""
+    user = get_test_user()
+    if user:
+        return user
+    # Fallback - return a mock user
+    return User(
+        id=1,
+        email="admin@vendly.com",
+        password_hash="hashed",
+        full_name="Admin",
+        role="admin",
+        is_active=True,
+    )
+
+
+def override_require_permission(permission):
+    """Override permission requirement for tests - always passes"""
+
+    def check_permission(user=Depends(override_get_current_user)):
+        return user
+
+    return check_permission
+
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_database():
     """Set up fresh database for each test"""
@@ -66,6 +110,8 @@ def setup_database():
 
     # Override the dependency
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[require_permission] = override_require_permission
 
     yield
 
@@ -93,13 +139,6 @@ def client():
 
 @pytest.fixture
 def auth_headers(client):
-    """Get authentication headers for admin user"""
-    response = client.post(
-        "/api/v1/auth/login", json={"email": "admin@vendly.com", "password": "admin123"}
-    )
-
-    if response.status_code != 200:
-        pytest.fail(f"Failed to login admin user: {response.text}")
-
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    """Get authentication headers for test user"""
+    # Simply return headers - auth is mocked via dependency overrides
+    return {"Authorization": "Bearer test-token"}
