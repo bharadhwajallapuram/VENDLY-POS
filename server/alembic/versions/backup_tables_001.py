@@ -15,7 +15,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create backup_jobs and backup_logs tables"""
-    
+
     # Create backup_jobs table
     op.create_table(
         "backup_jobs",
@@ -29,12 +29,14 @@ def upgrade() -> None:
         sa.Column("last_run_at", sa.DateTime(), nullable=True),
         sa.Column("last_run_status", sa.String(50), nullable=True),
         sa.Column("next_run_at", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("updated_at", sa.DateTime(), nullable=True, onupdate=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name"),
     )
-    
+
     # Create index on backup_jobs
     op.create_index("ix_backup_jobs_name", "backup_jobs", ["name"])
 
@@ -50,14 +52,18 @@ def upgrade() -> None:
         sa.Column("file_size", sa.Integer(), nullable=True),
         sa.Column("record_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("started_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "started_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["job_id"], ["backup_jobs.id"]),
         sa.UniqueConstraint("backup_id"),
     )
-    
+
     # Create indexes on backup_logs
     op.create_index("ix_backup_logs_job_id", "backup_logs", ["job_id"])
     op.create_index("ix_backup_logs_backup_id", "backup_logs", ["backup_id"])
@@ -67,12 +73,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop backup-related tables"""
-    
+
     op.drop_index("ix_backup_logs_status")
     op.drop_index("ix_backup_logs_created_at")
     op.drop_index("ix_backup_logs_backup_id")
     op.drop_index("ix_backup_logs_job_id")
     op.drop_table("backup_logs")
-    
+
     op.drop_index("ix_backup_jobs_name")
     op.drop_table("backup_jobs")
