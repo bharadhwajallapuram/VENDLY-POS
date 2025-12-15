@@ -60,7 +60,9 @@ class PurchaseOrderService:
         """Get a specific purchase order"""
         return self.db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
 
-    async def update_status(self, order_id: int, status: str) -> Optional[PurchaseOrder]:
+    async def update_status(
+        self, order_id: int, status: str
+    ) -> Optional[PurchaseOrder]:
         """Update purchase order status"""
         valid_statuses = ["pending", "ordered", "received", "cancelled"]
         if status not in valid_statuses:
