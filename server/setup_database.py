@@ -22,7 +22,7 @@ from app.db.models import Base
 def create_tables():
     """Create all database tables"""
     print("\n🗄️  Creating database tables...")
-    
+
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully!")
@@ -36,11 +36,11 @@ def drop_tables():
     """Drop all database tables (careful!)"""
     print("\n⚠️  WARNING: This will drop ALL tables!")
     confirm = input("Are you sure? Type 'yes' to confirm: ")
-    
-    if confirm.lower() != 'yes':
+
+    if confirm.lower() != "yes":
         print("❌ Cancelled")
         return False
-    
+
     try:
         Base.metadata.drop_all(bind=engine)
         print("✅ All tables dropped successfully!")
@@ -54,28 +54,28 @@ def list_tables():
     """List all database tables"""
     print("\n📋 Database Tables:")
     print("-" * 50)
-    
+
     try:
-        inspector = __import__('sqlalchemy').inspect(engine)
+        inspector = __import__("sqlalchemy").inspect(engine)
         tables = inspector.get_table_names()
-        
+
         if not tables:
             print("  No tables found")
             return
-        
+
         for table in sorted(tables):
             columns = inspector.get_columns(table)
             col_count = len(columns)
             print(f"  ✓ {table:<30} ({col_count} columns)")
-            
+
             for col in columns[:3]:  # Show first 3 columns
-                nullable = "null" if col['nullable'] else "not null"
+                nullable = "null" if col["nullable"] else "not null"
                 print(f"    - {col['name']:<25} {col['type']} {nullable}")
-            
+
             if col_count > 3:
                 print(f"    ... and {col_count - 3} more columns")
             print()
-        
+
         print(f"Total tables: {len(tables)}")
     except Exception as e:
         print(f"❌ Error listing tables: {e}")
@@ -85,18 +85,18 @@ def verify_forecast_tables():
     """Verify demand forecasting tables exist"""
     print("\n✅ Verifying Demand Forecasting Tables...")
     print("-" * 50)
-    
+
     required_tables = [
-        'demand_history',
-        'demand_forecasts',
-        'forecast_details',
-        'forecast_metrics',
+        "demand_history",
+        "demand_forecasts",
+        "forecast_details",
+        "forecast_metrics",
     ]
-    
+
     try:
-        inspector = __import__('sqlalchemy').inspect(engine)
+        inspector = __import__("sqlalchemy").inspect(engine)
         existing_tables = inspector.get_table_names()
-        
+
         all_exist = True
         for table in required_tables:
             exists = table in existing_tables
@@ -104,7 +104,7 @@ def verify_forecast_tables():
             print(f"  {status} {table}")
             if not exists:
                 all_exist = False
-        
+
         print()
         if all_exist:
             print("✅ All required tables exist!")
@@ -119,7 +119,8 @@ def verify_forecast_tables():
 
 def show_usage():
     """Show usage information"""
-    print("""
+    print(
+        """
 ╔════════════════════════════════════════════════════════════════╗
 ║     Vendly POS - Database Setup Helper                        ║
 ║     Demand Forecasting Module                                  ║
@@ -150,14 +151,15 @@ QUICK START:
     3. Run examples:
        python demand_forecast_examples.py
 
-""")
+"""
+    )
 
 
 def main():
     """Main entry point"""
-    command = sys.argv[1].lower() if len(sys.argv) > 1 else 'help'
-    
-    if command == 'create':
+    command = sys.argv[1].lower() if len(sys.argv) > 1 else "help"
+
+    if command == "create":
         success = create_tables()
         if success:
             print("\n" + "=" * 50)
@@ -166,23 +168,23 @@ def main():
             print("  2. Check docs: ai_ml/DEMAND_FORECASTING.md")
             print("=" * 50 + "\n")
         sys.exit(0 if success else 1)
-    
-    elif command == 'drop':
+
+    elif command == "drop":
         success = drop_tables()
         sys.exit(0 if success else 1)
-    
-    elif command == 'list':
+
+    elif command == "list":
         list_tables()
         sys.exit(0)
-    
-    elif command == 'verify':
+
+    elif command == "verify":
         success = verify_forecast_tables()
         sys.exit(0 if success else 1)
-    
-    elif command == 'help':
+
+    elif command == "help":
         show_usage()
         sys.exit(0)
-    
+
     else:
         print(f"Unknown command: {command}")
         show_usage()

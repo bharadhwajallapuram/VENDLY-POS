@@ -18,12 +18,14 @@ from sqlalchemy.orm import Session
 # Check for optional dependencies
 try:
     from prophet import Prophet
+
     HAS_PROPHET = True
 except ImportError:
     HAS_PROPHET = False
 
 try:
     from statsmodels.tsa.arima.model import ARIMA
+
     HAS_STATSMODELS = True
 except ImportError:
     HAS_STATSMODELS = False
