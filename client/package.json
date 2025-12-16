@@ -1,7 +1,8 @@
 {
   "name": "@vendly/frontend",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Vendly POS System - Next.js Frontend",
+  "author": "Bharadhwaj Reddy Allapuram",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",

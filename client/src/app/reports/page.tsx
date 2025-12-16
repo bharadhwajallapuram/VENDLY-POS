@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DemandForecastDashboard from '@/components/DemandForecastDashboard';
 import { Reports, ReportSummary } from '@/lib/api';
 
 function ReportsContent() {
@@ -137,6 +138,11 @@ function ReportsContent() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* AI Demand Forecast Section */}
+          <div className="mt-8 pt-8 border-t">
+            <DemandForecastDashboard />
           </div>
         </>
       ) : (

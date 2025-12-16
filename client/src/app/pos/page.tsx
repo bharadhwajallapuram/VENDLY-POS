@@ -318,59 +318,148 @@ function POSContent() {
 
   // Handle payment (supports offline mode)
   async function handlePayment(payments: SplitPayment[]) {
-    const token = localStorage.getItem('vendly_token');
-    if (!token) {
-      alert('You must be logged in to complete a sale');
-      return;
-    }
+    try {
+      const token = localStorage.getItem('vendly_token');
+      if (!token) {
+        alert('You must be logged in to complete a sale');
+        return;
+      }
 
-    // Build sale items
-    const saleItems = cart.lines.map((line) => ({
-      product_id: parseInt(line.variantId),
-      quantity: line.qty,
-      unit_price: line.priceCents / 100,
-      discount: 0,
-    }));
+      // Build sale items
+      const saleItems = cart.lines.map((line) => ({
+        product_id: parseInt(line.variantId),
+        quantity: line.qty,
+        unit_price: line.priceCents / 100,
+        discount: 0,
+      }));
 
     // Check if we're offline
     if (!isOnline) {
-      // Queue the sale for later sync
-      const offlineSale = queueOfflineSale({
+      try {
+        // Queue the sale for later sync
+        const offlineSale = queueOfflineSale({
+          items: saleItems,
+          payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
+          discount: orderDiscountCents / 100,
+          coupon_code: appliedCoupon || undefined,
+          notes: undefined,
+          customer_id: customerId || undefined,
+          customer_name: customerName || undefined,
+          customer_phone: customerPhone || undefined,
+          customer_email: customerEmail || undefined,
+        });
+
+        // Create a local sale object for receipt display
+        const localSale = {
+          id: offlineSale.id,
+          items: cart.lines.map((line) => ({
+            product_name: line.name,
+            quantity: line.qty,
+            unit_price: line.priceCents / 100,
+          })),
+          subtotal: subtotal / 100,
+          tax: tax / 100,
+          discount: totalDiscountCents / 100,
+          coupon_code: appliedCoupon,
+          total: total / 100,
+          created_at: offlineSale.created_at,
+          is_offline: true,
+        };
+
+        setLastSaleId(null);
+        setLastSale(localSale);
+        setIsOfflineSale(true);
+        cart.clear();
+        setPayOpen(false);
+        setShowReceiptPrompt(true);
+        
+        // Reset customer info
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerEmail('');
+        setCustomerId(null);
+        setCustomerLoyaltyPoints(0);
+        setRedeemingPoints(0);
+        setCouponCode('');
+        setAppliedCoupon(null);
+        setCouponDiscountCents(0);
+        setOrderDiscount(0);
+        return;
+      } catch (err) {
+        console.error('Error queueing offline sale:', err);
+        alert('Failed to queue sale offline. Please try again.');
+        return;
+      }
+    }
+
+    // Online mode - proceed with normal API call
+    try {
+      // Create or find customer if details provided
+      let finalCustomerId = customerId;
+      if (!finalCustomerId && (customerName || customerPhone || customerEmail)) {
+        try {
+          const customerRes = await fetch(`${API_URL}/api/v1/customers`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: customerName || 'Guest',
+              phone: customerPhone || null,
+              email: customerEmail || null,
+            }),
+          });
+          if (customerRes.ok) {
+            const customerData = await customerRes.json();
+            finalCustomerId = customerData.id;
+          } else {
+            console.error('Customer creation failed:', customerRes.status, await customerRes.text());
+          }
+        } catch (e) {
+          console.error('Failed to create customer:', e);
+        }
+      }
+
+      // Build sale payload
+      const salePayload = {
         items: saleItems,
-        payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
+        payments,
         discount: orderDiscountCents / 100,
         coupon_code: appliedCoupon || undefined,
-        notes: undefined,
-        customer_id: customerId || undefined,
-        customer_name: customerName || undefined,
-        customer_phone: customerPhone || undefined,
-        customer_email: customerEmail || undefined,
-      });
-
-      // Create a local sale object for receipt display
-      const localSale = {
-        id: offlineSale.id,
-        items: cart.lines.map((line) => ({
-          product_name: line.name,
-          quantity: line.qty,
-          unit_price: line.priceCents / 100,
-        })),
-        subtotal: subtotal / 100,
-        tax: tax / 100,
-        discount: totalDiscountCents / 100,
-        coupon_code: appliedCoupon,
-        total: total / 100,
-        created_at: offlineSale.created_at,
-        is_offline: true,
+        notes: null,
+        customer_id: finalCustomerId,
       };
 
-      setLastSaleId(null);
-      setLastSale(localSale);
-      setIsOfflineSale(true);
+      console.log('[POS] Attempting to create sale online:', salePayload);
+
+      const response = await fetch(`${API_URL}/api/v1/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(salePayload),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[POS] Sale creation failed with status ${response.status}:`, errText);
+        throw new Error(`HTTP ${response.status}: ${errText}`);
+      }
+
+      const saleData = await response.json();
+      console.log('[POS] Sale created successfully:', saleData);
+
+      setLastSaleId(saleData.id);
+      setLastSale(saleData);
+      setIsOfflineSale(false);
+
+      // Clear cart and show receipt
       cart.clear();
       setPayOpen(false);
       setShowReceiptPrompt(true);
-      
+
       // Reset customer info
       setCustomerName('');
       setCustomerPhone('');
@@ -382,113 +471,71 @@ function POSContent() {
       setAppliedCoupon(null);
       setCouponDiscountCents(0);
       setOrderDiscount(0);
-      return;
-    }
-
-    // Online mode - proceed with normal API call
-    // Create or find customer if details provided
-    let finalCustomerId = customerId;
-    if (!finalCustomerId && (customerName || customerPhone || customerEmail)) {
-      try {
-        const customerRes = await fetch(`${API_URL}/api/v1/customers`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: customerName || 'Guest',
-            phone: customerPhone || null,
-            email: customerEmail || null,
-          }),
-        });
-        if (customerRes.ok) {
-          const customerData = await customerRes.json();
-          finalCustomerId = customerData.id;
-        } else {
-          console.error('Customer creation failed:', customerRes.status, await customerRes.text());
-        }
-      } catch (e) {
-        console.error('Failed to create customer:', e);
-      }
-    }
-    // Build sale payload
-    const salePayload = {
-      items: saleItems,
-      payments,
-      discount: orderDiscountCents / 100,
-      coupon_code: appliedCoupon || undefined,
-      notes: null,
-      customer_id: finalCustomerId,
-    };
-    
-    try {
-      const response = await fetch(`${API_URL}/api/v1/sales`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(salePayload),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || 'Failed to create sale');
-      }
-      const sale = await response.json();
-      setLastSaleId(sale.id);
-      setLastSale(sale);
-      setIsOfflineSale(false);
     } catch (error) {
-      // Network error - queue as offline sale
-      console.warn('Network error, queuing sale for offline sync:', error);
-      const offlineSale = queueOfflineSale({
-        items: saleItems,
-        payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
-        discount: orderDiscountCents / 100,
-        coupon_code: appliedCoupon || undefined,
-        notes: undefined,
-        customer_id: customerId || undefined,
-        customer_name: customerName || undefined,
-        customer_phone: customerPhone || undefined,
-        customer_email: customerEmail || undefined,
-      });
+      // ANY error - queue as offline sale
+      console.warn('[POS] Online sale failed, queuing offline:', error);
+      
+      try {
+        const offlineSale = queueOfflineSale({
+          items: saleItems,
+          payments: payments.map(p => ({ method: p.method, amount: p.amount / 100 })),
+          discount: orderDiscountCents / 100,
+          coupon_code: appliedCoupon || undefined,
+          notes: undefined,
+          customer_id: customerId || undefined,
+          customer_name: customerName || undefined,
+          customer_phone: customerPhone || undefined,
+          customer_email: customerEmail || undefined,
+        });
 
-      const localSale = {
-        id: offlineSale.id,
-        items: cart.lines.map((line) => ({
-          product_name: line.name,
-          quantity: line.qty,
-          unit_price: line.priceCents / 100,
-        })),
-        subtotal: subtotal / 100,
-        tax: tax / 100,
-        discount: totalDiscountCents / 100,
-        coupon_code: appliedCoupon,
-        total: total / 100,
-        created_at: offlineSale.created_at,
-        is_offline: true,
-      };
+        const localSale = {
+          id: offlineSale.id,
+          items: cart.lines.map((line) => ({
+            product_name: line.name,
+            quantity: line.qty,
+            unit_price: line.priceCents / 100,
+          })),
+          subtotal: subtotal / 100,
+          tax: tax / 100,
+          discount: totalDiscountCents / 100,
+          coupon_code: appliedCoupon,
+          total: total / 100,
+          created_at: offlineSale.created_at,
+          is_offline: true,
+        };
 
-      setLastSaleId(null);
-      setLastSale(localSale);
-      setIsOfflineSale(true);
+        setLastSaleId(null);
+        setLastSale(localSale);
+        setIsOfflineSale(true);
+
+        // Clear cart and show receipt
+        cart.clear();
+        setPayOpen(false);
+        setShowReceiptPrompt(true);
+
+        // Reset customer info
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerEmail('');
+        setCustomerId(null);
+        setCustomerLoyaltyPoints(0);
+        setRedeemingPoints(0);
+        setCouponCode('');
+        setAppliedCoupon(null);
+        setCouponDiscountCents(0);
+        setOrderDiscount(0);
+
+        // Show user-friendly message
+        toastManager.warning('Sale queued offline. Will sync when connection is restored.');
+      } catch (queueErr) {
+        console.error('[POS] Failed to queue offline sale:', queueErr);
+        alert('Failed to process sale. Please check your connection and try again.');
+      }
     }
-    
-    cart.clear();
-    setPayOpen(false);
-    setShowReceiptPrompt(true);
-    // Reset customer info
-    setCustomerName('');
-    setCustomerPhone('');
-    setCustomerEmail('');
-    setCustomerId(null);
-    setCustomerLoyaltyPoints(0);
-    setRedeemingPoints(0);
-    setCouponCode('');
-    setAppliedCoupon(null);
-    setCouponDiscountCents(0);
-    setOrderDiscount(0);
+    } catch (err) {
+      console.error('[POS] Unexpected error in handlePayment:', err);
+      alert('An unexpected error occurred. Please try again.');
+    }
   }
 
   // Open customer modal before payment

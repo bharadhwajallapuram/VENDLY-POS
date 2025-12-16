@@ -7,6 +7,8 @@
 'use client';
 
 import { useOffline } from '@/lib/useOffline';
+import { getQueuedSales } from '@/lib/offlineQueue';
+import { useState } from 'react';
 
 interface OfflineIndicatorProps {
   showDetails?: boolean;
@@ -14,6 +16,10 @@ interface OfflineIndicatorProps {
 
 export default function OfflineIndicator({ showDetails = true }: OfflineIndicatorProps) {
   const { isOnline, pendingCount, isSyncing, syncNow, lastSyncTime, lastSyncResult } = useOffline();
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+  
+  // Get failed sales with error messages
+  const failedSales = getQueuedSales().filter(s => s.syncError);
 
   // Show only a small dot indicator
   if (!showDetails) {
@@ -28,71 +34,73 @@ export default function OfflineIndicator({ showDetails = true }: OfflineIndicato
   }
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Status Indicator */}
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <div
-          className={`w-3 h-3 rounded-full ${
-            isOnline ? 'bg-green-500' : 'bg-red-500'
-          } ${isSyncing ? 'animate-pulse' : ''}`}
-          title={isOnline ? 'Online' : 'Offline'}
-        />
-        <span className={`text-sm font-medium ${isOnline ? 'text-green-700' : 'text-red-700'}`}>
-          {isOnline ? 'Online' : 'Offline'}
-        </span>
-      </div>
-
-      {/* Pending Count Badge */}
-      {pendingCount > 0 && (
+        {/* Status Indicator */}
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold rounded-full ${
-              isOnline ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'
-            }`}
-            title={`${pendingCount} sale(s) pending sync`}
-          >
-            {pendingCount} pending
+          <div
+            className={`w-3 h-3 rounded-full ${
+              isOnline ? 'bg-green-500' : 'bg-red-500'
+            } ${isSyncing ? 'animate-pulse' : ''}`}
+            title={isOnline ? 'Online' : 'Offline'}
+          />
+          <span className={`text-sm font-medium ${isOnline ? 'text-green-700' : 'text-red-700'}`}>
+            {isOnline ? 'Online' : 'Offline'}
           </span>
-          
-          {/* Sync Button */}
-          {isOnline && (
-            <button
-              onClick={() => syncNow()}
-              disabled={isSyncing}
-              className={`text-xs px-2 py-1 rounded ${
-                isSyncing
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Sync pending sales now"
-            >
-              {isSyncing ? (
-                <span className="flex items-center gap-1">
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Syncing...
-                </span>
-              ) : (
-                '🔄 Sync'
-              )}
-            </button>
-          )}
         </div>
-      )}
+
+        {/* Pending Count Badge */}
+        {pendingCount > 0 && (
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold rounded-full ${
+                isOnline ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'
+              }`}
+              title={`${pendingCount} sale(s) pending sync`}
+            >
+              {pendingCount} pending
+            </span>
+            
+            {/* Sync Button */}
+            {isOnline && (
+              <button
+                onClick={() => syncNow()}
+                disabled={isSyncing}
+                className={`text-xs px-2 py-1 rounded ${
+                  isSyncing
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title="Sync pending sales now"
+              >
+                {isSyncing ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Syncing...
+                  </span>
+                ) : (
+                  '🔄 Sync'
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Detailed Status (optional) */}
       {showDetails && lastSyncResult && lastSyncTime && (
@@ -101,6 +109,33 @@ export default function OfflineIndicator({ showDetails = true }: OfflineIndicato
           <span className="ml-1">
             ({new Date(lastSyncTime).toLocaleTimeString()})
           </span>
+        </div>
+      )}
+
+      {/* Error Details */}
+      {failedSales.length > 0 && (
+        <div className="ml-2">
+          <button
+            onClick={() => setShowErrorDetails(!showErrorDetails)}
+            className="text-xs text-red-600 hover:text-red-800 underline"
+          >
+            {showErrorDetails ? 'Hide' : 'Show'} {failedSales.length} failed sale error(s)
+          </button>
+          
+          {showErrorDetails && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+              {failedSales.map((sale, idx) => (
+                <div key={sale.id} className="mb-2 pb-2 border-b border-red-200 last:border-b-0">
+                  <div className="font-mono text-red-700">
+                    <strong>Sale #{idx + 1}:</strong> {sale.syncError}
+                  </div>
+                  <div className="text-gray-600 text-xs mt-1">
+                    Attempts: {sale.retryCount}/{3} | Items: {sale.items.length}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

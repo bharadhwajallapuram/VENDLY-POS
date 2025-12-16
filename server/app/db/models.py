@@ -14,6 +14,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -634,3 +635,165 @@ class LegalDocumentAcceptance(Base):
     document: Mapped["LegalDocument"] = relationship(back_populates="acceptances")
     user: Mapped[Optional["User"]] = relationship(foreign_keys=[user_id])
     customer: Mapped[Optional["Customer"]] = relationship(foreign_keys=[customer_id])
+
+
+# ---------- Demand Forecasting ----------
+class DemandHistory(Base):
+    """Historical demand data for forecasting"""
+
+    __tablename__ = "demand_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("products.id"), nullable=False, index=True
+    )
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    quantity_sold: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    revenue: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=True)  # 0-6
+    is_weekend: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, onupdate=func.now(), nullable=True
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship(foreign_keys=[product_id])
+
+    # Indexes for efficient querying
+    __table_args__ = (Index("ix_demand_history_product_date", "product_id", "date"),)
+
+
+class DemandForecast(Base):
+    """Demand forecast results"""
+
+    __tablename__ = "demand_forecasts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("products.id"), nullable=False, index=True
+    )
+    forecast_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, index=True
+    )
+    forecast_horizon_days: Mapped[int] = mapped_column(
+        Integer, default=30, nullable=False
+    )
+    model_type: Mapped[str] = mapped_column(
+        String(50), default="ensemble", nullable=False
+    )  # prophet, arima, ensemble
+    average_demand: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    min_forecast: Mapped[float] = mapped_column(Numeric(10, 2), nullable=True)
+    max_forecast: Mapped[float] = mapped_column(Numeric(10, 2), nullable=True)
+    confidence_level: Mapped[float] = mapped_column(
+        Numeric(3, 2), default=0.95, nullable=False
+    )
+    mae: Mapped[Optional[float]] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )  # Mean Absolute Error
+    rmse: Mapped[Optional[float]] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )  # Root Mean Squared Error
+    r2_score: Mapped[Optional[float]] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )  # R² Score
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False, index=True
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, onupdate=func.now(), nullable=True
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship(foreign_keys=[product_id])
+    created_by: Mapped[Optional["User"]] = relationship(
+        foreign_keys=[created_by_user_id]
+    )
+    forecast_details: Mapped[List["ForecastDetail"]] = relationship(
+        back_populates="forecast", cascade="all, delete-orphan"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_demand_forecast_product_date", "product_id", "forecast_date"),
+    )
+
+
+class ForecastDetail(Base):
+    """Daily forecast details"""
+
+    __tablename__ = "forecast_details"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    demand_forecast_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("demand_forecasts.id"), nullable=False, index=True
+    )
+    forecast_for_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, index=True
+    )
+    forecasted_quantity: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    lower_bound: Mapped[float] = mapped_column(Numeric(10, 2), nullable=True)
+    upper_bound: Mapped[float] = mapped_column(Numeric(10, 2), nullable=True)
+    actual_quantity: Mapped[Optional[float]] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
+    error: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+
+    # Relationships
+    forecast: Mapped["DemandForecast"] = relationship(back_populates="forecast_details")
+
+    # Indexes
+    __table_args__ = (
+        Index(
+            "ix_forecast_detail_forecast_date",
+            "demand_forecast_id",
+            "forecast_for_date",
+        ),
+    )
+
+
+class ForecastMetric(Base):
+    """Aggregate forecast performance metrics"""
+
+    __tablename__ = "forecast_metrics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("products.id"), nullable=False, index=True
+    )
+    metric_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    model_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    mae: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False
+    )  # Mean Absolute Error
+    mape: Mapped[Optional[float]] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )  # Mean Absolute Percentage Error
+    rmse: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False
+    )  # Root Mean Squared Error
+    r2: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)  # R² Score
+    samples_evaluated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship(foreign_keys=[product_id])
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_forecast_metrics_product_date", "product_id", "metric_date"),
+    )

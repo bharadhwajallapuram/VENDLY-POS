@@ -136,6 +136,14 @@ export default function Nav() {
                 >
                   Reports
                 </Link>
+                <Link
+                  href="/forecasts"
+                  className={getLinkStyles(isActive('/forecasts'))}
+                  role="menuitem"
+                  aria-current={isActive('/forecasts') ? 'page' : undefined}
+                >
+                  Forecasts
+                </Link>
               </>
             )}
 
@@ -304,6 +312,15 @@ export default function Nav() {
                   aria-current={isActive('/reports') ? 'page' : undefined}
                 >
                   Reports
+                </Link>
+                <Link
+                  href="/forecasts"
+                  onClick={closeMobileMenu}
+                  className={`block px-3 ${getLinkStyles(isActive('/forecasts'))}`}
+                  role="menuitem"
+                  aria-current={isActive('/forecasts') ? 'page' : undefined}
+                >
+                  Forecasts
                 </Link>
               </>
             )}

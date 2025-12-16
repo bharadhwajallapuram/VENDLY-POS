@@ -1,7 +1,8 @@
 {
   "name": "@vendly/shared",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Shared types and utilities for Vendly POS System",
+  "author": "Bharadhwaj Reddy Allapuram",
   "main": "index.ts",
   "types": "index.ts",
   "scripts": {

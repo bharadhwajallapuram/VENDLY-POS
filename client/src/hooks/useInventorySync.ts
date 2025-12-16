@@ -116,6 +116,11 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
       return; // Already connected
     }
 
+    // Also skip if we're already connecting
+    if (websocketRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
     try {
       setConnectionStatus('connecting');
       const apiUrl = getApiUrl();
@@ -125,7 +130,10 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
       websocketRef.current = new WebSocket(wsUrl);
 
       websocketRef.current.onopen = () => {
-        console.log(`[Inventory Sync] Connected to ${endpoint} WebSocket`);
+        if (reconnectAttemptsRef.current === 0) {
+          // Only log on first connection, not reconnects
+          console.log(`[Inventory Sync] Connected to ${endpoint} WebSocket`);
+        }
         setIsConnected(true);
         setConnectionStatus('connected');
         reconnectAttemptsRef.current = 0;
@@ -142,26 +150,39 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
         }
       };
 
-      websocketRef.current.onerror = (event: Event) => {
-        console.error('[Inventory Sync] WebSocket error:', event);
+      websocketRef.current.onerror = () => {
+        // Reduce error noise - only log on first error
+        if (reconnectAttemptsRef.current === 0) {
+          console.warn('[Inventory Sync] WebSocket connection error');
+        }
         setConnectionStatus('error');
-        const error = new Error('WebSocket connection error');
-        onError?.(error);
+        onError?.(new Error('WebSocket connection error'));
       };
 
       websocketRef.current.onclose = () => {
-        console.log('[Inventory Sync] WebSocket closed');
         setIsConnected(false);
         setConnectionStatus('disconnected');
         onConnectionClose?.();
 
-        // Attempt to reconnect
+        // Attempt to reconnect with exponential backoff
         if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          console.log(
-            `[Inventory Sync] Reconnecting... (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+          // Exponential backoff: 2s, 4s, 8s, 16s, 32s (capped at 30s)
+          const backoffDelay = Math.min(
+            Math.pow(2, reconnectAttemptsRef.current) * 1000,
+            30000
           );
-          reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+          // Only log reconnect attempts after the first few
+          if (reconnectAttemptsRef.current <= 2) {
+            console.log(
+              `[Inventory Sync] Reconnecting... (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+            );
+          }
+          reconnectTimeoutRef.current = setTimeout(connect, backoffDelay);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          console.error(
+            `[Inventory Sync] Max reconnection attempts (${maxReconnectAttempts}) reached. Giving up.`
+          );
         }
       };
     } catch (error) {
