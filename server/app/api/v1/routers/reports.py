@@ -93,99 +93,125 @@ def get_summary(
     user=Depends(get_current_user),
 ):
     """Get sales summary report for a date range"""
-    q = db.query(m.Sale).filter(m.Sale.status == "completed")
+    try:
+        q = db.query(m.Sale).filter(m.Sale.status == "completed")
 
-    if start_date:
-        q = q.filter(m.Sale.created_at >= start_date)
-    if end_date:
-        q = q.filter(m.Sale.created_at <= end_date + " 23:59:59")
-
-    sales = q.all()
-
-    total_sales = len(sales)
-    total_revenue = sum(float(s.total) for s in sales)
-    total_tax = sum(float(s.tax) for s in sales)
-    total_discount = sum(float(s.discount) for s in sales)
-
-    # Get items sold count
-    items_sold = 0
-    for sale in sales:
-        items_sold += sum(item.quantity for item in sale.items)
-
-    # Top products
-    product_sales: dict[int, dict[str, int | float | str]] = {}
-    for sale in sales:
-        for item in sale.items:
-            if item.product_id not in product_sales:
-                product = db.get(m.Product, item.product_id)
-                product_sales[item.product_id] = {
-                    "id": item.product_id,
-                    "name": product.name if product else "Unknown",
-                    "quantity": 0,
-                    "revenue": 0.0,
-                }
-            product_sales[item.product_id]["quantity"] = (
-                int(product_sales[item.product_id]["quantity"]) + item.quantity
+        if start_date:
+            q = q.filter(m.Sale.created_at >= start_date)
+        if end_date:
+            # Add time to end_date to include all sales on that day
+            end_date_with_time = (
+                f"{end_date} 23:59:59" if len(end_date) == 10 else end_date
             )
-            product_sales[item.product_id]["revenue"] = float(
-                product_sales[item.product_id]["revenue"]
-            ) + float(item.subtotal)
+            q = q.filter(m.Sale.created_at <= end_date_with_time)
 
-    top_products = sorted(
-        product_sales.values(), key=lambda x: float(x["revenue"]), reverse=True
-    )[:10]
+        sales = q.all()
 
-    # Get refund/return statistics
-    refund_q = db.query(m.Sale).filter(
-        m.Sale.status.in_(
-            ["refunded", "partially_refunded", "returned", "partially_returned"]
+        total_sales = len(sales)
+        total_revenue = sum(float(s.total) for s in sales) if sales else 0
+        total_tax = sum(float(s.tax) for s in sales) if sales else 0
+        total_discount = sum(float(s.discount) for s in sales) if sales else 0
+
+        # Get items sold count
+        items_sold = 0
+        for sale in sales:
+            items_sold += sum(item.quantity for item in sale.items)
+
+        # Top products
+        product_sales: dict[int, dict[str, int | float | str]] = {}
+        for sale in sales:
+            for item in sale.items:
+                if item.product_id not in product_sales:
+                    product = db.get(m.Product, item.product_id)
+                    product_sales[item.product_id] = {
+                        "id": item.product_id,
+                        "name": product.name if product else "Unknown",
+                        "quantity": 0,
+                        "revenue": 0.0,
+                    }
+                product_sales[item.product_id]["quantity"] = (
+                    int(product_sales[item.product_id]["quantity"]) + item.quantity
+                )
+                product_sales[item.product_id]["revenue"] = float(
+                    product_sales[item.product_id]["revenue"]
+                ) + float(item.subtotal)
+
+        top_products = sorted(
+            product_sales.values(), key=lambda x: float(x["revenue"]), reverse=True
+        )[:10]
+
+        # Get refund/return statistics
+        refund_q = db.query(m.Sale).filter(
+            m.Sale.status.in_(
+                ["refunded", "partially_refunded", "returned", "partially_returned"]
+            )
         )
-    )
-    if start_date:
-        refund_q = refund_q.filter(m.Sale.created_at >= start_date)
-    if end_date:
-        refund_q = refund_q.filter(m.Sale.created_at <= end_date + " 23:59:59")
+        if start_date:
+            refund_q = refund_q.filter(m.Sale.created_at >= start_date)
+        if end_date:
+            refund_q = refund_q.filter(m.Sale.created_at <= end_date_with_time)
 
-    refund_sales = refund_q.all()
-    total_refunds = len(
-        [s for s in refund_sales if s.status in ("refunded", "partially_refunded")]
-    )
-    total_returns = len(
-        [s for s in refund_sales if s.status in ("returned", "partially_returned")]
-    )
+        refund_sales = refund_q.all()
+        total_refunds = len(
+            [s for s in refund_sales if s.status in ("refunded", "partially_refunded")]
+        )
+        total_returns = len(
+            [s for s in refund_sales if s.status in ("returned", "partially_returned")]
+        )
 
-    # Calculate refund amounts (rough estimate based on status changes)
-    refund_amount = 0.0
-    return_amount = 0.0
-    for sale in refund_sales:
-        if sale.status in ("refunded", "partially_refunded"):
-            # For fully refunded, count original total; for partial, estimate half
-            if sale.status == "refunded":
-                refund_amount += float(sale.total)
-            else:
-                refund_amount += float(sale.total) * 0.5  # Rough estimate
-        elif sale.status in ("returned", "partially_returned"):
-            if sale.status == "returned":
-                return_amount += float(sale.total)
-            else:
-                return_amount += float(sale.total) * 0.5
+        # Calculate refund amounts (rough estimate based on status changes)
+        refund_amount = 0.0
+        return_amount = 0.0
+        for sale in refund_sales:
+            if sale.status in ("refunded", "partially_refunded"):
+                # For fully refunded, count original total; for partial, estimate half
+                if sale.status == "refunded":
+                    refund_amount += float(sale.total)
+                else:
+                    refund_amount += float(sale.total) * 0.5  # Rough estimate
+            elif sale.status in ("returned", "partially_returned"):
+                if sale.status == "returned":
+                    return_amount += float(sale.total)
+                else:
+                    return_amount += float(sale.total) * 0.5
 
-    return {
-        "start_date": start_date,
-        "end_date": end_date,
-        "total_sales": total_sales,
-        "total_revenue": total_revenue,
-        "total_tax": total_tax,
-        "total_discount": total_discount,
-        "items_sold": items_sold,
-        "average_sale": total_revenue / total_sales if total_sales > 0 else 0,
-        "top_products": top_products,
-        # Refund/Return statistics
-        "total_refunds": total_refunds,
-        "total_returns": total_returns,
-        "refund_amount": round(refund_amount, 2),
-        "return_amount": round(return_amount, 2),
-    }
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_sales": total_sales,
+            "total_revenue": total_revenue,
+            "total_tax": total_tax,
+            "total_discount": total_discount,
+            "items_sold": items_sold,
+            "average_sale": total_revenue / total_sales if total_sales > 0 else 0,
+            "top_products": top_products,
+            # Refund/Return statistics
+            "total_refunds": total_refunds,
+            "total_returns": total_returns,
+            "refund_amount": round(refund_amount, 2),
+            "return_amount": round(return_amount, 2),
+        }
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting summary report: {e}", exc_info=True)
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_sales": 0,
+            "total_revenue": 0,
+            "total_tax": 0,
+            "total_discount": 0,
+            "items_sold": 0,
+            "average_sale": 0,
+            "top_products": [],
+            "total_refunds": 0,
+            "total_returns": 0,
+            "refund_amount": 0,
+            "return_amount": 0,
+            "error": str(e),
+        }
 
 
 @router.get("/sales-by-day")

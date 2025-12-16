@@ -1,5 +1,5 @@
 from app.db.models import Product
-from app.db.session import Session, engine
+from app.db.session import SessionLocal, engine
 
 products = [
     {
@@ -31,7 +31,7 @@ products = [
     },
 ]
 
-with Session(engine) as session:
+with SessionLocal() as session:
     for prod in products:
         if not session.query(Product).filter_by(sku=prod["sku"]).first():
             session.add(Product(**prod))

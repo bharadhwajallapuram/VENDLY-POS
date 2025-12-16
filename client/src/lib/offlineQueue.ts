@@ -265,8 +265,23 @@ export async function batchSyncSales(token: string): Promise<{
     console.log(`[Batch Sync] Sale ${idx}: id=${sale.id}, synced=${sale.synced}, retryCount=${sale.retryCount}, maxRetries=${OFFLINE_CONFIG.MAX_RETRIES}`);
   });
   
-  // Only filter out sales that are already synced. Don't limit retries - keep trying.
-  const pending = queue.filter(sale => !sale.synced);
+  // Filter out:
+  // 1. Sales that are already synced
+  // 2. Sales that have exceeded max retries (mark as failed)
+  const pending = queue.filter(sale => {
+    if (sale.synced) return false;
+    if (sale.retryCount >= OFFLINE_CONFIG.MAX_RETRIES) {
+      console.warn(`[Batch Sync] Sale ${sale.id} exceeded max retries (${sale.retryCount}/${OFFLINE_CONFIG.MAX_RETRIES}), marking as permanently failed`);
+      // Mark as synced but with an error so we stop trying
+      updateSale(sale.id, { 
+        synced: true, 
+        syncError: `Max retries exceeded (${sale.retryCount} attempts). Please review the sale data and try again.` 
+      });
+      return false;
+    }
+    return true;
+  });
+  
   console.log('[Batch Sync] Pending sales:', pending.length, pending);
   
   if (pending.length === 0) {
@@ -333,6 +348,28 @@ if (typeof window !== 'undefined') {
     clearQueue,
     getPendingCount,
     removeAll: clearQueue,
+    // Get failed sales (synced=true but with error)
+    getFailedSales: () => {
+      const queue = getQueuedSales();
+      return queue.filter(sale => sale.synced && sale.syncError);
+    },
+    // Get permanently failed sales (exceeded retries)
+    getPermanentlyFailedSales: () => {
+      const queue = getQueuedSales();
+      return queue.filter(sale => sale.synced && sale.syncError?.includes('Max retries'));
+    },
+    // Remove a specific sale by ID
+    removeSale,
+    // Clear all failed sales
+    clearFailedSales: () => {
+      const queue = getQueuedSales();
+      const active = queue.filter(sale => !sale.synced || !sale.syncError);
+      saveQueue(active);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('offlineQueueChanged', { detail: { queue: active } }));
+      }
+      console.log(`[Debug] Cleared failed sales. Remaining: ${active.length}`);
+    },
   };
 }
 

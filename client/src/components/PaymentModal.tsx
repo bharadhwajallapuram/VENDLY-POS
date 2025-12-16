@@ -245,7 +245,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     
     // If card payment, use the card form submit
     if (showCardInput && clientSecret && cardSubmitRef.current) {
-      await cardSubmitRef.current();
+      try {
+        await cardSubmitRef.current();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Card payment failed. Please try again.');
+      }
       return;
     }
 
@@ -261,20 +265,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           return;
         }
         if (remaining > 0) {
-          setError('Total paid does not match total due');
+          setError(`Remaining amount ₹${remaining.toFixed(2)} not covered. Please add another payment method.`);
           setIsProcessing(false);
           return;
         }
         paymentsToProcess = splitPayments;
       } else {
         // Full payment mode - single payment with selected method
+        if (!selectedMethod) {
+          setError('Please select a payment method');
+          setIsProcessing(false);
+          return;
+        }
         paymentsToProcess = [{ method: selectedMethod, amount: total }];
       }
       
-      await onPay(paymentsToProcess);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment failed');
+      try {
+        await onPay(paymentsToProcess);
+        onClose();
+      } catch (paymentErr) {
+        const errorMessage = paymentErr instanceof Error ? paymentErr.message : 'Payment processing failed';
+        console.error('Payment error:', paymentErr);
+        setError(errorMessage || 'Unable to process payment. Please check your connection and try again.');
+      }
     } finally {
       setIsProcessing(false);
     }

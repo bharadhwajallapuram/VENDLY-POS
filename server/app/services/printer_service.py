@@ -28,6 +28,7 @@ class PrinterType(str, Enum):
     USB = "usb"
     NETWORK = "network"
     BLUETOOTH = "bluetooth"
+    VIRTUAL = "virtual"  # Virtual printer - always online (for development/testing)
 
 
 class PrinterStatus(str, Enum):
@@ -110,6 +111,21 @@ class PrinterService:
     def __init__(self):
         self.printers: Dict[str, PrinterConfig] = {}
         self.active_connections: Dict[str, socket.socket] = {}
+        # Register default virtual printer (always online for development)
+        self._register_default_virtual_printer()
+
+    def _register_default_virtual_printer(self):
+        """Register a default virtual printer that's always online"""
+        default_printer = PrinterConfig(
+            id="default_virtual",
+            name="Default Virtual Printer",
+            type=PrinterType.VIRTUAL,
+            paper_width=80,
+            is_default=True,
+            is_active=True,
+        )
+        self.printers[default_printer.id] = default_printer
+        logger.info(f"Registered default virtual printer: {default_printer.name}")
 
     def register_printer(self, config: PrinterConfig) -> bool:
         """Register a new printer"""
@@ -151,7 +167,10 @@ class PrinterService:
             if not printer or not printer.is_active:
                 return PrinterStatus.OFFLINE
 
-            if printer.type == PrinterType.NETWORK:
+            if printer.type == PrinterType.VIRTUAL:
+                # Virtual printers are always online
+                return PrinterStatus.ONLINE
+            elif printer.type == PrinterType.NETWORK:
                 return self._check_network_printer_status(printer)
             elif printer.type == PrinterType.USB:
                 return self._check_usb_printer_status(printer)
@@ -256,7 +275,13 @@ class PrinterService:
                 output += ESCPOSCommands.LF
 
             # Send to printer
-            if printer.type == PrinterType.NETWORK:
+            if printer.type == PrinterType.VIRTUAL:
+                # Virtual printer - simulate successful print
+                logger.info(
+                    f"[VIRTUAL PRINTER] Simulating receipt print:\n{receipt_text[:200]}..."
+                )
+                success = True
+            elif printer.type == PrinterType.NETWORK:
                 success = self._send_to_network_printer(printer, output)
             elif printer.type == PrinterType.USB:
                 success = self._send_to_usb_printer(printer, output)
@@ -474,7 +499,11 @@ class PrinterService:
             output += "\n".encode("utf-8")
             output += ESCPOSCommands.PAPER_CUT_FULL
 
-            if printer.type == PrinterType.NETWORK:
+            if printer.type == PrinterType.VIRTUAL:
+                # Virtual printer - simulate successful test print
+                logger.info(f"[VIRTUAL PRINTER] Test page simulated for {printer.name}")
+                success = True
+            elif printer.type == PrinterType.NETWORK:
                 success = self._send_to_network_printer(printer, output)
             elif printer.type == PrinterType.USB:
                 success = self._send_to_usb_printer(printer, output)

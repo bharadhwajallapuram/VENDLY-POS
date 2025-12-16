@@ -781,11 +781,34 @@ def batch_sync_sales(
 
         except Exception as e:
             db.rollback()
+            error_msg = str(e)
+            # Log the full error for debugging
+            import logging
+            import traceback
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"[Batch Sync] Failed to sync sale {offline_sale.id}: {error_msg}",
+                exc_info=True,
+            )
+            print(f"[Batch Sync ERROR] Sale {offline_sale.id}: {error_msg}")
+            print(
+                f"[Batch Sync ERROR] Sale data: items={len(offline_sale.items)}, customer_id={offline_sale.customer_id}"
+            )
+            print(f"[Batch Sync ERROR] Full traceback:")
+            print(traceback.format_exc())
+
+            # Log item details for debugging
+            for idx, item in enumerate(offline_sale.items):
+                print(
+                    f"  Item {idx}: product_id={item.product_id}, qty={item.quantity}, price={item.unit_price}"
+                )
+
             results.append(
                 SyncResultItem(
                     success=False,
                     offlineId=offline_sale.id,
-                    error=str(e),
+                    error=error_msg,
                 )
             )
             failed += 1

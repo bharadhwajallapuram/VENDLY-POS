@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from . import (
+from . import (  # demand_forecast,  # Temporarily disabled due to ai_ml dependency
     ai,
     auth,
     backups,
@@ -48,3 +48,4 @@ api_router.include_router(integrations.router, tags=["integrations"])
 api_router.include_router(peripherals.router, tags=["peripherals"])
 api_router.include_router(tax.router, tags=["tax"])
 api_router.include_router(legal.router, tags=["legal"])
+# api_router.include_router(demand_forecast.router, tags=["demand-forecast"])  # Temporarily disabled

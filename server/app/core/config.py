@@ -21,8 +21,8 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Vendly POS"
-    APP_ENV: str = Field(default="production", alias="APP_ENV")
-    DEBUG: bool = Field(default=False, alias="DEBUG")
+    APP_ENV: str = Field(default="development", alias="APP_ENV")
+    DEBUG: bool = Field(default=True, alias="DEBUG")
     SECRET_KEY: str = Field(default="", alias="SECRET_KEY")
 
     # Database
