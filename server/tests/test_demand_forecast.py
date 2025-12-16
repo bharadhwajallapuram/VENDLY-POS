@@ -9,10 +9,11 @@ from pathlib import Path
 # Add parent directory to path to import ai_ml module
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import pytest
 from datetime import datetime, timedelta
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
 from sqlalchemy.orm import Session
 
 # Check for optional dependencies
@@ -30,10 +31,11 @@ try:
 except ImportError:
     HAS_STATSMODELS = False
 
+from ai_ml.demand_forecast import DemandForecaster
+
 from app.db import models as m
 from app.db.session import SessionLocal, engine
 from app.services.demand_forecast_service import DemandForecastService
-from ai_ml.demand_forecast import DemandForecaster
 
 
 @pytest.fixture
