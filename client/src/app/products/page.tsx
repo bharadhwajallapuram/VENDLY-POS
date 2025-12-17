@@ -28,6 +28,7 @@ function ProductsContent() {
     min_quantity: 0,
     tax_rate: 0,
     is_active: true,
+    image_url: '',
   });
 
   const load = useCallback(async () => {
@@ -92,6 +93,7 @@ function ProductsContent() {
             min_quantity: 0,
             tax_rate: 8,
             is_active: true,
+            image_url: '',
           });
           setShowModal(true);
           setScanFeedback(`✓ Ready to create product with barcode: ${barcode}`);
@@ -120,6 +122,7 @@ function ProductsContent() {
       min_quantity: 0,
       tax_rate: 8,
       is_active: true,
+      image_url: '',
     });
     setShowModal(true);
   }
@@ -137,6 +140,7 @@ function ProductsContent() {
       min_quantity: product.min_quantity,
       tax_rate: product.tax_rate,
       is_active: product.is_active,
+      image_url: product.image_url || '',
     });
     setShowModal(true);
   }
@@ -199,6 +203,7 @@ function ProductsContent() {
               min_quantity: 0,
               tax_rate: 8,
               is_active: true,
+              image_url: '',
             });
             setShowModal(true);
             setScanFeedback(`✓ Ready to create product with barcode: ${barcode}`);
@@ -232,6 +237,7 @@ function ProductsContent() {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b">
+              <th className="p-4 text-left font-semibold">Image</th>
               <th className="p-4 text-left font-semibold">Name</th>
               <th className="p-4 text-left font-semibold">SKU</th>
               <th className="p-4 text-left font-semibold">Stock</th>
@@ -243,13 +249,34 @@ function ProductsContent() {
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-gray-500">
+                <td colSpan={7} className="p-8 text-center text-gray-500">
                   No products found
                 </td>
               </tr>
             ) : (
               items.map((p) => (
                 <tr key={p.id} className="border-b hover:bg-gray-50">
+                  <td className="p-4">
+                    {p.image_url ? (
+                      <img 
+                        src={p.image_url} 
+                        alt={p.name}
+                        className="w-12 h-12 object-cover rounded-lg bg-gray-100"
+                        onError={(e) => {
+                          // Hide broken image and show fallback
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                          if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-12 h-12 bg-gray-200 rounded-lg items-center justify-center text-gray-500 text-lg ${p.image_url ? 'hidden' : 'flex'}`}
+                      title={p.name}
+                    >
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                  </td>
                   <td className="p-4 font-medium">{p.name}</td>
                   <td className="p-4 text-gray-600">{p.sku || '—'}</td>
                   <td className="p-4 text-gray-600">{p.quantity}</td>
@@ -393,6 +420,29 @@ function ProductsContent() {
                     placeholder="0"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Image URL</label>
+                <input
+                  type="url"
+                  className="input w-full"
+                  value={formData.image_url || ''}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                />
+                {formData.image_url && (
+                  <div className="mt-2">
+                    <img 
+                      src={formData.image_url} 
+                      alt="Preview" 
+                      className="w-20 h-20 object-cover rounded-lg border"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

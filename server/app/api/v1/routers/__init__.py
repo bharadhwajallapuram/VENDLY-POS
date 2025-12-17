@@ -4,6 +4,7 @@ from . import (  # demand_forecast,  # Temporarily disabled due to ai_ml depende
     ai,
     auth,
     backups,
+    categories,
     coupons,
     customers,
     health,
@@ -27,6 +28,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(two_factor_auth.router, prefix="/auth", tags=["2fa"])
+api_router.include_router(categories.router, prefix="/categories", tags=["categories"])
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(products.router, prefix="/products", tags=["products"])
 api_router.include_router(sales.router, prefix="/sales", tags=["sales"])

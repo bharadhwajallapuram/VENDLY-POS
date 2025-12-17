@@ -25,6 +25,39 @@ interface SimpleProduct {
   price: number;
   sku?: string;
   quantity: number;
+  image_url?: string;
+  category_id?: number;
+}
+
+// Category type
+interface Category {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+// Category icons mapping
+function getCategoryIcon(categoryName: string): string {
+  const name = categoryName.toLowerCase();
+  if (name.includes('beverage') || name.includes('drink')) return '🥤';
+  if (name.includes('snack') || name.includes('cookie')) return '🍪';
+  if (name.includes('dairy') || name.includes('milk')) return '🥛';
+  if (name.includes('bakery') || name.includes('bread')) return '🥐';
+  if (name.includes('electronic') || name.includes('tech')) return '📱';
+  if (name.includes('grocery') || name.includes('groceries')) return '🛒';
+  if (name.includes('personal') || name.includes('care')) return '🧴';
+  if (name.includes('frozen') || name.includes('ice')) return '🧊';
+  if (name.includes('home') || name.includes('kitchen')) return '🏠';
+  if (name.includes('fruit') || name.includes('vegetable')) return '🍎';
+  if (name.includes('meat') || name.includes('poultry')) return '🥩';
+  if (name.includes('seafood') || name.includes('fish')) return '🐟';
+  if (name.includes('candy') || name.includes('sweet')) return '🍬';
+  if (name.includes('health') || name.includes('medicine')) return '💊';
+  if (name.includes('pet')) return '🐾';
+  if (name.includes('baby')) return '👶';
+  if (name.includes('toy')) return '🧸';
+  if (name.includes('cleaning') || name.includes('household')) return '🧹';
+  return '📦'; // default
 }
 
 // Basic coupons in sync with backend
@@ -58,6 +91,16 @@ function POSContent() {
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscountCents, setCouponDiscountCents] = useState(0);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  
+  // Pagination state for large product catalogs
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const PRODUCTS_PER_PAGE = 50;
+  
+  // Category state
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
 
   // Customer details state
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -73,8 +116,10 @@ function POSContent() {
   const loyaltyDiscountCents = Math.min(redeemingPoints, customerLoyaltyPoints); // 1 point = 1 cent
 
   // Load products on mount
+  // Load products and categories on mount
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
   // Listen for inventory updates via WebSocket
@@ -115,16 +160,50 @@ function POSContent() {
     },
   });
 
-  async function loadProducts() {
-    setLoading(true);
+  // Load categories on mount
+  async function loadCategories() {
     try {
       const token = localStorage.getItem('vendly_token');
-      const response = await fetch(`${API_URL}/api/v1/products`, {
+      const response = await fetch(`${API_URL}/api/v1/categories`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.items || data || []);
+        setCategories(data.items || data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  }
+
+  async function loadProducts(page = 0, searchQuery = '', categoryId: number | null = selectedCategory) {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('vendly_token');
+      const skip = page * PRODUCTS_PER_PAGE;
+      const queryParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : '';
+      const categoryParam = categoryId ? `&category_id=${categoryId}` : '';
+      const response = await fetch(
+        `${API_URL}/api/v1/products?skip=${skip}&limit=${PRODUCTS_PER_PAGE}${queryParam}${categoryParam}`, 
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.items || data || [];
+        
+        if (page === 0) {
+          // First page - replace products
+          setProducts(items);
+        } else {
+          // Subsequent pages - append
+          setProducts(prev => [...prev, ...items]);
+        }
+        
+        // Check if there are more products
+        setHasMore(items.length === PRODUCTS_PER_PAGE);
+        setCurrentPage(page);
       }
     } catch (err) {
       console.error('Failed to load products:', err);
@@ -132,12 +211,47 @@ function POSContent() {
       setLoading(false);
     }
   }
-  // Filter products by search query
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(query.toLowerCase())
-  );
+  
+  // Load more products when scrolling
+  function loadMoreProducts() {
+    if (!loading && hasMore) {
+      loadProducts(currentPage + 1, query, selectedCategory);
+    }
+  }
+  
+  // Handle category selection
+  function handleCategorySelect(categoryId: number | null) {
+    setSelectedCategory(categoryId);
+    setCurrentPage(0);
+    setProducts([]);
+    loadProducts(0, query, categoryId);
+  }
+  
+  // Search products with debounce - use server-side search for large catalogs
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  function handleSearch(searchQuery: string) {
+    setQuery(searchQuery);
+    
+    // Debounce search to avoid too many API calls
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setCurrentPage(0);
+      loadProducts(0, searchQuery, selectedCategory);
+    }, 300); // 300ms debounce
+  }
+  
+  // For small catalogs, also filter client-side for instant feedback
+  // For large catalogs (>100), rely on server-side search
+  const filteredProducts = products.length <= 100 
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.sku?.toLowerCase().includes(query.toLowerCase())
+      )
+    : products; // Server already filtered
 
   // Handle barcode scan - fetch product from backend
   const handleBarcodeScanned = useCallback(async (barcode: string) => {
@@ -592,11 +706,43 @@ function POSContent() {
               className="input flex-1"
               placeholder="Search products by name, SKU, or scan barcode..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
             />
-            <button className="btn btn-primary" onClick={loadProducts} disabled={loading}>
+            <button className="btn btn-primary" onClick={() => loadProducts(0, query, selectedCategory)} disabled={loading}>
               {loading ? 'Loading...' : 'Refresh'}
             </button>
+          </div>
+          
+          {/* Category Tabs */}
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+            <button
+              onClick={() => handleCategorySelect(null)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                selectedCategory === null
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              🏪 All Products
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategorySelect(category.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === category.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {getCategoryIcon(category.name)} {category.name}
+              </button>
+            ))}
+          </div>
+          
+          {/* Product count */}
+          <div className="mb-2 text-sm text-gray-500">
+            Showing {products.length} products {hasMore && '(scroll for more)'}
           </div>
 
         {/* Product Grid */}
@@ -615,6 +761,26 @@ function POSContent() {
                   onClick={() => addToCart(product)}
                   className="card p-3 text-left hover:bg-gray-50 hover:border-gray-300 transition-colors"
                 >
+                  {/* Product Image with offline fallback */}
+                  <div className="w-full h-20 mb-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                    {product.image_url ? (
+                      <img 
+                        src={product.image_url} 
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                          if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 items-center justify-center text-blue-600 text-2xl font-bold ${product.image_url ? 'hidden' : 'flex'}`}
+                    >
+                      {product.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
                   <div className="font-medium truncate">{product.name}</div>
                   <div className="text-sm text-gray-500">{product.sku || 'No SKU'}</div>
                   <div className="text-lg font-bold text-gray-900 mt-1">
@@ -623,6 +789,19 @@ function POSContent() {
                   <div className="text-xs text-gray-400">Stock: {product.quantity}</div>
                 </button>
               ))}
+            </div>
+          )}
+          
+          {/* Load More Button */}
+          {hasMore && products.length > 0 && (
+            <div className="mt-4 text-center">
+              <button 
+                className="btn btn-secondary px-8"
+                onClick={loadMoreProducts}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Load More Products'}
+              </button>
             </div>
           )}
         </div>
