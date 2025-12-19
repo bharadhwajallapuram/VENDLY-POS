@@ -115,10 +115,8 @@ function POSContent() {
   const [showLoyaltyRedeem, setShowLoyaltyRedeem] = useState(false);
   const loyaltyDiscountCents = Math.min(redeemingPoints, customerLoyaltyPoints); // 1 point = 1 cent
 
-  // Load products on mount
-  // Load products and categories on mount
+  // Load only categories on mount - products load when segment is selected
   useEffect(() => {
-    loadProducts();
     loadCategories();
   }, []);
 
@@ -219,12 +217,24 @@ function POSContent() {
     }
   }
   
-  // Handle category selection
+  // Handle category/segment selection
   function handleCategorySelect(categoryId: number | null) {
     setSelectedCategory(categoryId);
     setCurrentPage(0);
     setProducts([]);
-    loadProducts(0, query, categoryId);
+    setQuery(''); // Reset search when changing segments
+    // Only load products if a category is selected
+    if (categoryId !== null) {
+      loadProducts(0, '', categoryId);
+    }
+  }
+
+  // Go back to segment view
+  function handleBackToSegments() {
+    setSelectedCategory(null);
+    setProducts([]);
+    setQuery('');
+    setCurrentPage(0);
   }
   
   // Search products with debounce - use server-side search for large catalogs
@@ -685,7 +695,7 @@ function POSContent() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]">
+    <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
       {/* Offline Banner */}
       <OfflineBanner />
 
@@ -697,125 +707,160 @@ function POSContent() {
         debounceMs={300}
       />
 
-      <div className="flex flex-1 gap-4">
-        {/* Left: Product Search & Results */}
-        <div className="flex-1 flex flex-col">
-          {/* Search Bar */}
-          <div className="mb-4 flex gap-2">
-            <input
-              className="input flex-1"
-              placeholder="Search products by name, SKU, or scan barcode..."
-              value={query}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-            <button className="btn btn-primary" onClick={() => loadProducts(0, query, selectedCategory)} disabled={loading}>
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
-          </div>
-          
-          {/* Category Tabs */}
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-            <button
-              onClick={() => handleCategorySelect(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === null
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              🏪 All Products
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => handleCategorySelect(category.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {getCategoryIcon(category.name)} {category.name}
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 overflow-hidden">
+        {/* Left: Product Search & Results - This area scrolls */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-auto">
+          {/* Search Bar - Only show when viewing products in a segment */}
+          {selectedCategory !== null && (
+            <div className="mb-3 sm:mb-4 flex gap-2">
+              <input
+                className="input flex-1 text-sm sm:text-base py-2 sm:py-3"
+                placeholder="Search products..."
+                value={query}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              <button className="btn btn-secondary text-sm sm:text-base px-3 sm:px-4" onClick={() => loadProducts(0, query, selectedCategory)} disabled={loading}>
+                {loading ? '...' : 'Refresh'}
               </button>
-            ))}
-          </div>
+            </div>
+          )}
           
-          {/* Product count */}
-          <div className="mb-2 text-sm text-gray-500">
-            Showing {products.length} products {hasMore && '(scroll for more)'}
-          </div>
-
-        {/* Product Grid */}
-        <div className="flex-1 overflow-auto">
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              {products.length === 0
-                ? 'No products found. Add products in the Products page.'
-                : 'No products match your search.'}
+          {/* Segment/Category View */}
+          {selectedCategory === null ? (
+            /* Show Segment Tiles */
+            <div className="pb-4">
+              <div className="mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Select a Segment</h2>
+                <p className="text-xs sm:text-sm text-gray-500">Choose a category to view products</p>
+              </div>
+              {categories.length === 0 ? (
+                <div className="text-center py-8 sm:py-12 text-gray-500">
+                  <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">📦</div>
+                  <p className="text-sm sm:text-base">No segments found.</p>
+                  <p className="text-xs sm:text-sm">Add categories in the admin panel.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => handleCategorySelect(category.id)}
+                      className="card p-4 sm:p-6 text-center hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 transition-all transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+                    >
+                      <div className="text-3xl sm:text-4xl md:text-5xl mb-2 sm:mb-3">
+                        {getCategoryIcon(category.name)}
+                      </div>
+                      <div className="font-semibold text-sm sm:text-base md:text-lg text-gray-800 leading-tight">{category.name}</div>
+                      {category.description && (
+                        <div className="text-xs sm:text-sm text-gray-500 mt-1 truncate hidden sm:block">{category.description}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {filteredProducts.map((product) => (
+            /* Show Products for Selected Segment */
+            <>
+              {/* Back Button and Segment Header */}
+              <div className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-4 flex-wrap">
                 <button
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="card p-3 text-left hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                  onClick={handleBackToSegments}
+                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-lg transition-colors text-sm sm:text-base touch-manipulation"
                 >
-                  {/* Product Image with offline fallback */}
-                  <div className="w-full h-20 mb-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                    {product.image_url ? (
-                      <img 
-                        src={product.image_url} 
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                          const fallback = (e.target as HTMLImageElement).nextElementSibling;
-                          if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className={`w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 items-center justify-center text-blue-600 text-2xl font-bold ${product.image_url ? 'hidden' : 'flex'}`}
-                    >
-                      {product.name.charAt(0).toUpperCase()}
-                    </div>
-                  </div>
-                  <div className="font-medium truncate">{product.name}</div>
-                  <div className="text-sm text-gray-500">{product.sku || 'No SKU'}</div>
-                  <div className="text-lg font-bold text-gray-900 mt-1">
-                    ${product.price.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-gray-400">Stock: {product.quantity}</div>
+                  <span>←</span>
+                  <span className="hidden xs:inline">Back</span>
                 </button>
-              ))}
-            </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl sm:text-2xl">{getCategoryIcon(categories.find(c => c.id === selectedCategory)?.name || '')}</span>
+                  <h2 className="text-base sm:text-xl font-bold text-gray-800">
+                    {categories.find(c => c.id === selectedCategory)?.name || 'Products'}
+                  </h2>
+                </div>
+              </div>
+              
+              {/* Product count */}
+              <div className="mb-2 text-xs sm:text-sm text-gray-500">
+                {products.length} products {hasMore && '(scroll for more)'}
+              </div>
+
+              {/* Product Grid */}
+              <div className="pb-4">
+                {loading && products.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <div className="animate-spin text-2xl sm:text-3xl mb-2">⏳</div>
+                    <span className="text-sm sm:text-base">Loading products...</span>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <div className="text-3xl sm:text-4xl mb-2">📭</div>
+                    <span className="text-sm sm:text-base">No products in this segment.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                    {filteredProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => addToCart(product)}
+                        className="card p-2 sm:p-3 text-left hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-colors touch-manipulation"
+                      >
+                        {/* Product Image with offline fallback */}
+                        <div className="w-full h-16 sm:h-20 mb-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                          {product.image_url ? (
+                            <img 
+                              src={product.image_url} 
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className={`w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 items-center justify-center text-blue-600 text-xl sm:text-2xl font-bold ${product.image_url ? 'hidden' : 'flex'}`}
+                          >
+                            {product.name.charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="font-medium text-xs sm:text-sm truncate">{product.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{product.sku || 'No SKU'}</div>
+                        <div className="text-sm sm:text-lg font-bold text-gray-900 mt-1">
+                          ${product.price.toFixed(2)}
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-gray-400">Stock: {product.quantity}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Load More Button */}
+                {hasMore && products.length > 0 && (
+                  <div className="mt-4 text-center">
+                    <button 
+                      className="btn btn-secondary px-8"
+                      onClick={loadMoreProducts}
+                      disabled={loading}
+                    >
+                      {loading ? 'Loading...' : 'Load More Products'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
-          
-          {/* Load More Button */}
-          {hasMore && products.length > 0 && (
-            <div className="mt-4 text-center">
-              <button 
-                className="btn btn-secondary px-8"
-                onClick={loadMoreProducts}
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Load More Products'}
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Right: Cart */}
-      <div className="w-80 flex flex-col bg-white rounded-lg shadow-lg">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold">Cart</h2>
-          <p className="text-sm text-gray-500">Cashier: {user?.full_name || user?.email}</p>
+      {/* Right: Cart - Fixed sidebar, doesn't scroll */}
+      <div className="w-full lg:w-80 xl:w-96 flex flex-col bg-white rounded-lg shadow-lg flex-shrink-0 lg:h-full lg:overflow-hidden">
+        <div className="p-3 sm:p-4 border-b flex-shrink-0">
+          <h2 className="text-base sm:text-lg font-bold">Cart</h2>
+          <p className="text-xs sm:text-sm text-gray-500 truncate">Cashier: {user?.full_name || user?.email}</p>
         </div>
 
-        {/* Cart Items */}
-        <div className="flex-1 overflow-auto p-4 space-y-2">
+        {/* Cart Items - Only this section scrolls within the cart */}
+        <div className="flex-1 overflow-auto p-3 sm:p-4 space-y-2 min-h-0">
           {cart.lines.length === 0 ? (
             <div className="text-center py-8 text-gray-400">Cart is empty</div>
           ) : (
@@ -824,22 +869,22 @@ function POSContent() {
                 key={line.variantId}
                 className="flex items-center justify-between p-2 bg-gray-50 rounded"
               >
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{line.name}</div>
-                  <div className="text-xs text-gray-500">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-xs sm:text-sm truncate">{line.name}</div>
+                  <div className="text-[10px] sm:text-xs text-gray-500">
                     ${(line.priceCents / 100).toFixed(2)} x {line.qty}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   <button
-                    className="w-6 h-6 rounded bg-gray-200 hover:bg-gray-300"
+                    className="w-7 h-7 sm:w-6 sm:h-6 rounded bg-gray-200 hover:bg-gray-300 active:bg-gray-400 touch-manipulation text-sm sm:text-base"
                     onClick={() => cart.dec(line.variantId)}
                   >
                     -
                   </button>
-                  <span className="w-8 text-center">{line.qty}</span>
+                  <span className="w-6 sm:w-8 text-center text-sm">{line.qty}</span>
                   <button
-                    className="w-6 h-6 rounded bg-gray-200 hover:bg-gray-300"
+                    className="w-7 h-7 sm:w-6 sm:h-6 rounded bg-gray-200 hover:bg-gray-300 active:bg-gray-400 touch-manipulation text-sm sm:text-base"
                     onClick={() => {
                       const success = cart.inc(line.variantId);
                       if (!success) {
@@ -851,7 +896,7 @@ function POSContent() {
                     +
                   </button>
                   <button
-                    className="w-6 h-6 rounded bg-red-100 hover:bg-red-200 text-red-600"
+                    className="w-7 h-7 sm:w-6 sm:h-6 rounded bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-600 touch-manipulation text-sm sm:text-base"
                     onClick={() => cart.remove(line.variantId)}
                   >
                     ×
@@ -863,63 +908,63 @@ function POSContent() {
         </div>
 
         {/* Totals */}
-        <div className="p-4 border-t space-y-2">
-          <div className="flex justify-between text-sm">
+        <div className="p-3 sm:p-4 border-t space-y-1 sm:space-y-2 flex-shrink-0">
+          <div className="flex justify-between text-xs sm:text-sm">
             <span>Subtotal</span>
             <span>${(subtotal / 100).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-xs sm:text-sm">
             <span>Tax (8%)</span>
             <span>${(tax / 100).toFixed(2)}</span>
           </div>
           {couponDiscountCents > 0 && (
-            <div className="flex justify-between text-sm text-green-700">
-              <span>Coupon {appliedCoupon && <span className="text-xs">({appliedCoupon})</span>}</span>
+            <div className="flex justify-between text-xs sm:text-sm text-green-700">
+              <span>Coupon {appliedCoupon && <span className="text-[10px] sm:text-xs">({appliedCoupon})</span>}</span>
               <span>- ${(couponDiscountCents / 100).toFixed(2)}</span>
             </div>
           )}
           {loyaltyDiscountCents > 0 && (
-            <div className="flex justify-between text-sm text-purple-700">
-              <span>Loyalty Points <span className="text-xs">({redeemingPoints} pts)</span></span>
+            <div className="flex justify-between text-xs sm:text-sm text-purple-700">
+              <span>Loyalty <span className="text-[10px] sm:text-xs">({redeemingPoints} pts)</span></span>
               <span>- ${(loyaltyDiscountCents / 100).toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold border-t pt-2">
+          <div className="flex justify-between text-base sm:text-lg font-bold border-t pt-2">
             <span>Total</span>
             <span>${(total / 100).toFixed(2)}</span>
           </div>
         </div>
 
         {/* Coupon Input */}
-        <div className="px-4 pb-2">
+        <div className="px-3 sm:px-4 pb-2 flex-shrink-0">
           {!appliedCoupon ? (
             <div className="flex gap-2">
               <input
                 type="text"
-                className="input flex-1 text-sm"
+                className="input flex-1 text-xs sm:text-sm py-1.5 sm:py-2"
                 placeholder="Coupon code"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyCoupon()}
               />
               <button 
-                className="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                className="px-2 sm:px-3 py-1.5 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation"
                 onClick={applyCoupon}
               >
                 Apply
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
-                <span className="text-sm font-medium text-emerald-700">{appliedCoupon}</span>
-                <span className="text-xs text-emerald-600">(-${(couponDiscountCents / 100).toFixed(2)})</span>
+                <span className="text-xs sm:text-sm font-medium text-emerald-700">{appliedCoupon}</span>
+                <span className="text-[10px] sm:text-xs text-emerald-600">(-${(couponDiscountCents / 100).toFixed(2)})</span>
               </div>
               <button 
-                className="text-emerald-600 hover:text-emerald-800 text-sm"
+                className="text-emerald-600 hover:text-emerald-800 text-xs sm:text-sm touch-manipulation"
                 onClick={() => { setAppliedCoupon(null); setCouponDiscountCents(0); setCouponCode(''); }}
               >
                 Remove
@@ -927,7 +972,7 @@ function POSContent() {
             </div>
           )}
           {couponMessage && !appliedCoupon && (
-            <p className="text-xs text-red-500 mt-1">{couponMessage}</p>
+            <p className="text-[10px] sm:text-xs text-red-500 mt-1">{couponMessage}</p>
           )}
         </div>
 
@@ -1017,16 +1062,16 @@ function POSContent() {
         )}
 
         {/* Actions */}
-        <div className="p-4 border-t space-y-2">
+        <div className="p-3 sm:p-4 border-t space-y-2 flex-shrink-0">
           <button
-            className="btn btn-success w-full"
+            className="btn btn-success w-full py-2.5 sm:py-3 text-sm sm:text-base touch-manipulation"
             disabled={cart.lines.length === 0}
             onClick={openCustomerModal}
           >
             Pay ${(total / 100).toFixed(2)}
           </button>
           <button
-            className="btn btn-secondary w-full"
+            className="btn btn-secondary w-full py-2 sm:py-2.5 text-sm sm:text-base touch-manipulation"
             disabled={cart.lines.length === 0}
             onClick={() => cart.clear()}
           >
