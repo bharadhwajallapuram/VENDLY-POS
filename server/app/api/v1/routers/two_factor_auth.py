@@ -1,8 +1,12 @@
 """
 Vendly POS - Two-Factor Authentication API Routes
+Supports: TOTP (authenticator apps), Email, SMS
 """
 
-from typing import Optional
+import random
+import string
+from datetime import datetime, timedelta
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -16,10 +20,15 @@ from app.services.audit import (
     log_two_factor_enabled,
     log_two_factor_verified,
 )
+from app.services.email_service import EmailService
+from app.services.sms_service import SMSService
 from app.services.two_factor_auth import (
     TwoFactorAuthDB,
     TwoFactorAuthService,
 )
+
+# In-memory store for temporary 2FA codes (use Redis in production)
+_pending_2fa_codes: dict[int, dict] = {}
 
 router = APIRouter(prefix="/2fa", tags=["2fa"])
 
@@ -316,3 +325,128 @@ async def admin_disable_2fa(
     log_two_factor_disabled(user_id, admin_id=current_user.id)
 
     return {"message": "2FA disabled for user"}
+
+
+# ============================================================
+# Email/SMS 2FA Endpoints (Alternative to TOTP)
+# ============================================================
+
+
+class Send2FACodeRequest(BaseModel):
+    user_id: int
+    method: Literal["email", "sms"] = "email"
+
+
+class Send2FACodeResponse(BaseModel):
+    message: str
+    method: str
+    expires_in_seconds: int = 300  # 5 minutes
+
+
+class Verify2FACodeRequest(BaseModel):
+    user_id: int
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+@router.post("/send-code", response_model=Send2FACodeResponse)
+async def send_2fa_code(
+    request: Send2FACodeRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Send a 6-digit 2FA code via email or SMS
+    Alternative to TOTP authenticator apps
+    """
+    # Get user
+    user = db.query(m.User).filter(m.User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Generate 6-digit code
+    code = "".join(random.choices(string.digits, k=6))
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    # Store code temporarily
+    _pending_2fa_codes[user.id] = {
+        "code": code,
+        "expires_at": expires_at,
+        "method": request.method,
+    }
+
+    # Send via appropriate channel
+    if request.method == "email":
+        if not user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User has no email address",
+            )
+        success = EmailService.send_2fa_code(user.email, code, user.full_name or "User")
+        masked = f"{user.email[:3]}***@{user.email.split('@')[-1]}"
+    else:  # sms
+        phone = getattr(user, "phone", None)
+        if not phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User has no phone number",
+            )
+        success = SMSService.send_2fa_code(phone, code)
+        masked = f"***{phone[-4:]}" if len(phone) > 4 else "****"
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send 2FA code via {request.method}",
+        )
+
+    return Send2FACodeResponse(
+        message=f"Verification code sent to {masked}",
+        method=request.method,
+        expires_in_seconds=300,
+    )
+
+
+@router.post("/verify-code", response_model=TwoFactorLoginResponse)
+async def verify_2fa_code(
+    request: Verify2FACodeRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Verify email/SMS 2FA code (alternative to TOTP)
+    """
+    # Get pending code
+    pending = _pending_2fa_codes.get(request.user_id)
+
+    if not pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending verification code. Request a new one.",
+        )
+
+    # Check expiration
+    if datetime.utcnow() > pending["expires_at"]:
+        del _pending_2fa_codes[request.user_id]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code expired. Request a new one.",
+        )
+
+    # Verify code
+    if request.code != pending["code"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code",
+        )
+
+    # Success - remove used code
+    method = pending["method"]
+    del _pending_2fa_codes[request.user_id]
+
+    log_two_factor_verified(request.user_id, method)
+
+    return TwoFactorLoginResponse(
+        success=True,
+        message=f"2FA verification successful via {method}",
+    )

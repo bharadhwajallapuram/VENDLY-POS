@@ -105,6 +105,15 @@ class Settings(BaseSettings):
 
     # Stripe Payments
     STRIPE_SECRET_KEY: str = Field(default="", alias="STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
+
+    # UPI Payments (Razorpay, PayTM, etc.)
+    UPI_WEBHOOK_SECRET: str = Field(default="", alias="UPI_WEBHOOK_SECRET")
+
+    # Vonage/Nexmo SMS (alternative to Twilio)
+    VONAGE_API_KEY: str = Field(default="", alias="VONAGE_API_KEY")
+    VONAGE_API_SECRET: str = Field(default="", alias="VONAGE_API_SECRET")
+    VONAGE_FROM: str = Field(default="Vendly", alias="VONAGE_FROM")
 
     # Kafka (Event Streaming)
     KAFKA_ENABLED: bool = False

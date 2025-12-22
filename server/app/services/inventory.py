@@ -197,22 +197,48 @@ class InventoryService:
         db: Session, product_id: Optional[int] = None, days: int = 7
     ) -> List[Dict[str, Any]]:
         """
-        Get inventory change history
-
-        Note: Requires inventory_history table to be implemented
-        For now, returns empty list as fallback
+        Get inventory change history from InventoryMovement table.
 
         Args:
             db: Database session
-            product_id: Filter by product ID
+            product_id: Filter by product ID (optional)
             days: Number of days to look back
 
         Returns:
-            List of inventory changes
+            List of inventory changes with product info
         """
-        # Placeholder - would need InventoryHistory model
-        # This is where you'd query actual inventory transaction logs
-        return []
+        # Calculate the date threshold
+        date_threshold = datetime.utcnow() - timedelta(days=days)
+
+        # Build query using InventoryMovement model
+        query = db.query(m.InventoryMovement).filter(
+            m.InventoryMovement.created_at >= date_threshold
+        )
+
+        # Filter by product if specified
+        if product_id is not None:
+            query = query.filter(m.InventoryMovement.product_id == product_id)
+
+        # Order by most recent first
+        movements = query.order_by(m.InventoryMovement.created_at.desc()).all()
+
+        # Transform to dictionary format with product info
+        result = []
+        for movement in movements:
+            product = db.get(m.Product, movement.product_id)
+            result.append({
+                "id": movement.id,
+                "product_id": movement.product_id,
+                "product_name": product.name if product else "Unknown",
+                "quantity_change": movement.quantity_change,
+                "movement_type": movement.movement_type,
+                "reference_id": movement.reference_id,
+                "notes": movement.notes,
+                "user_id": movement.user_id,
+                "created_at": movement.created_at.isoformat() if movement.created_at else None,
+            })
+
+        return result
 
     @staticmethod
     async def check_and_alert_low_stock(db: Session, product_id: int) -> bool:

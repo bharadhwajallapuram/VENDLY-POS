@@ -183,7 +183,67 @@ export function formatApiError(error: any): string {
 }
 
 /**
+ * Error tracking buffer for batched sending
+ */
+const errorBuffer: Array<{
+  timestamp: string;
+  context: string;
+  message: string;
+  status?: number;
+  code?: string;
+  stack?: string;
+  userAgent: string;
+  url: string;
+  additionalInfo?: Record<string, any>;
+}> = [];
+
+let flushTimeout: NodeJS.Timeout | null = null;
+const FLUSH_INTERVAL = 5000; // 5 seconds
+const MAX_BUFFER_SIZE = 10;
+
+/**
+ * Flush error buffer to tracking endpoint
+ */
+async function flushErrorBuffer(): Promise<void> {
+  if (errorBuffer.length === 0) return;
+
+  const errors = [...errorBuffer];
+  errorBuffer.length = 0; // Clear buffer
+
+  try {
+    // Send to your own backend endpoint for error tracking
+    const trackingEndpoint = process.env.NEXT_PUBLIC_ERROR_TRACKING_URL || '/api/errors';
+    
+    await fetch(trackingEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ errors }),
+      // Don't wait too long
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => {
+      // Silently fail - don't cause more errors
+    });
+  } catch {
+    // Restore errors to buffer if send fails
+    errorBuffer.push(...errors);
+  }
+}
+
+/**
+ * Schedule buffer flush
+ */
+function scheduleFlush(): void {
+  if (flushTimeout) return;
+  
+  flushTimeout = setTimeout(() => {
+    flushTimeout = null;
+    flushErrorBuffer();
+  }, FLUSH_INTERVAL);
+}
+
+/**
  * Log error with context for debugging
+ * Includes open-source error tracking (no Sentry required)
  */
 export function logError(
   context: string,
@@ -196,16 +256,100 @@ export function logError(
     message: error?.message || error?.detail || String(error),
     status: error?.status,
     code: error?.code,
+    stack: error?.stack,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
+    url: typeof window !== 'undefined' ? window.location.href : 'server',
     ...additionalInfo,
   };
 
-  console.error("[ERROR]", errorData);
-
-  // In production, send to error tracking service (e.g., Sentry)
-  if (process.env.NODE_ENV === "production") {
-    // TODO: Implement error tracking
-    // sentry.captureException(error, { contexts: { errorData } });
+  // Always log to console in development
+  if (process.env.NODE_ENV !== 'production') {
+    console.error("[ERROR]", errorData);
   }
+
+  // In production, buffer and send to tracking service
+  if (process.env.NODE_ENV === "production") {
+    // Add to buffer
+    errorBuffer.push(errorData);
+
+    // Flush immediately if buffer is full
+    if (errorBuffer.length >= MAX_BUFFER_SIZE) {
+      flushErrorBuffer();
+    } else {
+      scheduleFlush();
+    }
+  }
+}
+
+/**
+ * Track a custom event (for analytics)
+ */
+export function trackEvent(
+  eventName: string,
+  properties?: Record<string, any>
+): void {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log("[EVENT]", eventName, properties);
+    return;
+  }
+
+  // Send to analytics endpoint
+  const analyticsEndpoint = process.env.NEXT_PUBLIC_ANALYTICS_URL || '/api/analytics';
+  
+  fetch(analyticsEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      event: eventName,
+      properties,
+      timestamp: new Date().toISOString(),
+      url: typeof window !== 'undefined' ? window.location.href : 'server',
+    }),
+    keepalive: true, // Allow request to complete even if page unloads
+  }).catch(() => {
+    // Silently fail
+  });
+}
+
+/**
+ * Capture unhandled errors globally
+ * Call this once in your app's entry point
+ */
+export function initErrorTracking(): void {
+  if (typeof window === 'undefined') return;
+
+  // Capture unhandled errors
+  window.addEventListener('error', (event) => {
+    logError('unhandled_error', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      stack: event.error?.stack,
+    });
+  });
+
+  // Capture unhandled promise rejections
+  window.addEventListener('unhandledrejection', (event) => {
+    logError('unhandled_rejection', {
+      message: event.reason?.message || String(event.reason),
+      stack: event.reason?.stack,
+    });
+  });
+
+  // Flush on page unload
+  window.addEventListener('beforeunload', () => {
+    if (errorBuffer.length > 0) {
+      // Use sendBeacon for reliable delivery during unload
+      const trackingEndpoint = process.env.NEXT_PUBLIC_ERROR_TRACKING_URL || '/api/errors';
+      navigator.sendBeacon(
+        trackingEndpoint,
+        JSON.stringify({ errors: errorBuffer })
+      );
+    }
+  });
+
+  console.log('🔍 Error tracking initialized');
 }
 
 /**
