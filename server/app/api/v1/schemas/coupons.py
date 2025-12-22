@@ -10,8 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CouponType(str, Enum):
-    percent = "percent"
-    amount = "amount"
+    percentage = "percentage"
+    fixed = "fixed"
+    # Aliases for backwards compatibility
+    percent = "percentage"
+    amount = "fixed"
 
 
 class CouponBase(BaseModel):

@@ -144,6 +144,14 @@ export default function Nav() {
                 >
                   Forecasts
                 </Link>
+                <Link
+                  href="/settings"
+                  className={getLinkStyles(isActive('/settings'))}
+                  role="menuitem"
+                  aria-current={isActive('/settings') ? 'page' : undefined}
+                >
+                  Settings
+                </Link>
               </>
             )}
 
@@ -164,14 +172,6 @@ export default function Nav() {
                   aria-current={isActive('/users') ? 'page' : undefined}
                 >
                   Users
-                </Link>
-                <Link
-                  href="/settings"
-                  className={getLinkStyles(isActive('/settings'))}
-                  role="menuitem"
-                  aria-current={isActive('/settings') ? 'page' : undefined}
-                >
-                  Settings
                 </Link>
               </>
             )}
@@ -322,6 +322,15 @@ export default function Nav() {
                 >
                   Forecasts
                 </Link>
+                <Link
+                  href="/settings"
+                  onClick={closeMobileMenu}
+                  className={`block px-3 ${getLinkStyles(isActive('/settings'))}`}
+                  role="menuitem"
+                  aria-current={isActive('/settings') ? 'page' : undefined}
+                >
+                  Settings
+                </Link>
               </>
             )}
 
@@ -344,15 +353,6 @@ export default function Nav() {
                   aria-current={isActive('/users') ? 'page' : undefined}
                 >
                   Users
-                </Link>
-                <Link
-                  href="/settings"
-                  onClick={closeMobileMenu}
-                  className={`block px-3 ${getLinkStyles(isActive('/settings'))}`}
-                  role="menuitem"
-                  aria-current={isActive('/settings') ? 'page' : undefined}
-                >
-                  Settings
                 </Link>
               </>
             )}

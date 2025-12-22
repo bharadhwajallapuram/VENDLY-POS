@@ -238,8 +238,8 @@ class InventoryMovement(Base):
 
 # ---------- Coupons ----------
 class CouponType(str, PyEnum):
-    percent = "percent"
-    amount = "amount"
+    percentage = "percentage"
+    fixed = "fixed"
 
 
 class Coupon(Base):

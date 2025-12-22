@@ -215,7 +215,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <ProtectedRoute roles={['admin']}>
+    <ProtectedRoute roles={['admin', 'manager']}>
       <SettingsContent />
     </ProtectedRoute>
   );
