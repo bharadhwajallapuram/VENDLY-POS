@@ -22,8 +22,13 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Vendly POS"
     APP_ENV: str = Field(default="development", alias="APP_ENV")
-    DEBUG: bool = Field(default=True, alias="DEBUG")
+    DEBUG: bool = Field(default=False, alias="DEBUG")  # Default to False for production safety
     SECRET_KEY: str = Field(default="", alias="SECRET_KEY")
+    
+    # Default Admin Configuration (use environment variables in production!)
+    DEFAULT_ADMIN_EMAIL: str = Field(default="admin@vendly.com", alias="DEFAULT_ADMIN_EMAIL")
+    DEFAULT_ADMIN_PASSWORD: str = Field(default="admin123", alias="DEFAULT_ADMIN_PASSWORD")
+    CREATE_DEFAULT_ADMIN: bool = Field(default=True, alias="CREATE_DEFAULT_ADMIN")
 
     # Database
     DATABASE_URL: str = Field(

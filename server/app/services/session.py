@@ -9,6 +9,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.cache import TTL, get_cache
 from app.core.config import settings
 from app.db import models as m
 
@@ -39,6 +40,18 @@ class SessionManager:
         db.add(session)
         db.commit()
         db.refresh(session)
+        
+        # Cache session data (Session: 15-30 min TTL)
+        cache = get_cache()
+        session_data = {
+            "id": str(session.id),
+            "user_id": user_id,
+            "ip_address": ip_address,
+            "is_active": True,
+            "is_2fa_verified": is_2fa_verified,
+            "last_activity": session.last_activity.isoformat(),
+        }
+        cache.set_user_session(user_id, session_data, TTL.SESSION_DEFAULT)
 
         logger.info(f"Session created for user {user_id} from {ip_address}")
         return session
@@ -50,6 +63,24 @@ class SessionManager:
         session_id: str,
     ) -> Optional[m.UserSession]:
         """Get an active session, return None if expired"""
+        cache = get_cache()
+        
+        # Try cache first (Session: 15-30 min TTL)
+        cached_session = cache.get_user_session(user_id)
+        if cached_session and cached_session.get("id") == session_id and cached_session.get("is_active"):
+            # Validate session hasn't timed out based on cached last_activity
+            last_activity_str = cached_session.get("last_activity")
+            if last_activity_str:
+                try:
+                    last_activity = datetime.fromisoformat(last_activity_str)
+                    timeout_delta = timedelta(minutes=settings.SESSION_TIMEOUT_MINUTES)
+                    if datetime.now(UTC) - last_activity <= timeout_delta:
+                        logger.debug(f"Cache HIT for session {session_id}")
+                        # Still need to return the DB session for full object access
+                        # but we've confirmed it's likely valid
+                except (ValueError, TypeError):
+                    pass  # Fall through to DB check
+        
         session = (
             db.query(m.UserSession)
             .filter(
@@ -61,6 +92,8 @@ class SessionManager:
         )
 
         if not session:
+            # Invalidate cache if session not found
+            cache.invalidate_user_session(user_id)
             return None
 
         # Check if session has expired due to inactivity (configurable timeout)
@@ -70,6 +103,9 @@ class SessionManager:
             session.ended_at = datetime.now(UTC)
             session.timeout_reason = "inactivity"
             db.commit()
+            
+            # Invalidate cache on session expiry
+            cache.invalidate_user_session(user_id)
 
             logger.warning(f"Session {session_id} timed out due to inactivity")
             return None
@@ -97,6 +133,19 @@ class SessionManager:
 
         session.last_activity = datetime.now(UTC)
         db.commit()
+        
+        # Update cache with new activity timestamp
+        cache = get_cache()
+        session_data = {
+            "id": str(session.id),
+            "user_id": user_id,
+            "ip_address": session.ip_address,
+            "is_active": session.is_active,
+            "is_2fa_verified": session.is_2fa_verified,
+            "last_activity": session.last_activity.isoformat(),
+        }
+        cache.set_user_session(user_id, session_data, TTL.SESSION_DEFAULT)
+        
         return True
 
     @staticmethod
@@ -123,6 +172,10 @@ class SessionManager:
         session.ended_at = datetime.now(UTC)
         session.timeout_reason = reason
         db.commit()
+        
+        # Invalidate session cache on logout
+        cache = get_cache()
+        cache.invalidate_user_session(user_id)
 
         logger.info(f"Session {session_id} ended for user {user_id} (reason: {reason})")
         return True
@@ -175,6 +228,10 @@ class SessionManager:
             session.timeout_reason = reason
 
         db.commit()
+        
+        # Invalidate user session cache
+        cache = get_cache()
+        cache.invalidate_user_session(user_id)
 
         logger.warning(f"Ended {count} sessions for user {user_id} (reason: {reason})")
         return count

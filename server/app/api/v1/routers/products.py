@@ -2,6 +2,7 @@
 Vendly POS - Products Router
 """
 
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,11 +15,13 @@ from app.api.v1.schemas.products import (
     ProductIn,
     ProductOut,
 )
+from app.core.cache import CachePrefix, TTL, get_cache
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
 from app.services.price_suggest import get_price_recommendations
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ---------- Products ----------
@@ -33,6 +36,19 @@ def list_products(
     user=Depends(get_current_user),
 ):
     """List all products with optional filtering"""
+    cache = get_cache()
+    
+    # Try to get from cache (Product Catalog: 10-30 min TTL)
+    cached_data = cache.get_product_catalog(
+        page=skip // limit + 1,
+        limit=limit,
+        category=str(category_id) if category_id else None,
+        search=q,
+    )
+    if cached_data and not q:  # Don't cache search queries
+        logger.debug(f"Cache HIT for product catalog")
+        return cached_data
+    
     stmt = db.query(m.Product)
     if q:
         like = f"%{q.lower()}%"
@@ -45,7 +61,38 @@ def list_products(
         stmt = stmt.filter(m.Product.category_id == category_id)
     if active_only:
         stmt = stmt.filter(m.Product.is_active == True)
-    return stmt.order_by(m.Product.name).offset(skip).limit(limit).all()
+    
+    products = stmt.order_by(m.Product.name).offset(skip).limit(limit).all()
+    
+    # Cache the result if not a search query (TTL: 10 min default, up to 30 min)
+    if not q:
+        products_data = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "sku": p.sku,
+                "barcode": p.barcode,
+                "description": p.description,
+                "price": float(p.price) if p.price else 0,
+                "cost": float(p.cost) if p.cost else 0,
+                "quantity": p.quantity,
+                "min_quantity": p.min_quantity,
+                "category_id": p.category_id,
+                "tax_rate": float(p.tax_rate) if p.tax_rate else 0,
+                "image_url": p.image_url,
+                "is_active": p.is_active,
+            }
+            for p in products
+        ]
+        cache.set_product_catalog(
+            products_data,
+            page=skip // limit + 1,
+            limit=limit,
+            category=str(category_id) if category_id else None,
+            ttl=TTL.PRODUCT_CATALOG_DEFAULT,  # 10 minutes
+        )
+    
+    return products
 
 
 @router.post("", response_model=ProductOut, status_code=201)
@@ -100,6 +147,11 @@ def create_product(
                 409, detail="Product with duplicate unique field already exists"
             )
     db.refresh(prod)
+    
+    # Invalidate product catalog cache on new product creation
+    from app.core.cache import invalidate_all_product_cache
+    invalidate_all_product_cache()
+    
     return prod
 
 
@@ -132,9 +184,35 @@ def get_product(
     product_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
     """Get a single product by ID"""
+    cache = get_cache()
+    
+    # Try cache first (Product Detail: 15 min TTL)
+    cached_product = cache.get_product(product_id)
+    if cached_product:
+        logger.debug(f"Cache HIT for product {product_id}")
+        return cached_product
+    
     prod = db.get(m.Product, product_id)
     if not prod:
         raise HTTPException(404, detail="Product not found")
+    
+    # Cache the product (TTL: 15 minutes)
+    cache.set_product(product_id, {
+        "id": prod.id,
+        "name": prod.name,
+        "sku": prod.sku,
+        "barcode": prod.barcode,
+        "description": prod.description,
+        "price": float(prod.price) if prod.price else 0,
+        "cost": float(prod.cost) if prod.cost else 0,
+        "quantity": prod.quantity,
+        "min_quantity": prod.min_quantity,
+        "category_id": prod.category_id,
+        "tax_rate": float(prod.tax_rate) if prod.tax_rate else 0,
+        "image_url": prod.image_url,
+        "is_active": prod.is_active,
+    })
+    
     return prod
 
 
@@ -170,6 +248,15 @@ def update_product(
                 409, detail="Product with duplicate unique field already exists"
             )
     db.refresh(prod)
+    
+    # Invalidate caches on product update
+    cache = get_cache()
+    cache.invalidate_product(product_id)
+    cache.invalidate_price(product_id)
+    cache.invalidate_inventory(product_id)
+    from app.core.cache import invalidate_all_product_cache
+    invalidate_all_product_cache()
+    
     return prod
 
 
@@ -183,3 +270,11 @@ def delete_product(
         return
     db.delete(prod)
     db.commit()
+    
+    # Invalidate caches on product deletion
+    cache = get_cache()
+    cache.invalidate_product(product_id)
+    cache.invalidate_price(product_id)
+    cache.invalidate_inventory(product_id)
+    from app.core.cache import invalidate_all_product_cache
+    invalidate_all_product_cache()

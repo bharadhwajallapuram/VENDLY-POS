@@ -17,9 +17,13 @@ from app.services.metrics import MetricsMiddleware, get_metrics_endpoint
 sentry_config.init_backend()
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def init_database():
     """Initialize database and create admin user if needed"""
-    from sqlalchemy import inspect
     from sqlalchemy.orm import Session
 
     from app.core.security import hash_password
@@ -30,26 +34,30 @@ def init_database():
         # Create all tables
         Base.metadata.create_all(bind=engine)
 
+        # Only create default admin if enabled (use env vars in production!)
+        if not settings.CREATE_DEFAULT_ADMIN:
+            logger.info("Default admin creation disabled")
+            return
+            
         # Check if admin exists
         with Session(engine) as session:
-            admin = session.query(User).filter(User.email == "admin@vendly.com").first()
+            admin = session.query(User).filter(User.email == settings.DEFAULT_ADMIN_EMAIL).first()
             if not admin:
-                # Create default admin user
+                # Create default admin user from environment config
                 admin = User(
-                    email="admin@vendly.com",
-                    password_hash=hash_password("admin123"),
+                    email=settings.DEFAULT_ADMIN_EMAIL,
+                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
                     full_name="System Admin",
                     is_active=True,
                     role="admin",
                 )
                 session.add(admin)
                 session.commit()
-                print("[OK] Default admin created: admin@vendly.com / admin123")
+                logger.info(f"Default admin created: {settings.DEFAULT_ADMIN_EMAIL}")
+                if settings.APP_ENV == "development":
+                    logger.warning("⚠️  Change default admin password in production!")
     except Exception as e:
-        print(f"[ERROR] Error in init_database: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error in init_database: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -57,7 +65,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events"""
     try:
         # Startup
-        print(f"[STARTUP] Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
+        logger.info(f"Starting {settings.APP_NAME} in {settings.APP_ENV} mode")
 
         # Initialize database
         init_database()
@@ -69,9 +77,9 @@ async def lifespan(app: FastAPI):
 
                 scheduler = get_backup_scheduler()
                 scheduler.start()
-                print("[OK] Backup scheduler initialized")
+                logger.info("Backup scheduler initialized")
             except Exception as e:
-                print(f"[WARNING] Backup scheduler initialization failed: {e}")
+                logger.warning(f"Backup scheduler initialization failed: {e}")
 
         # Initialize Kafka producer if enabled
         if settings.KAFKA_ENABLED:
@@ -79,14 +87,14 @@ async def lifespan(app: FastAPI):
                 from kafka.producer import producer
 
                 await producer.start()
-                print("[OK] Kafka producer connected")
+                logger.info("Kafka producer connected")
             except Exception as e:
-                print(f"[WARNING] Kafka connection failed: {e}")
+                logger.warning(f"Kafka connection failed: {e}")
 
         yield
 
         # Shutdown
-        print(f"[SHUTDOWN] Shutting down {settings.APP_NAME}")
+        logger.info(f"Shutting down {settings.APP_NAME}")
 
         # Stop backup scheduler
         try:
@@ -106,10 +114,7 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
     except Exception as e:
-        print(f"[ERROR] Error in lifespan: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error in lifespan: {e}", exc_info=True)
 
 
 app = FastAPI(

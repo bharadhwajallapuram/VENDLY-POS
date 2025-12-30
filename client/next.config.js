@@ -2,14 +2,24 @@
 const nextConfig = {
   reactStrictMode: true,
   
+  // Skip ESLint during build (run separately)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // Environment variables exposed to the browser
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   },
   
-  // Optimize images
+  // Optimize images (using remotePatterns instead of deprecated domains)
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
     unoptimized: process.env.NODE_ENV === 'development',
   },
   
