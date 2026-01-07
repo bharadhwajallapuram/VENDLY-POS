@@ -6,15 +6,12 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CouponType(str, Enum):
     percentage = "percentage"
     fixed = "fixed"
-    # Aliases for backwards compatibility
-    percent = "percentage"
-    amount = "fixed"
 
 
 class CouponBase(BaseModel):
@@ -26,6 +23,15 @@ class CouponBase(BaseModel):
     active: bool = True
     expires_at: Optional[datetime] = None
     stackable: bool = True
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_coupon_type(cls, v: str) -> str:
+        """Accept 'percent'/'amount' as aliases for 'percentage'/'fixed'"""
+        if isinstance(v, str):
+            mapping = {"percent": "percentage", "amount": "fixed"}
+            return mapping.get(v.lower(), v)
+        return v
 
 
 class CouponCreate(CouponBase):
