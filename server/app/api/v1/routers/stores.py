@@ -646,8 +646,8 @@ def create_transfer(
             transfer_id=transfer.id,
             product_id=product.id,
             quantity_requested=item_data.quantity,
-            unit_cost=float(product.cost_price or 0),
-            total_value=float(product.cost_price or 0) * item_data.quantity,
+            unit_cost=float(product.cost or 0),
+            total_value=float(product.cost or 0) * item_data.quantity,
             notes=item_data.notes,
         )
         db.add(item)

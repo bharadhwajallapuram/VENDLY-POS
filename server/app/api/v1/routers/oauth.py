@@ -89,14 +89,14 @@ def list_connections(
     for conn in connections:
         result.append(
             ConnectionResponse(
-                id=conn.id,
+                id=int(conn.id),
                 provider=(
                     conn.provider.value
                     if hasattr(conn.provider, "value")
                     else str(conn.provider)
                 ),
-                name=conn.name,
-                is_active=conn.is_active,
+                name=str(conn.name),
+                is_active=bool(conn.is_active),
                 last_sync=(
                     str(conn.last_sync_at)
                     if hasattr(conn, "last_sync_at") and conn.last_sync_at
@@ -208,9 +208,9 @@ async def disconnect(
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    connection.is_active = False
-    connection.api_key = None
-    connection.api_secret = None
+    connection.is_active = False  # type: ignore[assignment]
+    connection.api_key = None  # type: ignore[assignment]
+    connection.api_secret = None  # type: ignore[assignment]
     db.commit()
 
     return {"message": "Disconnected successfully"}

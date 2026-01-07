@@ -191,7 +191,7 @@ class CacheService:
 
     def set_product_catalog(
         self,
-        data: Dict,
+        data: Any,
         page: int = 1,
         limit: int = 50,
         category: Optional[str] = None,
@@ -551,8 +551,8 @@ def cached(
         import asyncio
 
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
-        return sync_wrapper
+            return async_wrapper  # type: ignore[return-value]
+        return sync_wrapper  # type: ignore[return-value]
 
     return decorator
 

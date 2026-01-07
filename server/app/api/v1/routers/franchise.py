@@ -242,24 +242,25 @@ def list_fee_configs(
     # Parse tier_brackets JSON
     result = []
     for config in configs:
-        config_dict = {
-            "id": config.id,
-            "tenant_id": config.tenant_id,
-            "fee_type": config.fee_type,
-            "calculation_type": config.calculation_type,
-            "rate": float(config.rate),
-            "fixed_amount": float(config.fixed_amount),
-            "min_amount": float(config.min_amount) if config.min_amount else None,
-            "max_amount": float(config.max_amount) if config.max_amount else None,
-            "tier_brackets": (
-                json.loads(config.tier_brackets) if config.tier_brackets else None
-            ),
-            "billing_day": config.billing_day,
-            "is_active": config.is_active,
-            "effective_from": config.effective_from,
-            "effective_until": config.effective_until,
-        }
-        result.append(FeeConfigResponse(**config_dict))
+        result.append(
+            FeeConfigResponse(
+                id=int(config.id),
+                tenant_id=int(config.tenant_id),
+                fee_type=str(config.fee_type),
+                calculation_type=str(config.calculation_type),
+                rate=float(config.rate),
+                fixed_amount=float(config.fixed_amount),
+                min_amount=float(config.min_amount) if config.min_amount else None,
+                max_amount=float(config.max_amount) if config.max_amount else None,
+                tier_brackets=(
+                    json.loads(config.tier_brackets) if config.tier_brackets else None
+                ),
+                billing_day=int(config.billing_day),
+                is_active=bool(config.is_active),
+                effective_from=config.effective_from,
+                effective_until=config.effective_until,
+            )
+        )
 
     return result
 
@@ -676,9 +677,9 @@ def get_franchise_summary(
     total_fees_paid = sum(float(r.final_fee) for r in records if r.status == "paid")
 
     # Fee breakdown by type
-    fee_breakdown = {}
+    fee_breakdown: dict[int, dict[str, Any]] = {}
     for record in records:
-        fee_type = record.config_id  # Would need to join to get actual type
+        fee_type = int(record.config_id)  # Would need to join to get actual type
         if fee_type not in fee_breakdown:
             fee_breakdown[fee_type] = {"type": f"fee_{fee_type}", "amount": 0.0}
         fee_breakdown[fee_type]["amount"] += float(record.final_fee)

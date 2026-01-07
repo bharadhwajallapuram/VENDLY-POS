@@ -155,12 +155,12 @@ def sync_plans_to_stripe(db: Session) -> None:
                 product = stripe.Product.modify(
                     plan.stripe_product_id,
                     name=f"Vendly {plan.name}",
-                    description=plan.description,
+                    description=plan.description or "",
                 )
             else:
                 product = stripe.Product.create(
                     name=f"Vendly {plan.name}",
-                    description=plan.description,
+                    description=plan.description or "",
                     metadata={"plan_id": str(plan.id), "tier": plan.tier},
                 )
                 plan.stripe_product_id = product.id
@@ -380,7 +380,7 @@ def create_checkout_session(
                     "tenant_id": str(tenant_id),
                     "plan_id": str(plan_id),
                 },
-                "trial_period_days": 14 if plan.tier != PlanTier.FREE.value else None,
+                "trial_period_days": 14 if plan.tier != PlanTier.FREE.value else 0,
             },
         )
 
@@ -436,7 +436,7 @@ def cancel_subscription(
                 )
                 subscription.cancel_at_period_end = True
             else:
-                stripe.Subscription.delete(subscription.stripe_subscription_id)
+                stripe.Subscription.cancel(subscription.stripe_subscription_id)
                 subscription.status = SubscriptionStatus.CANCELED.value
                 subscription.canceled_at = datetime.utcnow()
         except stripe.error.StripeError as e:

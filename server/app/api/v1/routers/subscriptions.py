@@ -605,7 +605,7 @@ def create_portal_session(
         result = create_billing_portal_session(
             db=db,
             tenant_id=tenant_user.tenant_id,
-            return_url=return_url,
+            return_url=return_url or "",
         )
         return result
     except ValueError as e:

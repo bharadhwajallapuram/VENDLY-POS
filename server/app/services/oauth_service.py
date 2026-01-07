@@ -12,7 +12,7 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # OAuth Configuration
 # ============================================
 
-OAUTH_CONFIGS = {
+OAUTH_CONFIGS: Dict[IntegrationProvider, Dict[str, Any]] = {
     IntegrationProvider.QUICKBOOKS: {
         "auth_url": "https://appcenter.intuit.com/connect/oauth2",
         "token_url": "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
@@ -259,10 +259,10 @@ class OAuthService:
 
         if existing:
             # Update existing
-            existing.api_key = token_data.get("access_token")
-            existing.api_secret = token_data.get("refresh_token")
+            existing.api_key = token_data.get("access_token")  # type: ignore[assignment]
+            existing.api_secret = token_data.get("refresh_token")  # type: ignore[assignment]
             # existing.token_expires_at = calculate expiry
-            existing.is_active = True
+            existing.is_active = True  # type: ignore[assignment]
             self.db.commit()
             return existing
 
@@ -336,14 +336,14 @@ class OAuthService:
 
         if response.status_code != 200:
             logger.error(f"Token refresh failed: {response.text}")
-            connection.is_active = False
+            connection.is_active = False  # type: ignore[assignment]
             self.db.commit()
             return False
 
         token_data = response.json()
-        connection.api_key = token_data.get("access_token")
+        connection.api_key = token_data.get("access_token")  # type: ignore[assignment]
         if "refresh_token" in token_data:
-            connection.api_secret = token_data["refresh_token"]
+            connection.api_secret = token_data["refresh_token"]  # type: ignore[assignment]
 
         self.db.commit()
         return True
