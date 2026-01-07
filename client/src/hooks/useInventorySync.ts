@@ -94,6 +94,8 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+  const isCleaningUpRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<InventoryUpdateData | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting' | 'error'>('disconnected');
@@ -110,7 +112,7 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
 
   // Connect to WebSocket
   const connect = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || !mountedRef.current || isCleaningUpRef.current) return;
 
     if (websocketRef.current?.readyState === WebSocket.OPEN) {
       return; // Already connected
@@ -151,6 +153,10 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
       };
 
       websocketRef.current.onerror = () => {
+        // Don't log errors during cleanup (React Strict Mode double-invocation)
+        if (isCleaningUpRef.current || !mountedRef.current) {
+          return;
+        }
         // Reduce error noise - only log on first error
         if (reconnectAttemptsRef.current === 0) {
           console.warn('[Inventory Sync] WebSocket connection error');
@@ -160,6 +166,10 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
       };
 
       websocketRef.current.onclose = () => {
+        // Don't update state or reconnect during cleanup
+        if (isCleaningUpRef.current || !mountedRef.current) {
+          return;
+        }
         setIsConnected(false);
         setConnectionStatus('disconnected');
         onConnectionClose?.();
@@ -236,12 +246,29 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
 
   // Disconnect
   const disconnect = useCallback(() => {
+    isCleaningUpRef.current = true;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (websocketRef.current) {
-      websocketRef.current.close();
+      const ws = websocketRef.current;
       websocketRef.current = null;
+      
+      // Remove event handlers before closing to prevent error callbacks
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      
+      // Close the connection if it's open or connecting
+      try {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+      } catch {
+        // Ignore close errors during cleanup
+      }
     }
     setIsConnected(false);
     setConnectionStatus('disconnected');
@@ -249,11 +276,15 @@ export function useInventorySync(options: UseInventorySyncOptions = {}) {
 
   // Setup and cleanup
   useEffect(() => {
+    mountedRef.current = true;
+    isCleaningUpRef.current = false;
+    
     if (enabled) {
       connect();
     }
 
     return () => {
+      mountedRef.current = false;
       disconnect();
     };
   }, [enabled, connect, disconnect]);

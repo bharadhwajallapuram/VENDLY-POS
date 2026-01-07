@@ -124,7 +124,11 @@ async def fetch_walmart_price(product_name: str) -> Optional[Dict[str, Any]]:
                             if not price_elem:
                                 price_elem = item.find(
                                     "span",
-                                    {"class": lambda x: x and "price" in x.lower()},  # type: ignore
+                                    {
+                                        "class": lambda x: bool(
+                                            x and "price" in x.lower()
+                                        )
+                                    },
                                 )
 
                             if title_elem and price_elem:

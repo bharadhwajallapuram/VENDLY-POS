@@ -312,7 +312,7 @@ function POSContent() {
       
       // IMPORTANT: Only accept products with EXACT barcode or SKU match
       // This prevents partial matches from the backend search
-      let product = items.find((p: any) => 
+      const product = items.find((p: any) => 
         (p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase()) ||
         (p.sku && p.sku.toLowerCase() === barcode.toLowerCase())
       );

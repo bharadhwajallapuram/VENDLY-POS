@@ -32,7 +32,7 @@ class TestCouponsEndpoints:
         assert response.status_code == 201
         data = response.json()
         assert data["code"] == "SAVE20"
-        assert data["type"] == "percent"
+        assert data["type"] == "percentage"
         assert data["value"] == 20
         assert data["max_off"] == 50
         assert data["active"] is True
@@ -52,7 +52,7 @@ class TestCouponsEndpoints:
         assert response.status_code == 201
         data = response.json()
         assert data["code"] == "FLAT10"
-        assert data["type"] == "amount"
+        assert data["type"] == "fixed"
         assert data["value"] == 10
 
     def test_create_coupon_without_auth(self, client: TestClient):

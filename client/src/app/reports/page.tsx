@@ -8,8 +8,10 @@ import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DemandForecastDashboard from '@/components/DemandForecastDashboard';
 import { Reports, ReportSummary } from '@/lib/api';
+import { useAuth } from '@/store/auth';
 
 function ReportsContent() {
+  const { token } = useAuth();
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
@@ -18,6 +20,10 @@ function ReportsContent() {
   });
 
   const loadReport = useCallback(async () => {
+    // Don't attempt to load if not authenticated
+    if (!token) {
+      return;
+    }
     setLoading(true);
     try {
       const data = await Reports.summary(dateRange.start, dateRange.end);
@@ -27,7 +33,7 @@ function ReportsContent() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange.start, dateRange.end]);
+  }, [dateRange.start, dateRange.end, token]);
 
   useEffect(() => {
     loadReport();

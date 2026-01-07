@@ -171,7 +171,7 @@ def validate_coupon(
         )
 
     # Calculate discount
-    if coupon.type == "percent":
+    if coupon.type in ("percent", "percentage"):
         discount_amount = float(data.order_total) * (float(coupon.value) / 100)
         if coupon.max_off and discount_amount > float(coupon.max_off):
             discount_amount = float(coupon.max_off)

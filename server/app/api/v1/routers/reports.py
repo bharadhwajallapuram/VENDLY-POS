@@ -2,6 +2,7 @@
 Vendly POS - Reports Router with End-of-Day (Z-Reports)
 """
 
+import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -10,12 +11,14 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.cache import TTL, get_cache
 from app.core.deps import get_current_user, get_db
 from app.core.error_constants import ErrorCodes, ErrorMessages
 from app.core.errors import NotFoundError
 from app.db import models as m
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # =====================================
@@ -93,6 +96,16 @@ def get_summary(
     user=Depends(get_current_user),
 ):
     """Get sales summary report for a date range"""
+    cache = get_cache()
+
+    # Try cache first (Reports: 1-5 min TTL)
+    cached_report = cache.get_sales_report(
+        start_date or "all", end_date or "all", "summary"
+    )
+    if cached_report:
+        logger.debug("Cache HIT for sales summary report")
+        return cached_report
+
     try:
         q = db.query(m.Sale).filter(m.Sale.status == "completed")
 
@@ -175,7 +188,7 @@ def get_summary(
                 else:
                     return_amount += float(sale.total) * 0.5
 
-        return {
+        result = {
             "start_date": start_date,
             "end_date": end_date,
             "total_sales": total_sales,
@@ -191,10 +204,18 @@ def get_summary(
             "refund_amount": round(refund_amount, 2),
             "return_amount": round(return_amount, 2),
         }
-    except Exception as e:
-        import logging
 
-        logger = logging.getLogger(__name__)
+        # Cache the report (TTL: 2 minutes default, 1-5 min range)
+        cache.set_sales_report(
+            result,
+            start_date or "all",
+            end_date or "all",
+            "summary",
+            TTL.REPORT_DEFAULT,
+        )
+
+        return result
+    except Exception as e:
         logger.error(f"Error getting summary report: {e}", exc_info=True)
         return {
             "start_date": start_date,
@@ -222,6 +243,16 @@ def get_sales_by_day(
     user=Depends(get_current_user),
 ):
     """Get daily sales breakdown"""
+    cache = get_cache()
+
+    # Try cache first (Reports: 1-5 min TTL)
+    cached_report = cache.get_sales_report(
+        start_date or "all", end_date or "all", "daily"
+    )
+    if cached_report:
+        logger.debug("Cache HIT for sales-by-day report")
+        return cached_report
+
     q = db.query(m.Sale).filter(m.Sale.status == "completed")
 
     if start_date:
@@ -242,7 +273,18 @@ def get_sales_by_day(
             sale.total
         )
 
-    return {"data": list(daily_sales.values())}
+    result = {"data": list(daily_sales.values())}
+
+    # Cache the report (TTL: 2 minutes)
+    cache.set_sales_report(
+        result,
+        start_date or "all",
+        end_date or "all",
+        "daily",
+        TTL.REPORT_DEFAULT,
+    )
+
+    return result
 
 
 @router.get("/sales-by-payment")
@@ -291,7 +333,17 @@ def get_z_report(
     Get end-of-day Z-Report for a specific date.
     Includes sales summary, payment breakdown, refunds/returns, and cash reconciliation.
     """
+    cache = get_cache()
+
     # Default to today if no date provided
+    if not report_date:
+        report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Try cache first (EOD Reports: 1-5 min TTL)
+    cached_report = cache.get_eod_report(report_date)
+    if cached_report:
+        logger.debug(f"Cache HIT for Z-report {report_date}")
+        return cached_report
     if not report_date:
         report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -411,7 +463,7 @@ def get_z_report(
     now = datetime.now()
     report_time = now.strftime("%H:%M:%S")
 
-    return ZReportData(
+    z_report = ZReportData(
         report_date=report_date,
         report_time=report_time,
         total_sales=total_sales,
@@ -429,6 +481,11 @@ def get_z_report(
         shift_end_time=report_time,
         employee_count=db.query(m.User).count(),
     )
+
+    # Cache the Z-report (TTL: 2 minutes, Reports: 1-5 min range)
+    cache.set_eod_report(z_report.model_dump(), report_date, TTL.REPORT_DEFAULT)
+
+    return z_report
 
 
 @router.post("/z-report/reconcile")

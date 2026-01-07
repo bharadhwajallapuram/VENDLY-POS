@@ -58,8 +58,8 @@ export function useSessionTimeout({
 }: UseSessionTimeoutOptions = {}) {
   const router = useRouter();
   
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const warningTimeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const warningTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastActivityRef = useRef<number>(Date.now());
   const debounceMs = parseInt(process.env.NEXT_PUBLIC_ACTIVITY_DEBOUNCE_MS || '5000');
   

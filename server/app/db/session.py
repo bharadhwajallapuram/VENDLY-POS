@@ -13,14 +13,15 @@ if settings.DATABASE_URL.startswith("sqlite"):
     }
 
 engine = create_engine(
-    settings.DATABASE_URL, 
-    pool_pre_ping=True, 
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
     future=True,
     connect_args=connect_args,
 )
 
 # Enable WAL mode for SQLite to improve concurrent access
 if settings.DATABASE_URL.startswith("sqlite"):
+
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
@@ -28,5 +29,6 @@ if settings.DATABASE_URL.startswith("sqlite"):
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
         cursor.close()
+
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)

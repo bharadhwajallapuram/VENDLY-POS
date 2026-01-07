@@ -315,6 +315,100 @@ def seed_database():
     """, movements)
     print(f"   ✓ Added {len(movements)} inventory movements")
     
+    # ============================================
+    # 9. STORES (Multi-Store Support)
+    # ============================================
+    print("\n🏪 Adding stores...")
+    
+    # Check if stores table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stores'")
+    if cursor.fetchone():
+        # Schema: tenant_id, name, code, email, phone, address_line1, address_line2, city, state, postal_code, country, timezone, is_active
+        stores = [
+            (1, 'Downtown Flagship', 'STR-001', 'downtown@vendly.com', '+1-555-0101', '123 Main Street', 'Suite 100', 'New York', 'NY', '10001', 'US', 'America/New_York', 1),
+            (1, 'Mall Location', 'STR-002', 'mall@vendly.com', '+1-555-0102', '456 Shopping Mall', 'Unit 23', 'New York', 'NY', '10002', 'US', 'America/New_York', 1),
+            (1, 'Airport Terminal', 'STR-003', 'airport@vendly.com', '+1-555-0103', 'JFK Terminal 4', 'Gate B12', 'Queens', 'NY', '11430', 'US', 'America/New_York', 1),
+            (1, 'Brooklyn Heights', 'STR-004', 'brooklyn@vendly.com', '+1-555-0104', '789 Atlantic Ave', '', 'Brooklyn', 'NY', '11201', 'US', 'America/New_York', 1),
+            (1, 'Long Island', 'STR-005', 'longisland@vendly.com', '+1-555-0105', '321 Sunrise Highway', '', 'Babylon', 'NY', '11702', 'US', 'America/New_York', 1),
+        ]
+        
+        for store in stores:
+            cursor.execute("""
+                INSERT OR IGNORE INTO stores (tenant_id, name, code, email, phone, address_line1, address_line2, city, state, postal_code, country, timezone, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, store)
+        print(f"   ✓ Added {len(stores)} stores")
+    else:
+        print("   ⚠ Stores table not found (run migrations first)")
+    
+    # ============================================
+    # 10. STORE TRANSFERS
+    # ============================================
+    print("\n🚚 Adding store transfers...")
+    
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='store_transfers'")
+    if cursor.fetchone():
+        transfers = [
+            ('TRF-2024-001', 1, 2, 'completed', 'normal', 'Routine stock transfer', 1),
+            ('TRF-2024-002', 1, 3, 'in_transit', 'high', 'Urgent airport restock', 1),
+            ('TRF-2024-003', 2, 4, 'approved', 'normal', 'Monthly transfer', 1),
+            ('TRF-2024-004', 1, 5, 'pending', 'low', 'Franchise supply request', 1),
+        ]
+        
+        for t in transfers:
+            cursor.execute("""
+                INSERT OR IGNORE INTO store_transfers 
+                (transfer_number, source_store_id, destination_store_id, status, priority, notes, requested_by_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, t)
+        print(f"   ✓ Added {len(transfers)} transfers")
+    else:
+        print("   ⚠ Store transfers table not found (run migrations first)")
+    
+    # ============================================
+    # 11. FRANCHISE FEE CONFIGS
+    # ============================================
+    print("\n💰 Adding franchise fee configs...")
+    
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='franchise_fee_configs'")
+    if cursor.fetchone():
+        fee_configs = [
+            # (store_id, fee_type, calculation_type, rate, min_fee, max_fee, billing_day)
+            (5, 'percentage', 'gross_sales', 0.05, 500.00, 10000.00, 1),  # 5% of gross, $500-$10k
+        ]
+        
+        for config in fee_configs:
+            cursor.execute("""
+                INSERT OR IGNORE INTO franchise_fee_configs 
+                (store_id, fee_type, calculation_type, rate, minimum_fee, maximum_fee, billing_day, effective_from)
+                VALUES (?, ?, ?, ?, ?, ?, ?, date('now'))
+            """, config)
+        print(f"   ✓ Added {len(fee_configs)} franchise fee configs")
+    else:
+        print("   ⚠ Franchise fee configs table not found (run migrations first)")
+    
+    # ============================================
+    # 12. INTEGRATION CONNECTIONS
+    # ============================================
+    print("\n🔗 Adding sample integration connections...")
+    
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='integration_connections'")
+    if cursor.fetchone():
+        integrations = [
+            (1, 'quickbooks', 'connected', 'QuickBooks Company'),
+            (1, 'shopify', 'connected', 'Vendly Shopify Store'),
+        ]
+        
+        for integ in integrations:
+            cursor.execute("""
+                INSERT OR IGNORE INTO integration_connections 
+                (store_id, provider, status, provider_account_name, last_sync_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            """, integ)
+        print(f"   ✓ Added {len(integrations)} integration connections")
+    else:
+        print("   ⚠ Integration connections table not found (run migrations first)")
+    
     # Commit all changes
     conn.commit()
     
@@ -328,6 +422,12 @@ def seed_database():
     # Show counts
     tables = ['categories', 'products', 'customers', 'sales', 'sale_items', 
               'coupons', 'tax_rates', 'settings', 'inventory_movements']
+    
+    # Add multi-store tables if they exist
+    for extra_table in ['stores', 'store_transfers', 'franchise_fee_configs', 'integration_connections']:
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{extra_table}'")
+        if cursor.fetchone():
+            tables.append(extra_table)
     
     print("\n📊 Record counts:")
     for table in tables:

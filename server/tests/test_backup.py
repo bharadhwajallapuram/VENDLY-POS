@@ -79,11 +79,14 @@ class TestCloudBackupService:
     @pytest.mark.asyncio
     async def test_backup_all_data(self, backup_service):
         """Test complete data backup"""
-        with patch.object(
-            backup_service, "backup_sales_data", new_callable=AsyncMock
-        ) as mock_sales, patch.object(
-            backup_service, "backup_inventory_data", new_callable=AsyncMock
-        ) as mock_inventory:
+        with (
+            patch.object(
+                backup_service, "backup_sales_data", new_callable=AsyncMock
+            ) as mock_sales,
+            patch.object(
+                backup_service, "backup_inventory_data", new_callable=AsyncMock
+            ) as mock_inventory,
+        ):
 
             mock_sales.return_value = {
                 "backup_id": "sales_123",

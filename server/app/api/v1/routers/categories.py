@@ -72,13 +72,13 @@ def update_category(
     category = db.query(m.Category).filter(m.Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
+
     category.name = payload.name
     category.description = payload.description
     category.parent_id = payload.parent_id
     if payload.is_active is not None:
         category.is_active = payload.is_active
-    
+
     db.commit()
     db.refresh(category)
     return category
@@ -94,15 +94,17 @@ def delete_category(
     category = db.query(m.Category).filter(m.Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
+
     # Check if any products are using this category
-    product_count = db.query(m.Product).filter(m.Product.category_id == category_id).count()
+    product_count = (
+        db.query(m.Product).filter(m.Product.category_id == category_id).count()
+    )
     if product_count > 0:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot delete category with {product_count} products. Reassign products first."
+            status_code=400,
+            detail=f"Cannot delete category with {product_count} products. Reassign products first.",
         )
-    
+
     db.delete(category)
     db.commit()
     return None
