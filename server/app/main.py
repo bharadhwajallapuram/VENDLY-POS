@@ -3,6 +3,7 @@
 # Created: 2024-01-15
 # ===========================================
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,9 +16,6 @@ from app.services.metrics import MetricsMiddleware, get_metrics_endpoint
 
 # Initialize Sentry error tracking
 sentry_config.init_backend()
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 

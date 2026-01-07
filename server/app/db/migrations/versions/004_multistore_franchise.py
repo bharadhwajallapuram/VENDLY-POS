@@ -5,6 +5,7 @@ Revises: subscription_001
 Create Date: 2024-01-15
 
 """
+
 import sqlalchemy as sa
 
 from alembic import op
