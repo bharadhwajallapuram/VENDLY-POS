@@ -7,16 +7,20 @@ from . import (  # demand_forecast,  # Temporarily disabled due to ai_ml depende
     categories,
     coupons,
     customers,
+    franchise,
     health,
     integrations,
     inventory,
     legal,
+    oauth,
     payments,
     peripherals,
     products,
     purchase_orders,
     reports,
     sales,
+    stores,
+    subscriptions,
     tax,
     two_factor_auth,
     users,
@@ -50,4 +54,8 @@ api_router.include_router(integrations.router, tags=["integrations"])
 api_router.include_router(peripherals.router, tags=["peripherals"])
 api_router.include_router(tax.router, tags=["tax"])
 api_router.include_router(legal.router, tags=["legal"])
+api_router.include_router(subscriptions.router, prefix="/billing", tags=["billing"])
+api_router.include_router(stores.router, tags=["stores"])  # Has prefix in router itself
+api_router.include_router(franchise.router, tags=["franchise"])  # Has prefix in router itself
+api_router.include_router(oauth.router, tags=["oauth"])  # Has prefix in router itself
 # api_router.include_router(demand_forecast.router, tags=["demand-forecast"])  # Temporarily disabled

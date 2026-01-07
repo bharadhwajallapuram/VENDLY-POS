@@ -60,6 +60,25 @@ def init_database():
         logger.error(f"Error in init_database: {e}", exc_info=True)
 
 
+def init_subscription_plans():
+    """Initialize subscription plans"""
+    from sqlalchemy.orm import Session
+    from app.db.session import engine
+    from app.db.subscription_models import Base as SubscriptionBase
+    
+    try:
+        # Create subscription tables
+        SubscriptionBase.metadata.create_all(bind=engine)
+        
+        # Seed default plans
+        from app.services.subscription_service import seed_plans
+        with Session(engine) as session:
+            seed_plans(session)
+            logger.info("Subscription plans initialized")
+    except Exception as e:
+        logger.error(f"Error initializing subscription plans: {e}", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events"""
@@ -69,6 +88,9 @@ async def lifespan(app: FastAPI):
 
         # Initialize database
         init_database()
+        
+        # Initialize subscription plans
+        init_subscription_plans()
 
         # Initialize backup scheduler if enabled
         if settings.BACKUP_ENABLED and settings.SCHEDULER_ENABLED:

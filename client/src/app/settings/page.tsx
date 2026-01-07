@@ -5,6 +5,7 @@
 // ===========================================
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { TwoFactorSetup } from '@/components/TwoFactorSetup';
 import { useAuth } from '@/store/auth';
@@ -206,6 +207,24 @@ function SettingsContent() {
             <p className="text-gray-500 text-center py-8">
               User management coming soon...
             </p>
+          </div>
+
+          {/* Billing & Subscription */}
+          <div className="card md:col-span-2">
+            <h2 className="text-lg font-semibold mb-4">💳 Billing & Subscription</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600">
+                  Manage your subscription plan, payment methods, and view invoices.
+                </p>
+              </div>
+              <Link
+                href="/settings/billing"
+                className="btn btn-primary"
+              >
+                Manage Billing
+              </Link>
+            </div>
           </div>
         </div>
       )}

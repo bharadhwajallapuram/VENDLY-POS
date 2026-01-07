@@ -48,6 +48,11 @@
     "type": "git",
     "url": "https://github.com/bharadhwajallapuram/Vendly-fastapi-Js.git"
   },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "~19.1.10"
+    }
+  },
   "keywords": [
     "point-of-sale",
     "react",
