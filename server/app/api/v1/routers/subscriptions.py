@@ -43,12 +43,14 @@ logger = logging.getLogger(__name__)
 
 def _get_settings():
     from app.core.config import settings
+
     return settings
 
 
 # ============================================
 # Schemas
 # ============================================
+
 
 class PlanResponse(BaseModel):
     id: int
@@ -175,6 +177,7 @@ class InvoiceResponse(BaseModel):
 # Plans Endpoints
 # ============================================
 
+
 @router.get("/plans", response_model=List[PlanResponse])
 def list_plans(
     db: Session = Depends(get_db),
@@ -182,39 +185,41 @@ def list_plans(
 ):
     """List all available subscription plans"""
     query = db.query(Plan).filter(Plan.is_active == True)
-    
+
     if not include_private:
         query = query.filter(Plan.is_public == True)
-    
+
     plans = query.order_by(Plan.sort_order).all()
-    
+
     result = []
     for plan in plans:
-        result.append({
-            "id": plan.id,
-            "name": plan.name,
-            "tier": plan.tier,
-            "description": plan.description,
-            "price_monthly": float(plan.price_monthly),
-            "price_yearly": float(plan.price_yearly),
-            "currency": plan.currency,
-            "max_stores": plan.max_stores,
-            "max_users": plan.max_users,
-            "max_products": plan.max_products,
-            "max_transactions_monthly": plan.max_transactions_monthly,
-            "features": {
-                "inventory": plan.feature_inventory,
-                "reports": plan.feature_reports,
-                "advanced_reports": plan.feature_advanced_reports,
-                "api_access": plan.feature_api_access,
-                "custom_branding": plan.feature_custom_branding,
-                "priority_support": plan.feature_priority_support,
-                "ai_insights": plan.feature_ai_insights,
-                "multi_store": plan.feature_multi_store,
-                "integrations": plan.feature_integrations,
-            },
-        })
-    
+        result.append(
+            {
+                "id": plan.id,
+                "name": plan.name,
+                "tier": plan.tier,
+                "description": plan.description,
+                "price_monthly": float(plan.price_monthly),
+                "price_yearly": float(plan.price_yearly),
+                "currency": plan.currency,
+                "max_stores": plan.max_stores,
+                "max_users": plan.max_users,
+                "max_products": plan.max_products,
+                "max_transactions_monthly": plan.max_transactions_monthly,
+                "features": {
+                    "inventory": plan.feature_inventory,
+                    "reports": plan.feature_reports,
+                    "advanced_reports": plan.feature_advanced_reports,
+                    "api_access": plan.feature_api_access,
+                    "custom_branding": plan.feature_custom_branding,
+                    "priority_support": plan.feature_priority_support,
+                    "ai_insights": plan.feature_ai_insights,
+                    "multi_store": plan.feature_multi_store,
+                    "integrations": plan.feature_integrations,
+                },
+            }
+        )
+
     return result
 
 
@@ -227,7 +232,7 @@ def get_plan(
     plan = db.get(Plan, plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
-    
+
     return {
         "id": plan.id,
         "name": plan.name,
@@ -258,6 +263,7 @@ def get_plan(
 # Tenant Endpoints
 # ============================================
 
+
 @router.post("/tenants", response_model=TenantResponse)
 def create_new_tenant(
     data: TenantCreate,
@@ -281,7 +287,7 @@ def create_new_tenant(
         phone=data.phone,
         country=data.country,
     )
-    
+
     return tenant
 
 
@@ -292,11 +298,12 @@ def get_my_tenant(
 ):
     """Get current user's tenant with subscription details"""
     # Find tenant user belongs to
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found for user")
 
@@ -305,10 +312,11 @@ def get_my_tenant(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     # Get stores
-    stores = db.query(Store).filter(
-        Store.tenant_id == tenant.id,
-        Store.is_active == True
-    ).all()
+    stores = (
+        db.query(Store)
+        .filter(Store.tenant_id == tenant.id, Store.is_active == True)
+        .all()
+    )
 
     # Get subscription
     subscription = get_tenant_subscription(db, tenant.id)
@@ -320,7 +328,11 @@ def get_my_tenant(
             "plan_tier": subscription.plan.tier,
             "status": subscription.status,
             "billing_interval": subscription.billing_interval,
-            "current_period_end": subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            "current_period_end": (
+                subscription.current_period_end.isoformat()
+                if subscription.current_period_end
+                else None
+            ),
             "cancel_at_period_end": subscription.cancel_at_period_end,
         }
 
@@ -338,8 +350,7 @@ def get_my_tenant(
         "currency": tenant.currency,
         "country": tenant.country,
         "stores": [
-            {"id": s.id, "name": s.name, "code": s.code, "city": s.city}
-            for s in stores
+            {"id": s.id, "name": s.name, "code": s.code, "city": s.city} for s in stores
         ],
         "subscription": sub_data,
         "limits": limits,
@@ -354,12 +365,16 @@ def get_tenant(
 ):
     """Get tenant by ID (requires membership)"""
     # Verify user has access
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.tenant_id == tenant_id,
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(
+            TenantUser.tenant_id == tenant_id,
+            TenantUser.user_id == user.id,
+            TenantUser.is_active == True,
+        )
+        .first()
+    )
+
     if not tenant_user and user.role != "admin":
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -379,7 +394,11 @@ def get_tenant(
             "plan_tier": subscription.plan.tier,
             "status": subscription.status,
             "billing_interval": subscription.billing_interval,
-            "current_period_end": subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            "current_period_end": (
+                subscription.current_period_end.isoformat()
+                if subscription.current_period_end
+                else None
+            ),
             "cancel_at_period_end": subscription.cancel_at_period_end,
         }
 
@@ -393,7 +412,9 @@ def get_tenant(
         "is_verified": tenant.is_verified,
         "currency": tenant.currency,
         "country": tenant.country,
-        "stores": [{"id": s.id, "name": s.name, "code": s.code, "city": s.city} for s in stores],
+        "stores": [
+            {"id": s.id, "name": s.name, "code": s.code, "city": s.city} for s in stores
+        ],
         "subscription": sub_data,
         "limits": limits,
     }
@@ -402,6 +423,7 @@ def get_tenant(
 # ============================================
 # Store Endpoints
 # ============================================
+
 
 @router.post("/tenants/{tenant_id}/stores", response_model=StoreResponse)
 def create_store(
@@ -412,13 +434,17 @@ def create_store(
 ):
     """Create a new store for tenant"""
     # Verify access
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.tenant_id == tenant_id,
-        TenantUser.user_id == user.id,
-        TenantUser.role.in_(["owner", "admin"]),
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(
+            TenantUser.tenant_id == tenant_id,
+            TenantUser.user_id == user.id,
+            TenantUser.role.in_(["owner", "admin"]),
+            TenantUser.is_active == True,
+        )
+        .first()
+    )
+
     if not tenant_user and user.role != "admin":
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -427,14 +453,15 @@ def create_store(
     if not limit_check["allowed"]:
         raise HTTPException(
             status_code=402,
-            detail=f"Store limit reached ({limit_check['max']}). Please upgrade your plan."
+            detail=f"Store limit reached ({limit_check['max']}). Please upgrade your plan.",
         )
 
     # Check for duplicate code
-    existing = db.query(Store).filter(
-        Store.tenant_id == tenant_id,
-        Store.code == data.code
-    ).first()
+    existing = (
+        db.query(Store)
+        .filter(Store.tenant_id == tenant_id, Store.code == data.code)
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Store code already exists")
 
@@ -453,7 +480,7 @@ def create_store(
     db.add(store)
     db.commit()
     db.refresh(store)
-    
+
     return store
 
 
@@ -464,12 +491,16 @@ def list_stores(
     user=Depends(get_current_user),
 ):
     """List all stores for a tenant"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.tenant_id == tenant_id,
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(
+            TenantUser.tenant_id == tenant_id,
+            TenantUser.user_id == user.id,
+            TenantUser.is_active == True,
+        )
+        .first()
+    )
+
     if not tenant_user and user.role != "admin":
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -481,17 +512,19 @@ def list_stores(
 # Subscription Endpoints
 # ============================================
 
+
 @router.get("/subscription", response_model=SubscriptionResponse)
 def get_my_subscription(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     """Get current user's subscription"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found")
 
@@ -506,8 +539,16 @@ def get_my_subscription(
         "plan_name": subscription.plan.name,
         "status": subscription.status,
         "billing_interval": subscription.billing_interval,
-        "current_period_start": subscription.current_period_start.isoformat() if subscription.current_period_start else None,
-        "current_period_end": subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+        "current_period_start": (
+            subscription.current_period_start.isoformat()
+            if subscription.current_period_start
+            else None
+        ),
+        "current_period_end": (
+            subscription.current_period_end.isoformat()
+            if subscription.current_period_end
+            else None
+        ),
         "cancel_at_period_end": subscription.cancel_at_period_end,
         "transactions_used": subscription.transactions_this_month,
         "transactions_limit": subscription.plan.max_transactions_monthly,
@@ -521,11 +562,12 @@ def create_subscription_checkout(
     user=Depends(get_current_user),
 ):
     """Create Stripe checkout session for subscription upgrade"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found")
 
@@ -550,11 +592,12 @@ def create_portal_session(
     user=Depends(get_current_user),
 ):
     """Create Stripe billing portal session"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found")
 
@@ -576,14 +619,20 @@ def cancel_my_subscription(
     user=Depends(get_current_user),
 ):
     """Cancel subscription"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.role.in_(["owner", "admin"]),
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(
+            TenantUser.user_id == user.id,
+            TenantUser.role.in_(["owner", "admin"]),
+            TenantUser.is_active == True,
+        )
+        .first()
+    )
+
     if not tenant_user:
-        raise HTTPException(status_code=403, detail="Only owners can cancel subscriptions")
+        raise HTTPException(
+            status_code=403, detail="Only owners can cancel subscriptions"
+        )
 
     try:
         subscription = cancel_subscription(
@@ -592,7 +641,8 @@ def cancel_my_subscription(
             at_period_end=at_period_end,
         )
         return {
-            "message": "Subscription will be canceled" + (" at period end" if at_period_end else ""),
+            "message": "Subscription will be canceled"
+            + (" at period end" if at_period_end else ""),
             "status": subscription.status,
         }
     except ValueError as e:
@@ -603,6 +653,7 @@ def cancel_my_subscription(
 # Usage & Limits Endpoints
 # ============================================
 
+
 @router.get("/usage/{limit_type}", response_model=UsageLimitResponse)
 def check_limit(
     limit_type: str,
@@ -610,11 +661,12 @@ def check_limit(
     user=Depends(get_current_user),
 ):
     """Check usage against limit (transactions, stores, users)"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found")
 
@@ -626,6 +678,7 @@ def check_limit(
 # Invoices Endpoints
 # ============================================
 
+
 @router.get("/invoices", response_model=List[InvoiceResponse])
 def list_invoices(
     db: Session = Depends(get_db),
@@ -633,17 +686,22 @@ def list_invoices(
     limit: int = Query(20, le=100),
 ):
     """List invoices for current tenant"""
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.user_id == user.id,
-        TenantUser.is_active == True
-    ).first()
-    
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.user_id == user.id, TenantUser.is_active == True)
+        .first()
+    )
+
     if not tenant_user:
         raise HTTPException(status_code=404, detail="No tenant found")
 
-    invoices = db.query(Invoice).filter(
-        Invoice.tenant_id == tenant_user.tenant_id
-    ).order_by(Invoice.invoice_date.desc()).limit(limit).all()
+    invoices = (
+        db.query(Invoice)
+        .filter(Invoice.tenant_id == tenant_user.tenant_id)
+        .order_by(Invoice.invoice_date.desc())
+        .limit(limit)
+        .all()
+    )
 
     return [
         {
@@ -664,6 +722,7 @@ def list_invoices(
 # Stripe Webhook
 # ============================================
 
+
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
@@ -672,12 +731,12 @@ async def stripe_webhook(
 ):
     """Handle Stripe webhooks for subscription events"""
     settings = _get_settings()
-    
+
     if not settings.STRIPE_WEBHOOK_SECRET:
         raise HTTPException(status_code=500, detail="Webhook secret not configured")
 
     payload = await request.body()
-    
+
     try:
         event = verify_stripe_signature(
             payload=payload,
@@ -690,7 +749,7 @@ async def stripe_webhook(
 
     event_type = event.get("type")
     event_data = event.get("data", {})
-    
+
     logger.info(f"Received Stripe webhook: {event_type}")
 
     try:

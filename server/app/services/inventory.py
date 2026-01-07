@@ -226,17 +226,21 @@ class InventoryService:
         result = []
         for movement in movements:
             product = db.get(m.Product, movement.product_id)
-            result.append({
-                "id": movement.id,
-                "product_id": movement.product_id,
-                "product_name": product.name if product else "Unknown",
-                "quantity_change": movement.quantity_change,
-                "movement_type": movement.movement_type,
-                "reference_id": movement.reference_id,
-                "notes": movement.notes,
-                "user_id": movement.user_id,
-                "created_at": movement.created_at.isoformat() if movement.created_at else None,
-            })
+            result.append(
+                {
+                    "id": movement.id,
+                    "product_id": movement.product_id,
+                    "product_name": product.name if product else "Unknown",
+                    "quantity_change": movement.quantity_change,
+                    "movement_type": movement.movement_type,
+                    "reference_id": movement.reference_id,
+                    "notes": movement.notes,
+                    "user_id": movement.user_id,
+                    "created_at": (
+                        movement.created_at.isoformat() if movement.created_at else None
+                    ),
+                }
+            )
 
         return result
 

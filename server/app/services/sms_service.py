@@ -26,6 +26,7 @@ class SMSService:
     def _get_settings():
         """Lazy load settings to avoid circular imports"""
         from app.core.config import settings
+
         return settings
 
     @staticmethod
@@ -40,24 +41,27 @@ class SMSService:
         Free tier: $15 credit for testing
         """
         settings = SMSService._get_settings()
-        
+
         if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
             logger.warning("Twilio credentials not configured")
             return False
 
         try:
             url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
-            
-            data = urllib.parse.urlencode({
-                "To": phone,
-                "From": settings.TWILIO_PHONE_NUMBER,
-                "Body": message,
-            }).encode("utf-8")
+
+            data = urllib.parse.urlencode(
+                {
+                    "To": phone,
+                    "From": settings.TWILIO_PHONE_NUMBER,
+                    "Body": message,
+                }
+            ).encode("utf-8")
 
             # Create request with Basic Auth
             request = urllib.request.Request(url, data=data, method="POST")
             credentials = f"{settings.TWILIO_ACCOUNT_SID}:{settings.TWILIO_AUTH_TOKEN}"
             import base64
+
             auth_header = base64.b64encode(credentials.encode()).decode()
             request.add_header("Authorization", f"Basic {auth_header}")
             request.add_header("Content-Type", "application/x-www-form-urlencoded")
@@ -82,7 +86,7 @@ class SMSService:
         Free tier: €2 credit for testing
         """
         settings = SMSService._get_settings()
-        
+
         vonage_api_key = getattr(settings, "VONAGE_API_KEY", "")
         vonage_api_secret = getattr(settings, "VONAGE_API_SECRET", "")
         vonage_from = getattr(settings, "VONAGE_FROM", "Vendly")
@@ -93,14 +97,16 @@ class SMSService:
 
         try:
             url = "https://rest.nexmo.com/sms/json"
-            
-            data = urllib.parse.urlencode({
-                "api_key": vonage_api_key,
-                "api_secret": vonage_api_secret,
-                "to": phone.replace("+", ""),  # Vonage doesn't want the +
-                "from": vonage_from,
-                "text": message,
-            }).encode("utf-8")
+
+            data = urllib.parse.urlencode(
+                {
+                    "api_key": vonage_api_key,
+                    "api_secret": vonage_api_secret,
+                    "to": phone.replace("+", ""),  # Vonage doesn't want the +
+                    "from": vonage_from,
+                    "text": message,
+                }
+            ).encode("utf-8")
 
             request = urllib.request.Request(url, data=data, method="POST")
             request.add_header("Content-Type", "application/x-www-form-urlencoded")
@@ -109,10 +115,16 @@ class SMSService:
                 result = json.loads(response.read().decode())
                 messages = result.get("messages", [])
                 if messages and messages[0].get("status") == "0":
-                    logger.info(f"📱 Vonage SMS sent: ID={messages[0].get('message-id')}")
+                    logger.info(
+                        f"📱 Vonage SMS sent: ID={messages[0].get('message-id')}"
+                    )
                     return True
                 else:
-                    error = messages[0].get("error-text", "Unknown error") if messages else "No response"
+                    error = (
+                        messages[0].get("error-text", "Unknown error")
+                        if messages
+                        else "No response"
+                    )
                     logger.error(f"Vonage error: {error}")
                     return False
 
@@ -121,7 +133,9 @@ class SMSService:
             return False
 
     @staticmethod
-    def send_2fa_code(phone: str, code: str, provider: Optional[SMSProvider] = None) -> bool:
+    def send_2fa_code(
+        phone: str, code: str, provider: Optional[SMSProvider] = None
+    ) -> bool:
         """
         Send 2FA code via SMS
 
@@ -134,7 +148,7 @@ class SMSService:
             True if sent successfully
         """
         settings = SMSService._get_settings()
-        
+
         # Use configured provider if not specified
         if provider is None:
             provider = getattr(settings, "SMS_PROVIDER", "console")
@@ -155,7 +169,9 @@ class SMSService:
                 logger.info(f"📱 [CONSOLE] 2FA code for {phone}: {code}")
                 return True
             else:
-                logger.warning(f"Unknown SMS provider: {provider}, falling back to console")
+                logger.warning(
+                    f"Unknown SMS provider: {provider}, falling back to console"
+                )
                 logger.info(f"📱 [CONSOLE] 2FA code for {phone}: {code}")
                 return True
 
@@ -176,7 +192,7 @@ class SMSService:
             True if sent successfully
         """
         settings = SMSService._get_settings()
-        
+
         if not getattr(settings, "SMS_ENABLED", False):
             logger.info(f"💬 [DEV MODE] WhatsApp 2FA code for {phone}: {code}")
             return True
@@ -192,17 +208,22 @@ class SMSService:
 
         try:
             url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
-            
-            message = f"Your Vendly POS verification code is: {code}. Valid for 5 minutes."
-            
-            data = urllib.parse.urlencode({
-                "To": f"whatsapp:{phone}",
-                "From": f"whatsapp:{whatsapp_number}",
-                "Body": message,
-            }).encode("utf-8")
+
+            message = (
+                f"Your Vendly POS verification code is: {code}. Valid for 5 minutes."
+            )
+
+            data = urllib.parse.urlencode(
+                {
+                    "To": f"whatsapp:{phone}",
+                    "From": f"whatsapp:{whatsapp_number}",
+                    "Body": message,
+                }
+            ).encode("utf-8")
 
             request = urllib.request.Request(url, data=data, method="POST")
             import base64
+
             credentials = f"{settings.TWILIO_ACCOUNT_SID}:{settings.TWILIO_AUTH_TOKEN}"
             auth_header = base64.b64encode(credentials.encode()).decode()
             request.add_header("Authorization", f"Basic {auth_header}")
@@ -252,14 +273,14 @@ class SMSService:
         """
         # Remove all non-digit characters
         digits = "".join(c for c in phone if c.isdigit())
-        
+
         # If already has country code
         if phone.startswith("+"):
             return f"+{digits}"
-        
+
         # If starts with country code without +
         if digits.startswith(country_code.replace("+", "")):
             return f"+{digits}"
-        
+
         # Add country code
         return f"{country_code}{digits}"

@@ -56,6 +56,8 @@ api_router.include_router(tax.router, tags=["tax"])
 api_router.include_router(legal.router, tags=["legal"])
 api_router.include_router(subscriptions.router, prefix="/billing", tags=["billing"])
 api_router.include_router(stores.router, tags=["stores"])  # Has prefix in router itself
-api_router.include_router(franchise.router, tags=["franchise"])  # Has prefix in router itself
+api_router.include_router(
+    franchise.router, tags=["franchise"]
+)  # Has prefix in router itself
 api_router.include_router(oauth.router, tags=["oauth"])  # Has prefix in router itself
 # api_router.include_router(demand_forecast.router, tags=["demand-forecast"])  # Temporarily disabled

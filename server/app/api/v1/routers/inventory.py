@@ -45,18 +45,18 @@ async def get_inventory_summary(
         - total_value: Total inventory value
     """
     cache = get_cache()
-    
+
     # Try cache first (Inventory: 5-15 sec TTL)
     cached_summary = cache.get("inventory:summary:all")
     if cached_summary:
         logger.debug("Cache HIT for inventory summary")
         return cached_summary
-    
+
     summary = InventoryService.get_inventory_summary(db)
-    
+
     # Cache with short TTL (10 seconds - near real-time)
     cache.set("inventory:summary:all", summary, TTL.INVENTORY_DEFAULT)
-    
+
     return summary
 
 
@@ -78,20 +78,20 @@ async def get_low_stock_products(
         List of low stock products with shortage amounts
     """
     cache = get_cache()
-    
+
     # Cache key includes threshold
     cache_key = f"inventory:low_stock:{threshold or 'default'}"
     cached_data = cache.get(cache_key)
     if cached_data:
         logger.debug("Cache HIT for low stock products")
         return cached_data
-    
+
     products = InventoryService.get_low_stock_products(db, threshold)
     result = {"count": len(products), "items": products}
-    
+
     # Cache with short TTL (10 seconds)
     cache.set(cache_key, result, TTL.INVENTORY_DEFAULT)
-    
+
     return result
 
 
@@ -106,18 +106,18 @@ async def get_out_of_stock_products(
         List of out of stock products
     """
     cache = get_cache()
-    
+
     # Try cache first (5-15 sec TTL)
     cached_data = cache.get_out_of_stock_products()
     if cached_data:
         logger.debug("Cache HIT for out of stock products")
         return {"count": len(cached_data), "items": cached_data}
-    
+
     products = InventoryService.get_out_of_stock_products(db)
-    
+
     # Cache with short TTL (10 seconds)
     cache.set_out_of_stock_products(products, TTL.INVENTORY_DEFAULT)
-    
+
     return {"count": len(products), "items": products}
 
 
@@ -154,12 +154,13 @@ async def adjust_inventory(
         raise HTTPException(404, detail="Product not found")
 
     db.commit()
-    
+
     # Invalidate inventory cache on adjustment
     cache = get_cache()
     cache.invalidate_inventory(product_id)
     cache.delete("inventory:summary:all")
     from app.core.cache import invalidate_all_inventory_cache
+
     invalidate_all_inventory_cache()
 
     return {
@@ -203,12 +204,13 @@ async def set_inventory(
     )
 
     db.commit()
-    
+
     # Invalidate inventory cache on stock count
     cache = get_cache()
     cache.invalidate_inventory(product_id)
     cache.delete("inventory:summary:all")
     from app.core.cache import invalidate_all_inventory_cache
+
     invalidate_all_inventory_cache()
 
     return {

@@ -34,12 +34,21 @@ def upgrade():
         sa.Column("max_stores", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("max_users", sa.Integer(), nullable=False, server_default="5"),
         sa.Column("max_products", sa.Integer(), nullable=False, server_default="100"),
-        sa.Column("max_transactions_monthly", sa.Integer(), nullable=False, server_default="1000"),
+        sa.Column(
+            "max_transactions_monthly",
+            sa.Integer(),
+            nullable=False,
+            server_default="1000",
+        ),
         sa.Column("features", postgresql.JSONB(), nullable=False, server_default="{}"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name"),
     )
@@ -70,8 +79,12 @@ def upgrade():
         sa.Column("stripe_customer_id", sa.String(100), nullable=True),
         sa.Column("billing_email", sa.String(255), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("slug"),
     )
@@ -95,8 +108,12 @@ def upgrade():
         sa.Column("timezone", sa.String(50), nullable=False, server_default="UTC"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
     )
@@ -110,12 +127,18 @@ def upgrade():
         sa.Column("tenant_id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("role", sa.String(50), nullable=False, server_default="member"),
-        sa.Column("permissions", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column(
+            "permissions", postgresql.JSONB(), nullable=False, server_default="{}"
+        ),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("invited_at", sa.DateTime(), nullable=True),
         sa.Column("joined_at", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -133,23 +156,37 @@ def upgrade():
         sa.Column("stripe_subscription_id", sa.String(100), nullable=True),
         sa.Column("stripe_customer_id", sa.String(100), nullable=True),
         sa.Column("status", sa.String(50), nullable=False, server_default="trialing"),
-        sa.Column("billing_interval", sa.String(20), nullable=False, server_default="monthly"),
+        sa.Column(
+            "billing_interval", sa.String(20), nullable=False, server_default="monthly"
+        ),
         sa.Column("current_period_start", sa.DateTime(), nullable=True),
         sa.Column("current_period_end", sa.DateTime(), nullable=True),
-        sa.Column("cancel_at_period_end", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column(
+            "cancel_at_period_end", sa.Boolean(), nullable=False, server_default="false"
+        ),
         sa.Column("canceled_at", sa.DateTime(), nullable=True),
         sa.Column("trial_start", sa.DateTime(), nullable=True),
         sa.Column("trial_end", sa.DateTime(), nullable=True),
-        sa.Column("transactions_this_month", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "transactions_this_month", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("usage_reset_at", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["plan_id"], ["plans.id"]),
     )
     op.create_index("ix_subscriptions_tenant_id", "subscriptions", ["tenant_id"])
-    op.create_index("ix_subscriptions_stripe_subscription_id", "subscriptions", ["stripe_subscription_id"])
+    op.create_index(
+        "ix_subscriptions_stripe_subscription_id",
+        "subscriptions",
+        ["stripe_subscription_id"],
+    )
     op.create_index("ix_subscriptions_status", "subscriptions", ["status"])
 
     # Create invoices table
@@ -171,11 +208,17 @@ def upgrade():
         sa.Column("paid_at", sa.DateTime(), nullable=True),
         sa.Column("period_start", sa.DateTime(), nullable=True),
         sa.Column("period_end", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["subscription_id"], ["subscriptions.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["subscription_id"], ["subscriptions.id"], ondelete="SET NULL"
+        ),
     )
     op.create_index("ix_invoices_tenant_id", "invoices", ["tenant_id"])
     op.create_index("ix_invoices_stripe_invoice_id", "invoices", ["stripe_invoice_id"])
@@ -189,9 +232,15 @@ def upgrade():
         sa.Column("store_id", sa.Integer(), nullable=True),
         sa.Column("event_type", sa.String(100), nullable=False),
         sa.Column("quantity", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("event_metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
-        sa.Column("recorded_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "event_metadata", postgresql.JSONB(), nullable=False, server_default="{}"
+        ),
+        sa.Column(
+            "recorded_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["store_id"], ["stores.id"], ondelete="SET NULL"),
@@ -209,7 +258,7 @@ def downgrade():
     op.drop_table("stores")
     op.drop_table("tenants")
     op.drop_table("plans")
-    
+
     # Drop enums if needed (PostgreSQL)
     op.execute("DROP TYPE IF EXISTS billinginterval CASCADE")
     op.execute("DROP TYPE IF EXISTS subscriptionstatus CASCADE")

@@ -147,7 +147,7 @@ def sync_plans_to_stripe(db: Session) -> None:
         return
 
     plans = db.query(Plan).filter(Plan.is_active == True).all()
-    
+
     for plan in plans:
         try:
             # Create or update Stripe Product
@@ -189,7 +189,7 @@ def sync_plans_to_stripe(db: Session) -> None:
 
             db.commit()
             logger.info(f"Synced plan to Stripe: {plan.name}")
-            
+
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error syncing plan {plan.name}: {e}")
 
@@ -198,22 +198,13 @@ def sync_plans_to_stripe(db: Session) -> None:
 # Tenant Management
 # ============================================
 
+
 def create_tenant(
-    db: Session,
-    name: str,
-    email: str,
-    slug: str,
-    user_id: int,
-    **kwargs
+    db: Session, name: str, email: str, slug: str, user_id: int, **kwargs
 ) -> Tenant:
     """Create a new tenant with owner"""
     # Create tenant
-    tenant = Tenant(
-        name=name,
-        email=email,
-        slug=slug,
-        **kwargs
-    )
+    tenant = Tenant(name=name, email=email, slug=slug, **kwargs)
     db.add(tenant)
     db.flush()
 
@@ -265,19 +256,25 @@ def create_tenant(
 
 def get_tenant_subscription(db: Session, tenant_id: int) -> Optional[Subscription]:
     """Get active subscription for tenant"""
-    return db.query(Subscription).filter(
-        Subscription.tenant_id == tenant_id,
-        Subscription.status.in_([
-            SubscriptionStatus.ACTIVE.value,
-            SubscriptionStatus.TRIALING.value,
-        ])
-    ).first()
+    return (
+        db.query(Subscription)
+        .filter(
+            Subscription.tenant_id == tenant_id,
+            Subscription.status.in_(
+                [
+                    SubscriptionStatus.ACTIVE.value,
+                    SubscriptionStatus.TRIALING.value,
+                ]
+            ),
+        )
+        .first()
+    )
 
 
 def get_tenant_limits(db: Session, tenant_id: int) -> Dict[str, Any]:
     """Get current limits for tenant based on subscription"""
     subscription = get_tenant_subscription(db, tenant_id)
-    
+
     if not subscription:
         # Return free tier limits
         return {
@@ -295,9 +292,9 @@ def get_tenant_limits(db: Session, tenant_id: int) -> Dict[str, Any]:
                 "ai_insights": False,
                 "multi_store": False,
                 "integrations": False,
-            }
+            },
         }
-    
+
     plan = subscription.plan
     return {
         "max_stores": plan.max_stores,
@@ -315,13 +312,14 @@ def get_tenant_limits(db: Session, tenant_id: int) -> Dict[str, Any]:
             "ai_insights": plan.feature_ai_insights,
             "multi_store": plan.feature_multi_store,
             "integrations": plan.feature_integrations,
-        }
+        },
     }
 
 
 # ============================================
 # Subscription Management
 # ============================================
+
 
 def create_checkout_session(
     db: Session,
@@ -334,7 +332,7 @@ def create_checkout_session(
     """Create Stripe Checkout session for subscription"""
     tenant = db.get(Tenant, tenant_id)
     plan = db.get(Plan, plan_id)
-    
+
     if not tenant or not plan:
         raise ValueError("Tenant or Plan not found")
 
@@ -342,13 +340,15 @@ def create_checkout_session(
         raise ValueError("Stripe not configured")
 
     price_id = (
-        plan.stripe_price_monthly_id 
-        if billing_interval == "monthly" 
+        plan.stripe_price_monthly_id
+        if billing_interval == "monthly"
         else plan.stripe_price_yearly_id
     )
-    
+
     if not price_id:
-        raise ValueError(f"No Stripe price configured for {plan.name} ({billing_interval})")
+        raise ValueError(
+            f"No Stripe price configured for {plan.name} ({billing_interval})"
+        )
 
     try:
         # Create or get Stripe customer
@@ -366,8 +366,10 @@ def create_checkout_session(
             payment_method_types=["card"],
             line_items=[{"price": price_id, "quantity": 1}],
             mode="subscription",
-            success_url=success_url or f"{settings.CORS_ORIGINS[0]}/settings/billing?success=true",
-            cancel_url=cancel_url or f"{settings.CORS_ORIGINS[0]}/settings/billing?canceled=true",
+            success_url=success_url
+            or f"{settings.CORS_ORIGINS[0]}/settings/billing?success=true",
+            cancel_url=cancel_url
+            or f"{settings.CORS_ORIGINS[0]}/settings/billing?canceled=true",
             metadata={
                 "tenant_id": str(tenant_id),
                 "plan_id": str(plan_id),
@@ -381,12 +383,12 @@ def create_checkout_session(
                 "trial_period_days": 14 if plan.tier != PlanTier.FREE.value else None,
             },
         )
-        
+
         return {
             "session_id": session.id,
             "url": session.url,
         }
-        
+
     except stripe.error.StripeError as e:
         logger.error(f"Stripe checkout error: {e}")
         raise ValueError(str(e))
@@ -399,7 +401,7 @@ def create_billing_portal_session(
 ) -> Dict[str, str]:
     """Create Stripe Customer Portal session"""
     tenant = db.get(Tenant, tenant_id)
-    
+
     if not tenant or not tenant.stripe_customer_id:
         raise ValueError("Tenant not found or no Stripe customer")
 
@@ -421,7 +423,7 @@ def cancel_subscription(
 ) -> Subscription:
     """Cancel subscription"""
     subscription = get_tenant_subscription(db, tenant_id)
-    
+
     if not subscription:
         raise ValueError("No active subscription found")
 
@@ -453,12 +455,13 @@ def cancel_subscription(
 # Webhook Handlers
 # ============================================
 
+
 def handle_subscription_created(db: Session, event_data: Dict[str, Any]) -> None:
     """Handle subscription.created webhook"""
     stripe_sub = event_data["object"]
     tenant_id = stripe_sub.get("metadata", {}).get("tenant_id")
     plan_id = stripe_sub.get("metadata", {}).get("plan_id")
-    
+
     if not tenant_id:
         logger.warning("No tenant_id in subscription metadata")
         return
@@ -469,10 +472,12 @@ def handle_subscription_created(db: Session, event_data: Dict[str, Any]) -> None
         return
 
     # Find or create subscription
-    subscription = db.query(Subscription).filter(
-        Subscription.stripe_subscription_id == stripe_sub["id"]
-    ).first()
-    
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.stripe_subscription_id == stripe_sub["id"])
+        .first()
+    )
+
     if not subscription:
         subscription = Subscription(
             tenant_id=int(tenant_id),
@@ -483,9 +488,13 @@ def handle_subscription_created(db: Session, event_data: Dict[str, Any]) -> None
 
     subscription.status = stripe_sub["status"]
     subscription.stripe_price_id = stripe_sub["items"]["data"][0]["price"]["id"]
-    subscription.current_period_start = datetime.fromtimestamp(stripe_sub["current_period_start"])
-    subscription.current_period_end = datetime.fromtimestamp(stripe_sub["current_period_end"])
-    
+    subscription.current_period_start = datetime.fromtimestamp(
+        stripe_sub["current_period_start"]
+    )
+    subscription.current_period_end = datetime.fromtimestamp(
+        stripe_sub["current_period_end"]
+    )
+
     if stripe_sub.get("trial_start"):
         subscription.trial_start = datetime.fromtimestamp(stripe_sub["trial_start"])
     if stripe_sub.get("trial_end"):
@@ -498,20 +507,26 @@ def handle_subscription_created(db: Session, event_data: Dict[str, Any]) -> None
 def handle_subscription_updated(db: Session, event_data: Dict[str, Any]) -> None:
     """Handle subscription.updated webhook"""
     stripe_sub = event_data["object"]
-    
-    subscription = db.query(Subscription).filter(
-        Subscription.stripe_subscription_id == stripe_sub["id"]
-    ).first()
-    
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.stripe_subscription_id == stripe_sub["id"])
+        .first()
+    )
+
     if not subscription:
         logger.warning(f"Subscription {stripe_sub['id']} not found")
         return
 
     subscription.status = stripe_sub["status"]
-    subscription.current_period_start = datetime.fromtimestamp(stripe_sub["current_period_start"])
-    subscription.current_period_end = datetime.fromtimestamp(stripe_sub["current_period_end"])
+    subscription.current_period_start = datetime.fromtimestamp(
+        stripe_sub["current_period_start"]
+    )
+    subscription.current_period_end = datetime.fromtimestamp(
+        stripe_sub["current_period_end"]
+    )
     subscription.cancel_at_period_end = stripe_sub.get("cancel_at_period_end", False)
-    
+
     if stripe_sub.get("canceled_at"):
         subscription.canceled_at = datetime.fromtimestamp(stripe_sub["canceled_at"])
 
@@ -522,16 +537,18 @@ def handle_subscription_updated(db: Session, event_data: Dict[str, Any]) -> None
 def handle_subscription_deleted(db: Session, event_data: Dict[str, Any]) -> None:
     """Handle subscription.deleted webhook"""
     stripe_sub = event_data["object"]
-    
-    subscription = db.query(Subscription).filter(
-        Subscription.stripe_subscription_id == stripe_sub["id"]
-    ).first()
-    
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.stripe_subscription_id == stripe_sub["id"])
+        .first()
+    )
+
     if subscription:
         subscription.status = SubscriptionStatus.CANCELED.value
         subscription.canceled_at = datetime.utcnow()
         db.commit()
-        
+
         # Downgrade to free plan
         tenant = db.get(Tenant, subscription.tenant_id)
         if tenant:
@@ -546,7 +563,7 @@ def handle_subscription_deleted(db: Session, event_data: Dict[str, Any]) -> None
                 )
                 db.add(new_sub)
                 db.commit()
-        
+
         logger.info(f"Subscription canceled: {stripe_sub['id']}")
 
 
@@ -554,22 +571,26 @@ def handle_invoice_paid(db: Session, event_data: Dict[str, Any]) -> None:
     """Handle invoice.paid webhook"""
     stripe_invoice = event_data["object"]
     customer_id = stripe_invoice.get("customer")
-    
+
     tenant = db.query(Tenant).filter(Tenant.stripe_customer_id == customer_id).first()
     if not tenant:
         logger.warning(f"Tenant not found for customer {customer_id}")
         return
 
     # Create or update invoice record
-    invoice = db.query(Invoice).filter(
-        Invoice.stripe_invoice_id == stripe_invoice["id"]
-    ).first()
-    
+    invoice = (
+        db.query(Invoice)
+        .filter(Invoice.stripe_invoice_id == stripe_invoice["id"])
+        .first()
+    )
+
     if not invoice:
         invoice = Invoice(
             tenant_id=tenant.id,
             stripe_invoice_id=stripe_invoice["id"],
-            invoice_number=stripe_invoice.get("number", f"INV-{stripe_invoice['id'][-8:]}"),
+            invoice_number=stripe_invoice.get(
+                "number", f"INV-{stripe_invoice['id'][-8:]}"
+            ),
         )
         db.add(invoice)
 
@@ -591,7 +612,7 @@ def handle_invoice_payment_failed(db: Session, event_data: Dict[str, Any]) -> No
     """Handle invoice.payment_failed webhook"""
     stripe_invoice = event_data["object"]
     customer_id = stripe_invoice.get("customer")
-    
+
     tenant = db.query(Tenant).filter(Tenant.stripe_customer_id == customer_id).first()
     if tenant:
         # Update subscription status
@@ -599,7 +620,7 @@ def handle_invoice_payment_failed(db: Session, event_data: Dict[str, Any]) -> No
         if subscription:
             subscription.status = SubscriptionStatus.PAST_DUE.value
             db.commit()
-        
+
         # TODO: Send notification email
         logger.warning(f"Payment failed for tenant {tenant.id}")
 
@@ -607,6 +628,7 @@ def handle_invoice_payment_failed(db: Session, event_data: Dict[str, Any]) -> No
 # ============================================
 # Usage Tracking
 # ============================================
+
 
 def record_usage(
     db: Session,
@@ -625,13 +647,13 @@ def record_usage(
         event_metadata=str(metadata) if metadata else None,
     )
     db.add(event)
-    
+
     # Update subscription counter
     if event_type == "transaction":
         subscription = get_tenant_subscription(db, tenant_id)
         if subscription:
             subscription.transactions_this_month += quantity
-    
+
     db.commit()
 
 
@@ -643,7 +665,7 @@ def check_usage_limit(
     """Check if tenant is within usage limits"""
     limits = get_tenant_limits(db, tenant_id)
     subscription = get_tenant_subscription(db, tenant_id)
-    
+
     if limit_type == "transactions":
         used = subscription.transactions_this_month if subscription else 0
         max_allowed = limits["max_transactions_monthly"]
@@ -653,9 +675,13 @@ def check_usage_limit(
             "max": max_allowed,
             "remaining": max(0, max_allowed - used),
         }
-    
+
     if limit_type == "stores":
-        used = db.query(Store).filter(Store.tenant_id == tenant_id, Store.is_active == True).count()
+        used = (
+            db.query(Store)
+            .filter(Store.tenant_id == tenant_id, Store.is_active == True)
+            .count()
+        )
         max_allowed = limits["max_stores"]
         return {
             "allowed": used < max_allowed,
@@ -663,12 +689,13 @@ def check_usage_limit(
             "max": max_allowed,
             "remaining": max(0, max_allowed - used),
         }
-    
+
     if limit_type == "users":
-        used = db.query(TenantUser).filter(
-            TenantUser.tenant_id == tenant_id,
-            TenantUser.is_active == True
-        ).count()
+        used = (
+            db.query(TenantUser)
+            .filter(TenantUser.tenant_id == tenant_id, TenantUser.is_active == True)
+            .count()
+        )
         max_allowed = limits["max_users"]
         return {
             "allowed": used < max_allowed,
@@ -676,22 +703,28 @@ def check_usage_limit(
             "max": max_allowed,
             "remaining": max(0, max_allowed - used),
         }
-    
+
     return {"allowed": True, "used": 0, "max": 999999, "remaining": 999999}
 
 
 def reset_monthly_usage(db: Session) -> None:
     """Reset monthly usage counters (run via cron)"""
-    subscriptions = db.query(Subscription).filter(
-        Subscription.status.in_([
-            SubscriptionStatus.ACTIVE.value,
-            SubscriptionStatus.TRIALING.value,
-        ])
-    ).all()
-    
+    subscriptions = (
+        db.query(Subscription)
+        .filter(
+            Subscription.status.in_(
+                [
+                    SubscriptionStatus.ACTIVE.value,
+                    SubscriptionStatus.TRIALING.value,
+                ]
+            )
+        )
+        .all()
+    )
+
     for sub in subscriptions:
         sub.transactions_this_month = 0
         sub.usage_reset_at = datetime.utcnow()
-    
+
     db.commit()
     logger.info(f"Reset usage for {len(subscriptions)} subscriptions")

@@ -22,6 +22,7 @@ class EmailService:
     def _get_settings():
         """Lazy load settings to avoid circular imports"""
         from app.core.config import settings
+
         return settings
 
     @staticmethod
@@ -80,7 +81,7 @@ class EmailService:
             True if sent successfully
         """
         settings = EmailService._get_settings()
-        
+
         # If SMTP is not enabled, log and return success (for dev mode)
         if not settings.SMTP_ENABLED:
             logger.info(f"📧 [DEV MODE] 2FA code for {email}: {code}")
@@ -120,7 +121,9 @@ class EmailService:
             else:
                 # Use SSL directly (port 465)
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as server:
+                with smtplib.SMTP_SSL(
+                    settings.SMTP_HOST, settings.SMTP_PORT, context=context
+                ) as server:
                     if settings.SMTP_USER and settings.SMTP_PASSWORD:
                         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.send_message(msg)
@@ -152,9 +155,11 @@ class EmailService:
             True if sent successfully
         """
         settings = EmailService._get_settings()
-        
+
         if not settings.SMTP_ENABLED:
-            logger.info(f"📧 [DEV MODE] Login notification for {email} from {ip} ({device})")
+            logger.info(
+                f"📧 [DEV MODE] Login notification for {email} from {ip} ({device})"
+            )
             return True
 
         try:
@@ -202,7 +207,9 @@ class EmailService:
                     server.send_message(msg)
             else:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as server:
+                with smtplib.SMTP_SSL(
+                    settings.SMTP_HOST, settings.SMTP_PORT, context=context
+                ) as server:
                     if settings.SMTP_USER and settings.SMTP_PASSWORD:
                         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.send_message(msg)
@@ -218,7 +225,7 @@ class EmailService:
     def send_2fa_disabled_notification(email: str) -> bool:
         """Send notification that 2FA was disabled"""
         settings = EmailService._get_settings()
-        
+
         if not settings.SMTP_ENABLED:
             logger.info(f"📧 [DEV MODE] 2FA disabled notification for {email}")
             return True
@@ -263,7 +270,9 @@ class EmailService:
                     server.send_message(msg)
             else:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as server:
+                with smtplib.SMTP_SSL(
+                    settings.SMTP_HOST, settings.SMTP_PORT, context=context
+                ) as server:
                     if settings.SMTP_USER and settings.SMTP_PASSWORD:
                         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.send_message(msg)
@@ -280,7 +289,7 @@ class EmailService:
         to_email: str,
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None
+        text_content: Optional[str] = None,
     ) -> bool:
         """
         Send a custom email
@@ -295,7 +304,7 @@ class EmailService:
             True if sent successfully
         """
         settings = EmailService._get_settings()
-        
+
         if not settings.SMTP_ENABLED:
             logger.info(f"📧 [DEV MODE] Custom email to {to_email}: {subject}")
             return True
@@ -319,7 +328,9 @@ class EmailService:
                     server.send_message(msg)
             else:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as server:
+                with smtplib.SMTP_SSL(
+                    settings.SMTP_HOST, settings.SMTP_PORT, context=context
+                ) as server:
                     if settings.SMTP_USER and settings.SMTP_PASSWORD:
                         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.send_message(msg)

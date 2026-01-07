@@ -40,7 +40,7 @@ class SessionManager:
         db.add(session)
         db.commit()
         db.refresh(session)
-        
+
         # Cache session data (Session: 15-30 min TTL)
         cache = get_cache()
         session_data = {
@@ -64,10 +64,14 @@ class SessionManager:
     ) -> Optional[m.UserSession]:
         """Get an active session, return None if expired"""
         cache = get_cache()
-        
+
         # Try cache first (Session: 15-30 min TTL)
         cached_session = cache.get_user_session(user_id)
-        if cached_session and cached_session.get("id") == session_id and cached_session.get("is_active"):
+        if (
+            cached_session
+            and cached_session.get("id") == session_id
+            and cached_session.get("is_active")
+        ):
             # Validate session hasn't timed out based on cached last_activity
             last_activity_str = cached_session.get("last_activity")
             if last_activity_str:
@@ -80,7 +84,7 @@ class SessionManager:
                         # but we've confirmed it's likely valid
                 except (ValueError, TypeError):
                     pass  # Fall through to DB check
-        
+
         session = (
             db.query(m.UserSession)
             .filter(
@@ -103,7 +107,7 @@ class SessionManager:
             session.ended_at = datetime.now(UTC)
             session.timeout_reason = "inactivity"
             db.commit()
-            
+
             # Invalidate cache on session expiry
             cache.invalidate_user_session(user_id)
 
@@ -133,7 +137,7 @@ class SessionManager:
 
         session.last_activity = datetime.now(UTC)
         db.commit()
-        
+
         # Update cache with new activity timestamp
         cache = get_cache()
         session_data = {
@@ -145,7 +149,7 @@ class SessionManager:
             "last_activity": session.last_activity.isoformat(),
         }
         cache.set_user_session(user_id, session_data, TTL.SESSION_DEFAULT)
-        
+
         return True
 
     @staticmethod
@@ -172,7 +176,7 @@ class SessionManager:
         session.ended_at = datetime.now(UTC)
         session.timeout_reason = reason
         db.commit()
-        
+
         # Invalidate session cache on logout
         cache = get_cache()
         cache.invalidate_user_session(user_id)
@@ -228,7 +232,7 @@ class SessionManager:
             session.timeout_reason = reason
 
         db.commit()
-        
+
         # Invalidate user session cache
         cache = get_cache()
         cache.invalidate_user_session(user_id)

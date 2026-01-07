@@ -38,10 +38,14 @@ def init_database():
         if not settings.CREATE_DEFAULT_ADMIN:
             logger.info("Default admin creation disabled")
             return
-            
+
         # Check if admin exists
         with Session(engine) as session:
-            admin = session.query(User).filter(User.email == settings.DEFAULT_ADMIN_EMAIL).first()
+            admin = (
+                session.query(User)
+                .filter(User.email == settings.DEFAULT_ADMIN_EMAIL)
+                .first()
+            )
             if not admin:
                 # Create default admin user from environment config
                 admin = User(
@@ -65,13 +69,14 @@ def init_subscription_plans():
     from sqlalchemy.orm import Session
     from app.db.session import engine
     from app.db.subscription_models import Base as SubscriptionBase
-    
+
     try:
         # Create subscription tables
         SubscriptionBase.metadata.create_all(bind=engine)
-        
+
         # Seed default plans
         from app.services.subscription_service import seed_plans
+
         with Session(engine) as session:
             seed_plans(session)
             logger.info("Subscription plans initialized")
@@ -88,7 +93,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize database
         init_database()
-        
+
         # Initialize subscription plans
         init_subscription_plans()
 

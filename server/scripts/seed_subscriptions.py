@@ -2,6 +2,7 @@
 Seed script for subscription demo data
 Run with: python -m scripts.seed_subscriptions
 """
+
 import sys
 from pathlib import Path
 
@@ -11,8 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from datetime import datetime, timedelta
 from app.db.session import SessionLocal
 from app.db.subscription_models import (
-    Plan, Tenant, Store, TenantUser, Subscription, 
-    SubscriptionStatus, BillingInterval
+    Plan,
+    Tenant,
+    Store,
+    TenantUser,
+    Subscription,
+    SubscriptionStatus,
+    BillingInterval,
 )
 from app.db.models import User
 
@@ -181,10 +187,13 @@ def seed_demo_tenant(db):
     # Find or create manager user and link to tenant
     manager_user = db.query(User).filter(User.email == "manager@vendly.com").first()
     if manager_user:
-        existing_manager = db.query(TenantUser).filter(
-            TenantUser.user_id == manager_user.id,
-            TenantUser.tenant_id == tenant.id
-        ).first()
+        existing_manager = (
+            db.query(TenantUser)
+            .filter(
+                TenantUser.user_id == manager_user.id, TenantUser.tenant_id == tenant.id
+            )
+            .first()
+        )
         if not existing_manager:
             manager_tenant_user = TenantUser(
                 tenant_id=tenant.id,
@@ -220,22 +229,22 @@ def seed_demo_tenant(db):
 
 def main():
     print("\n🌱 Seeding subscription demo data...\n")
-    
+
     db = SessionLocal()
     try:
         print("📦 Seeding plans...")
         seed_plans(db)
-        
+
         print("\n🏢 Creating demo tenant...")
         tenant = seed_demo_tenant(db)
-        
+
         if tenant:
             print(f"\n✅ Demo data created successfully!")
             print(f"   Tenant: {tenant.name}")
             print(f"   Slug: {tenant.slug}")
         else:
             print("\n⚠️  Could not create demo tenant")
-            
+
     except Exception as e:
         print(f"\n❌ Error: {e}")
         db.rollback()

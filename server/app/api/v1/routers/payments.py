@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 def _get_settings():
     """Lazy load settings to avoid circular imports"""
     from app.core.config import settings
+
     return settings
 
 
@@ -40,16 +41,16 @@ def verify_stripe_signature(
 ) -> Dict[str, Any]:
     """
     Verify Stripe webhook signature (open-source implementation)
-    
+
     Args:
         payload: Raw request body
         signature: Stripe-Signature header
         webhook_secret: Webhook endpoint secret (whsec_...)
         tolerance: Max age of event in seconds (default 5 min)
-    
+
     Returns:
         Parsed event data
-    
+
     Raises:
         ValueError: If signature is invalid
     """
@@ -103,15 +104,15 @@ def verify_upi_signature(
 ) -> Dict[str, Any]:
     """
     Verify UPI provider webhook signature
-    
+
     This is a generic implementation - actual format depends on UPI provider
     (Razorpay, PayTM, PhonePe, etc.)
-    
+
     Args:
         payload: Raw request body
         signature: Signature header
         secret_key: Webhook secret key
-    
+
     Returns:
         Parsed event data
     """
@@ -138,7 +139,7 @@ async def stripe_webhook(
 ):
     """
     Handle Stripe webhook events with signature verification
-    
+
     Supported events:
     - payment_intent.succeeded
     - payment_intent.payment_failed
@@ -147,7 +148,7 @@ async def stripe_webhook(
     """
     settings = _get_settings()
     stripe_webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
-    
+
     payload = await request.body()
 
     # If webhook secret is configured, verify signature
@@ -167,7 +168,9 @@ async def stripe_webhook(
             event = json.loads(payload)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON payload")
-        logger.warning("⚠️ Stripe webhook processed without signature verification (dev mode)")
+        logger.warning(
+            "⚠️ Stripe webhook processed without signature verification (dev mode)"
+        )
 
     # Process event
     event_type = event.get("type", "unknown")
@@ -180,33 +183,37 @@ async def stripe_webhook(
             payment_intent_id = event_data.get("id")
             amount = event_data.get("amount", 0) / 100  # Convert cents to dollars
             currency = event_data.get("currency", "usd")
-            logger.info(f"✅ Payment succeeded: {payment_intent_id} - {currency.upper()} {amount}")
+            logger.info(
+                f"✅ Payment succeeded: {payment_intent_id} - {currency.upper()} {amount}"
+            )
             # TODO: Update sale status in database
-            
+
         elif event_type == "payment_intent.payment_failed":
             payment_intent_id = event_data.get("id")
-            error = event_data.get("last_payment_error", {}).get("message", "Unknown error")
+            error = event_data.get("last_payment_error", {}).get(
+                "message", "Unknown error"
+            )
             logger.warning(f"❌ Payment failed: {payment_intent_id} - {error}")
             # TODO: Handle failed payment
-            
+
         elif event_type == "charge.refunded":
             charge_id = event_data.get("id")
             refund_amount = event_data.get("amount_refunded", 0) / 100
             logger.info(f"💸 Refund processed: {charge_id} - ${refund_amount}")
             # TODO: Update refund status
-            
+
         elif event_type == "customer.subscription.created":
             subscription_id = event_data.get("id")
             customer_id = event_data.get("customer")
             logger.info(f"📋 Subscription created: {subscription_id} for {customer_id}")
-            
+
         else:
             logger.debug(f"Unhandled Stripe event type: {event_type}")
 
     except Exception as e:
         logger.error(f"Error processing Stripe webhook: {e}")
         # Still return success to acknowledge receipt
-        
+
     return {"status": "received", "event_type": event_type}
 
 
@@ -218,7 +225,7 @@ async def upi_webhook(
 ):
     """
     Handle UPI provider webhook events
-    
+
     Supports multiple providers:
     - Razorpay
     - PayTM
@@ -226,9 +233,9 @@ async def upi_webhook(
     """
     settings = _get_settings()
     upi_webhook_secret = getattr(settings, "UPI_WEBHOOK_SECRET", "")
-    
+
     payload = await request.body()
-    
+
     # Determine which provider signature to use
     signature = x_razorpay_signature or x_paytm_signature
 
@@ -246,7 +253,9 @@ async def upi_webhook(
         except json.JSONDecodeError:
             event = {}
         if not upi_webhook_secret:
-            logger.warning("⚠️ UPI webhook processed without signature verification (dev mode)")
+            logger.warning(
+                "⚠️ UPI webhook processed without signature verification (dev mode)"
+            )
 
     # Process event
     event_type = event.get("event", event.get("type", "unknown"))
@@ -263,20 +272,20 @@ async def upi_webhook(
             vpa = payment_data.get("vpa", payment_data.get("upi_id"))
             logger.info(f"✅ UPI Payment captured: {payment_id} - ₹{amount} from {vpa}")
             # TODO: Update sale status in database
-            
+
         elif event_type in ["payment.failed", "payment_failure"]:
             payment_id = payment_data.get("id", payment_data.get("payment_id"))
             error = payment_data.get("error_description", "Unknown error")
             logger.warning(f"❌ UPI Payment failed: {payment_id} - {error}")
             # TODO: Handle failed payment
-            
+
         elif event_type in ["refund.processed", "refund_success"]:
             refund_id = payment_data.get("id", payment_data.get("refund_id"))
             amount = payment_data.get("amount", 0)
             if isinstance(amount, int) and amount > 100:
                 amount = amount / 100
             logger.info(f"💸 UPI Refund processed: {refund_id} - ₹{amount}")
-            
+
         else:
             logger.debug(f"Unhandled UPI event type: {event_type}")
 

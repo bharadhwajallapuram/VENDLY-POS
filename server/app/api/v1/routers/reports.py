@@ -97,17 +97,15 @@ def get_summary(
 ):
     """Get sales summary report for a date range"""
     cache = get_cache()
-    
+
     # Try cache first (Reports: 1-5 min TTL)
     cached_report = cache.get_sales_report(
-        start_date or "all",
-        end_date or "all",
-        "summary"
+        start_date or "all", end_date or "all", "summary"
     )
     if cached_report:
         logger.debug("Cache HIT for sales summary report")
         return cached_report
-    
+
     try:
         q = db.query(m.Sale).filter(m.Sale.status == "completed")
 
@@ -206,7 +204,7 @@ def get_summary(
             "refund_amount": round(refund_amount, 2),
             "return_amount": round(return_amount, 2),
         }
-        
+
         # Cache the report (TTL: 2 minutes default, 1-5 min range)
         cache.set_sales_report(
             result,
@@ -215,7 +213,7 @@ def get_summary(
             "summary",
             TTL.REPORT_DEFAULT,
         )
-        
+
         return result
     except Exception as e:
         logger.error(f"Error getting summary report: {e}", exc_info=True)
@@ -246,17 +244,15 @@ def get_sales_by_day(
 ):
     """Get daily sales breakdown"""
     cache = get_cache()
-    
+
     # Try cache first (Reports: 1-5 min TTL)
     cached_report = cache.get_sales_report(
-        start_date or "all",
-        end_date or "all",
-        "daily"
+        start_date or "all", end_date or "all", "daily"
     )
     if cached_report:
         logger.debug("Cache HIT for sales-by-day report")
         return cached_report
-    
+
     q = db.query(m.Sale).filter(m.Sale.status == "completed")
 
     if start_date:
@@ -278,7 +274,7 @@ def get_sales_by_day(
         )
 
     result = {"data": list(daily_sales.values())}
-    
+
     # Cache the report (TTL: 2 minutes)
     cache.set_sales_report(
         result,
@@ -287,7 +283,7 @@ def get_sales_by_day(
         "daily",
         TTL.REPORT_DEFAULT,
     )
-    
+
     return result
 
 
@@ -338,11 +334,11 @@ def get_z_report(
     Includes sales summary, payment breakdown, refunds/returns, and cash reconciliation.
     """
     cache = get_cache()
-    
+
     # Default to today if no date provided
     if not report_date:
         report_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    
+
     # Try cache first (EOD Reports: 1-5 min TTL)
     cached_report = cache.get_eod_report(report_date)
     if cached_report:
@@ -485,10 +481,10 @@ def get_z_report(
         shift_end_time=report_time,
         employee_count=db.query(m.User).count(),
     )
-    
+
     # Cache the Z-report (TTL: 2 minutes, Reports: 1-5 min range)
     cache.set_eod_report(z_report.model_dump(), report_date, TTL.REPORT_DEFAULT)
-    
+
     return z_report
 
 
