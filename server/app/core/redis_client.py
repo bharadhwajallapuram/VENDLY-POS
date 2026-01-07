@@ -4,10 +4,14 @@ Redis client for temporary token storage and caching
 
 import json
 import logging
-from typing import Any, Optional
+from types import ModuleType
+from typing import Any, Optional, Union
 
+redis_module: Optional[ModuleType]
 try:
-    import redis as redis_module
+    import redis
+
+    redis_module = redis
 except ImportError:
     redis_module = None
 
