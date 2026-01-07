@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 try:
     import redis as redis_module
 except ImportError:
-    redis_module = None  # type: ignore
+    redis_module = None
 
 from app.core.config import settings
 

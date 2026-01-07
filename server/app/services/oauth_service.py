@@ -259,10 +259,10 @@ class OAuthService:
 
         if existing:
             # Update existing
-            existing.api_key = token_data.get("access_token")  # type: ignore[assignment]
-            existing.api_secret = token_data.get("refresh_token")  # type: ignore[assignment]
+            existing.api_key = token_data.get("access_token")
+            existing.api_secret = token_data.get("refresh_token")
             # existing.token_expires_at = calculate expiry
-            existing.is_active = True  # type: ignore[assignment]
+            existing.is_active = True
             self.db.commit()
             return existing
 
@@ -297,10 +297,13 @@ class OAuthService:
         if not connection or not connection.api_secret:
             return False
 
-        provider = connection.provider
-        if hasattr(provider, "value"):
-            provider = IntegrationProvider(provider)
-        config = OAUTH_CONFIGS.get(provider)
+        # Get the provider enum value for config lookup
+        provider_key: IntegrationProvider
+        if hasattr(connection.provider, "value"):
+            provider_key = IntegrationProvider(connection.provider.value)
+        else:
+            provider_key = IntegrationProvider(connection.provider)
+        config = OAUTH_CONFIGS.get(provider_key)
         if not config:
             return False
 
@@ -339,7 +342,7 @@ class OAuthService:
 
         if response.status_code != 200:
             logger.error(f"Token refresh failed: {response.text}")
-            connection.is_active = False  # type: ignore[assignment]
+            connection.is_active = False
             self.db.commit()
             return False
 

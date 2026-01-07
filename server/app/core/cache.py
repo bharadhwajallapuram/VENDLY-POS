@@ -551,10 +551,10 @@ def cached(
         import asyncio
 
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
+            return async_wrapper  # type: ignore[return-value]
         return sync_wrapper
 
-    return decorator  # type: ignore[return-value]
+    return decorator
 
 
 def _get_default_ttl(prefix: CachePrefix) -> int:

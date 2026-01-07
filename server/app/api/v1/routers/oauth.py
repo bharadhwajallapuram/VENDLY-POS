@@ -208,9 +208,9 @@ async def disconnect(
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    connection.is_active = False  # type: ignore[assignment]
-    connection.api_key = None  # type: ignore[assignment]
-    connection.api_secret = None  # type: ignore[assignment]
+    connection.is_active = False
+    connection.api_key = None
+    connection.api_secret = None
     db.commit()
 
     return {"message": "Disconnected successfully"}
