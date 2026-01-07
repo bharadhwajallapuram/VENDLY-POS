@@ -15,7 +15,7 @@ from app.api.v1.schemas.products import (
     ProductIn,
     ProductOut,
 )
-from app.core.cache import CachePrefix, TTL, get_cache
+from app.core.cache import TTL, CachePrefix, get_cache
 from app.core.deps import get_current_user, get_db
 from app.db import models as m
 from app.services.price_suggest import get_price_recommendations

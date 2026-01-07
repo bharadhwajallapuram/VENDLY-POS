@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from ....schemas.payments import (
     StripePaymentIntentRequest,

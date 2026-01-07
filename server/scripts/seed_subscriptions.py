@@ -10,17 +10,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime, timedelta
+
+from app.db.models import User
 from app.db.session import SessionLocal
 from app.db.subscription_models import (
+    BillingInterval,
     Plan,
-    Tenant,
     Store,
-    TenantUser,
     Subscription,
     SubscriptionStatus,
-    BillingInterval,
+    Tenant,
+    TenantUser,
 )
-from app.db.models import User
 
 
 def seed_plans(db):

@@ -279,7 +279,7 @@ def create_store(
         raise HTTPException(status_code=404, detail="No tenant found for user")
 
     # Check plan limits
-    from app.db.subscription_models import Subscription, Plan
+    from app.db.subscription_models import Plan, Subscription
 
     subscription = (
         db.query(Subscription)
@@ -584,12 +584,12 @@ def create_transfer(
     current_user=Depends(get_current_user),
 ):
     """Create a new inter-store transfer request"""
+    from app.db.models import Product
     from app.db.multistore_models import (
         StoreTransfer,
         StoreTransferItem,
         TransferHistory,
     )
-    from app.db.models import Product
 
     tenant = get_user_tenant(db, current_user.id)
     if not tenant:
@@ -848,7 +848,7 @@ def receive_transfer(
     current_user=Depends(get_current_user),
 ):
     """Mark transfer as received and update inventory"""
-    from app.db.multistore_models import StoreTransfer, TransferHistory, StoreInventory
+    from app.db.multistore_models import StoreInventory, StoreTransfer, TransferHistory
 
     tenant = get_user_tenant(db, current_user.id)
     if not tenant:

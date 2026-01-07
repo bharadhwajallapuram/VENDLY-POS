@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.db import models as m
 
-
 # Accepted payment methods
 VALID_PAYMENT_METHODS = [
     "cash",

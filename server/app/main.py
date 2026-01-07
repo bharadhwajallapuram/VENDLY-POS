@@ -67,6 +67,7 @@ def init_database():
 def init_subscription_plans():
     """Initialize subscription plans"""
     from sqlalchemy.orm import Session
+
     from app.db.session import engine
     from app.db.subscription_models import Base as SubscriptionBase
 

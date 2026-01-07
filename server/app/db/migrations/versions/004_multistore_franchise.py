@@ -5,9 +5,9 @@ Revises: subscription_001
 Create Date: 2024-01-15
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '004_multistore_franchise'

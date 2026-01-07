@@ -7,10 +7,11 @@ Endpoints for subscription management, billing, and tenant operations
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
+from app.api.v1.routers.payments import verify_stripe_signature
 from app.core.deps import get_current_user, get_db
 from app.db.subscription_models import (
     BillingInterval,
@@ -35,7 +36,6 @@ from app.services.subscription_service import (
     handle_subscription_deleted,
     handle_subscription_updated,
 )
-from app.api.v1.routers.payments import verify_stripe_signature
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
