@@ -4,15 +4,14 @@ Redis client for temporary token storage and caching
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from types import ModuleType
+from typing import Any, Optional
 
-if TYPE_CHECKING:
-    import redis
-
+redis_module: Optional[ModuleType] = None
 try:
-    import redis as redis_module
+    import redis as redis_module  # type: ignore[no-redef]
 except ImportError:
-    redis_module = None
+    pass
 
 from app.core.config import settings
 

@@ -5,11 +5,12 @@ OAuth callbacks and integration management
 """
 
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+from sqlalchemy import Column
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -208,9 +209,9 @@ async def disconnect(
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    connection.is_active = False
-    connection.api_key = None
-    connection.api_secret = None
+    connection.is_active = cast(Column[bool], False)
+    connection.api_key = cast(Column[str], None)
+    connection.api_secret = cast(Column[str], None)
     db.commit()
 
     return {"message": "Disconnected successfully"}

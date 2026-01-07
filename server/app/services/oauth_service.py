@@ -12,10 +12,11 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlencode
 
 import httpx
+from sqlalchemy import Column
 from sqlalchemy.orm import Session
 
 from app.db.integration_models import (
@@ -259,10 +260,10 @@ class OAuthService:
 
         if existing:
             # Update existing
-            existing.api_key = token_data.get("access_token")
-            existing.api_secret = token_data.get("refresh_token")
+            existing.api_key = cast(Column[str], token_data.get("access_token"))
+            existing.api_secret = cast(Column[str], token_data.get("refresh_token"))
             # existing.token_expires_at = calculate expiry
-            existing.is_active = True
+            existing.is_active = cast(Column[bool], True)
             self.db.commit()
             return existing
 
@@ -342,7 +343,7 @@ class OAuthService:
 
         if response.status_code != 200:
             logger.error(f"Token refresh failed: {response.text}")
-            connection.is_active = False
+            connection.is_active = cast(Column[bool], False)
             self.db.commit()
             return False
 
