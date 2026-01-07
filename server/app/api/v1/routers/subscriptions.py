@@ -577,8 +577,8 @@ def create_subscription_checkout(
             tenant_id=tenant_user.tenant_id,
             plan_id=data.plan_id,
             billing_interval=data.billing_interval,
-            success_url=data.success_url,
-            cancel_url=data.cancel_url,
+            success_url=data.success_url or "",
+            cancel_url=data.cancel_url or "",
         )
         return result
     except ValueError as e:

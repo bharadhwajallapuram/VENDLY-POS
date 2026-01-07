@@ -297,7 +297,10 @@ class OAuthService:
         if not connection or not connection.api_secret:
             return False
 
-        config = OAUTH_CONFIGS.get(connection.provider)
+        provider = connection.provider
+        if hasattr(provider, "value"):
+            provider = IntegrationProvider(provider)
+        config = OAUTH_CONFIGS.get(provider)
         if not config:
             return False
 
@@ -341,9 +344,9 @@ class OAuthService:
             return False
 
         token_data = response.json()
-        connection.api_key = token_data.get("access_token")  # type: ignore[assignment]
+        connection.api_key = token_data.get("access_token")
         if "refresh_token" in token_data:
-            connection.api_secret = token_data["refresh_token"]  # type: ignore[assignment]
+            connection.api_secret = token_data["refresh_token"]
 
         self.db.commit()
         return True

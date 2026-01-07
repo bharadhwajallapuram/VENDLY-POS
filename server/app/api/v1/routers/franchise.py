@@ -7,7 +7,7 @@ Royalty calculation, fee tracking, franchise reporting
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field

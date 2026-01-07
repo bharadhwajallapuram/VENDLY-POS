@@ -501,7 +501,7 @@ def cached(
 
             # Execute function and cache result
             logger.debug(f"Cache MISS for {cache_key}")
-            result = await func(*args, **kwargs)
+            result = await func(*args, **kwargs)  # type: ignore[misc]
 
             if result is not None:
                 # Determine TTL based on prefix if not specified
@@ -551,10 +551,10 @@ def cached(
         import asyncio
 
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper  # type: ignore[return-value]
-        return sync_wrapper  # type: ignore[return-value]
+            return async_wrapper
+        return sync_wrapper
 
-    return decorator
+    return decorator  # type: ignore[return-value]
 
 
 def _get_default_ttl(prefix: CachePrefix) -> int:
