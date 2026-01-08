@@ -179,6 +179,34 @@ class ApiService {
     return this.request(`/reports/sales-by-hour${query}`);
   }
 
+  async getReportSummary(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const query = params.toString() ? `?${params}` : '';
+    return this.request(`/reports/summary${query}`);
+  }
+
+  async getZReport(reportDate?: string) {
+    const query = reportDate ? `?report_date=${reportDate}` : '';
+    return this.request(`/reports/z-report${query}`);
+  }
+
+  async reconcileCash(actualCash: number, reportDate?: string, notes?: string) {
+    const params = new URLSearchParams();
+    if (reportDate) params.append('report_date', reportDate);
+    const query = params.toString() ? `?${params}` : '';
+    return this.request(`/reports/z-report/reconcile${query}`, {
+      method: 'POST',
+      body: { actual_cash: actualCash, notes },
+    });
+  }
+
+  async getSalesSummary(reportDate?: string) {
+    const query = reportDate ? `?report_date=${reportDate}` : '';
+    return this.request(`/reports/sales-summary${query}`);
+  }
+
   // ========== Stores ==========
   async getStores() {
     return this.request('/stores');

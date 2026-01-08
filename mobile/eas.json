@@ -30,7 +30,8 @@
         "buildType": "apk"
       },
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "simulator": true
       }
     },
     "production": {

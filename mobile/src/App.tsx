@@ -20,6 +20,9 @@ import {
   ReturnsScreen,
   RegisterScreen,
   DashboardScreen,
+  ReportsScreen,
+  PaymentsScreen,
+  EODReportsScreen,
 } from './screens';
 import { useAuthStore } from './store/authStore';
 
@@ -110,6 +113,9 @@ function MoreStack() {
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Returns" component={ReturnsScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Sales Reports' }} />
+      <Stack.Screen name="Payments" component={PaymentsScreen} options={{ title: 'Payments' }} />
+      <Stack.Screen name="EODReports" component={EODReportsScreen} options={{ title: 'End of Day' }} />
     </Stack.Navigator>
   );
 }

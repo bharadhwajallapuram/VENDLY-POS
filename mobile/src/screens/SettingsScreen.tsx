@@ -14,11 +14,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useSyncStore } from '../store/syncStore';
 import { offlineService } from '../services/offline';
 
 export const SettingsScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const { user, logout } = useAuthStore();
   const { isOnline, pendingActions, lastSyncAt, syncPendingActions, isSyncing } = useSyncStore();
   
@@ -204,6 +206,75 @@ export const SettingsScreen: React.FC = () => {
               thumbColor={darkMode ? '#3b82f6' : '#64748b'}
             />
           </View>
+        </View>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('Reports')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="bar-chart-outline" size={22} color="#3b82f6" />
+              <Text style={styles.settingLabel}>Sales Reports</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
+          </TouchableOpacity>
+
+          <View style={styles.settingDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('Payments')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="wallet-outline" size={22} color="#10b981" />
+              <Text style={styles.settingLabel}>Payments</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
+          </TouchableOpacity>
+
+          <View style={styles.settingDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('EODReports')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="document-text-outline" size={22} color="#f59e0b" />
+              <Text style={styles.settingLabel}>End of Day Reports</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
+          </TouchableOpacity>
+
+          <View style={styles.settingDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('Returns')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="return-down-back-outline" size={22} color="#8b5cf6" />
+              <Text style={styles.settingLabel}>Returns & Refunds</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
+          </TouchableOpacity>
+
+          <View style={styles.settingDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('Register')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="calculator-outline" size={22} color="#ec4899" />
+              <Text style={styles.settingLabel}>Cash Register</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#475569" />
+          </TouchableOpacity>
         </View>
       </View>
 
