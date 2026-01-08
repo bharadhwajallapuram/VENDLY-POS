@@ -56,14 +56,10 @@ class ApiService {
 
   // ========== Auth ==========
   async login(email: string, password: string) {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-
     const response = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {

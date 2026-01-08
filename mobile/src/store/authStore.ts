@@ -43,11 +43,15 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const response = await apiService.login(email, password);
+          const token = response.access_token;
+          
+          // Fetch user details using the token
+          const user = await apiService.getCurrentUser(token);
           
           set({
             isAuthenticated: true,
-            user: response.user,
-            token: response.access_token,
+            user: user as User,
+            token: token,
             isLoading: false,
           });
 
