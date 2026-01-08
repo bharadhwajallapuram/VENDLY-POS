@@ -10,6 +10,9 @@
       "node": "20.19.4",
       "android": {
         "image": "latest"
+      },
+      "ios": {
+        "image": "latest"
       }
     },
     "preview": {
@@ -17,12 +20,18 @@
       "node": "20.19.4",
       "android": {
         "image": "latest"
+      },
+      "ios": {
+        "image": "latest"
       }
     },
     "production": {
       "autoIncrement": true,
       "node": "20.19.4",
       "android": {
+        "image": "latest"
+      },
+      "ios": {
         "image": "latest"
       }
     }
