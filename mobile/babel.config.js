@@ -3,6 +3,8 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      // Transform import.meta.env for web compatibility
+      ['transform-inline-environment-variables'],
       'react-native-reanimated/plugin',
     ],
   };

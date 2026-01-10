@@ -6,3 +6,6 @@ export { SettingsScreen } from './SettingsScreen';
 export { ReturnsScreen } from './ReturnsScreen';
 export { RegisterScreen } from './RegisterScreen';
 export { DashboardScreen } from './DashboardScreen';
+export { ReportsScreen } from './ReportsScreen';
+export { PaymentsScreen } from './PaymentsScreen';
+export { EODReportsScreen } from './EODReportsScreen';

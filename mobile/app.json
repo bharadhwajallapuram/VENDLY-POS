@@ -3,6 +3,7 @@
     "name": "Vendly POS",
     "slug": "vendly",
     "version": "1.0.0",
+    "scheme": "vendly",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -43,7 +44,9 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
     },
     "plugins": [
       [

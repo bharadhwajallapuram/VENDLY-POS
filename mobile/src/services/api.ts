@@ -56,14 +56,10 @@ class ApiService {
 
   // ========== Auth ==========
   async login(email: string, password: string) {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-
     const response = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -181,6 +177,34 @@ class ApiService {
   async getSalesByHour(date?: string) {
     const query = date ? `?date=${date}` : '';
     return this.request(`/reports/sales-by-hour${query}`);
+  }
+
+  async getReportSummary(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const query = params.toString() ? `?${params}` : '';
+    return this.request(`/reports/summary${query}`);
+  }
+
+  async getZReport(reportDate?: string) {
+    const query = reportDate ? `?report_date=${reportDate}` : '';
+    return this.request(`/reports/z-report${query}`);
+  }
+
+  async reconcileCash(actualCash: number, reportDate?: string, notes?: string) {
+    const params = new URLSearchParams();
+    if (reportDate) params.append('report_date', reportDate);
+    const query = params.toString() ? `?${params}` : '';
+    return this.request(`/reports/z-report/reconcile${query}`, {
+      method: 'POST',
+      body: { actual_cash: actualCash, notes },
+    });
+  }
+
+  async getSalesSummary(reportDate?: string) {
+    const query = reportDate ? `?report_date=${reportDate}` : '';
+    return this.request(`/reports/sales-summary${query}`);
   }
 
   // ========== Stores ==========
