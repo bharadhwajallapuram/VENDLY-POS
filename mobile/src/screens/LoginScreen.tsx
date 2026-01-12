@@ -11,14 +11,13 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/authStore';
 import { Button, Input, colors, spacing, fontSize, fontWeight, radius } from '../ui';
 
 export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isLoading } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -26,11 +25,30 @@ export const LoginScreen: React.FC = () => {
       return;
     }
     
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      login();
-    }, 1000);
+    const success = await login(email, password);
+    if (!success) {
+      // Get fresh error from store
+      const currentError = useAuthStore.getState().error;
+      Alert.alert('Login Failed', currentError || 'Unable to connect to server. Using demo mode.');
+      // Fall back to demo mode
+      useAuthStore.setState({ 
+        isAuthenticated: true, 
+        user: { id: 1, email: email, full_name: 'Demo User', role: 'admin' },
+        error: null,
+        isLoading: false 
+      });
+    }
+  };
+  
+  // Demo login - sets authenticated without API call
+  const handleDemoLogin = () => {
+    // Skip API call entirely for demo
+    useAuthStore.setState({ 
+      isAuthenticated: true, 
+      user: { id: 1, email: 'demo@vendly.com', full_name: 'Demo User', role: 'admin' },
+      token: 'demo-token',
+      isLoading: false 
+    });
   };
 
   return (
@@ -83,7 +101,7 @@ export const LoginScreen: React.FC = () => {
 
           <Button
             title="Demo Login (Skip)"
-            onPress={login}
+            onPress={handleDemoLogin}
             variant="outline"
             fullWidth
           />

@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,7 +40,6 @@ import {
   Button,
   IconButton,
   Badge,
-  Card,
   Avatar,
   EmptyState,
   colors,
@@ -59,7 +59,15 @@ interface Product {
   price: number;
   barcode?: string;
   category?: string;
+  category_id?: number;
   stock_quantity: number;
+  image_url?: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  description?: string;
 }
 
 interface Customer {
@@ -73,10 +81,35 @@ interface Customer {
   created_at: string;
 }
 
+interface Receipt {
+  receiptNumber: string;
+  date: Date;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    discount: number;
+  }>;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paymentMethod: string;
+  cashier: string;
+  customerId?: number;
+  customerName?: string;
+  storeInfo: {
+    name: string;
+    address: string;
+    phone: string;
+    website: string;
+  };
+}
+
 export const POSScreen: React.FC = () => {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   
   // Modal states
   const [showScanner, setShowScanner] = useState(false);
@@ -85,13 +118,15 @@ export const POSScreen: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showHeldOrdersModal, setShowHeldOrdersModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Selected customer
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   
   // Last receipt for display
-  const [lastReceipt, setLastReceipt] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [lastReceipt, setLastReceipt] = useState<Receipt | null>(null);
 
   const { isOnline, addPendingAction } = useSyncStore();
   const { holdOrder, getHeldOrderCount } = useOrdersStore();
@@ -114,14 +149,18 @@ export const POSScreen: React.FC = () => {
 
   const heldOrderCount = getHeldOrderCount();
 
-  // Fetch products
+  // Fetch products - only when a category is selected (segment-first approach like web)
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ['products', searchQuery, selectedCategory],
+    queryKey: ['products', searchQuery, selectedCategory?.id],
     queryFn: async () => {
+      // Only load products when a category is selected
+      if (!selectedCategory) {
+        return [];
+      }
       if (isOnline) {
         const data = await apiService.getProducts({
           search: searchQuery || undefined,
-          category: selectedCategory || undefined,
+          category_id: selectedCategory.id,
         });
         // Cache for offline use
         await offlineService.cacheProducts(data as Product[]);
@@ -133,18 +172,48 @@ export const POSScreen: React.FC = () => {
       }
       return (await offlineService.getCachedProducts()) || [];
     },
+    enabled: !!selectedCategory, // Only fetch when a category is selected
   });
 
-  // Fetch categories
-  const { data: categories = [] } = useQuery<string[]>({
+  // Helper function for category icons (matching web client)
+  const getCategoryIcon = (categoryName: string): string => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('beverage') || name.includes('drink')) return '🥤';
+    if (name.includes('snack') || name.includes('cookie')) return '🍪';
+    if (name.includes('dairy') || name.includes('milk')) return '🥛';
+    if (name.includes('bakery') || name.includes('bread')) return '🥐';
+    if (name.includes('electronic') || name.includes('tech')) return '📱';
+    if (name.includes('grocery') || name.includes('groceries')) return '🛒';
+    if (name.includes('personal') || name.includes('care')) return '🧴';
+    if (name.includes('frozen') || name.includes('ice')) return '🧊';
+    if (name.includes('home') || name.includes('kitchen')) return '🏠';
+    if (name.includes('fruit') || name.includes('vegetable')) return '🍎';
+    if (name.includes('meat') || name.includes('poultry')) return '🥩';
+    if (name.includes('seafood') || name.includes('fish')) return '🐟';
+    if (name.includes('candy') || name.includes('sweet')) return '🍬';
+    if (name.includes('health') || name.includes('medicine')) return '💊';
+    if (name.includes('pet')) return '🐾';
+    if (name.includes('baby')) return '👶';
+    if (name.includes('toy')) return '🧸';
+    if (name.includes('cleaning') || name.includes('household')) return '🧹';
+    return '📦'; // default
+  };
+
+  // Handle back to category/segment view
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setSearchQuery('');
+  };
+
+  // Fetch categories with full objects (id, name)
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
       if (isOnline) {
-        const data = await apiService.getCategories();
-        await offlineService.cacheCategories(data as string[]);
-        return data as string[];
+        const data = await apiService.getCategoriesWithIds();
+        return data as Category[];
       }
-      return (await offlineService.getCachedCategories()) || [];
+      return [];
     },
   });
 
@@ -163,7 +232,7 @@ export const POSScreen: React.FC = () => {
     });
   }, [addItem]);
 
-  const handleBarcodeScan = useCallback((barcode: string, type: string) => {
+  const handleBarcodeScan = useCallback((barcode: string, _type: string) => {
     const product = products.find(p => p.barcode === barcode);
     if (product) {
       handleAddToCart(product);
@@ -315,29 +384,51 @@ export const POSScreen: React.FC = () => {
       setCartDiscount(0);
       setShowPaymentModal(false);
       setShowReceiptModal(true);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Payment failed');
+    } catch (error: unknown) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Payment failed');
     } finally {
       setProcessingPayment(false);
     }
   };
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity
-      style={[styles.productCard, item.stock_quantity <= 0 && styles.productCardDisabled]}
-      onPress={() => handleAddToCart(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.productImage}>
-        <Ionicons name="cube-outline" size={28} color="#64748b" />
-      </View>
-      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-      <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
-      <Text style={[styles.productStock, item.stock_quantity <= 0 && styles.outOfStock]}>
-        {item.stock_quantity > 0 ? `${item.stock_quantity} in stock` : 'Out of stock'}
-      </Text>
-    </TouchableOpacity>
-  );
+  // Component for product card with image handling
+  const ProductCard = ({ item }: { item: Product }) => {
+    const [imageError, setImageError] = useState(false);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.productCard, item.stock_quantity <= 0 && styles.productCardDisabled]}
+        onPress={() => handleAddToCart(item)}
+        activeOpacity={0.7}
+      >
+        {/* Product Image with fallback like web client */}
+        <View style={styles.productImageContainer}>
+          {item.image_url && !imageError ? (
+            <Image
+              source={{ uri: item.image_url }}
+              style={styles.productImage}
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={styles.productImageFallback}>
+              <Text style={styles.productImageFallbackText}>
+                {item.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productSku} numberOfLines={1}>{item.sku || 'No SKU'}</Text>
+        <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={[styles.productStock, item.stock_quantity <= 0 && styles.outOfStock]}>
+          Stock: {item.stock_quantity}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderProduct = ({ item }: { item: Product }) => <ProductCard item={item} />;
 
   const renderCartItem = ({ item }: { item: typeof cartItems[0] }) => (
     <View style={styles.cartItem}>
@@ -423,49 +514,82 @@ export const POSScreen: React.FC = () => {
             />
           </View>
 
-          {/* Categories */}
-          <FlatList
-            horizontal
-            data={['All', ...categories]}
-            keyExtractor={(item) => item}
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoriesContainer}
-            contentContainerStyle={styles.categoriesContent}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.categoryChip,
-                  (item === 'All' ? !selectedCategory : selectedCategory === item) &&
-                    styles.categoryChipActive,
-                ]}
-                onPress={() => setSelectedCategory(item === 'All' ? null : item)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    (item === 'All' ? !selectedCategory : selectedCategory === item) &&
-                      styles.categoryChipTextActive,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-
-          {/* Products Grid */}
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#3b82f6" style={styles.loader} />
+          {/* Show Categories Grid or Products based on selection */}
+          {!selectedCategory ? (
+            /* Category/Segment Selection View */
+            <View style={styles.categoryGridContainer}>
+              <Text style={styles.sectionTitle}>Select a Category</Text>
+              <FlatList
+                data={categories}
+                keyExtractor={(item) => item.id.toString()}
+                numColumns={isTablet ? 4 : 2}
+                contentContainerStyle={styles.categoryGrid}
+                showsVerticalScrollIndicator={false}
+                key={isTablet ? 'cat-tablet' : 'cat-phone'}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.categoryCard}
+                    onPress={() => setSelectedCategory(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.categoryIcon}>{getCategoryIcon(item.name)}</Text>
+                    <Text style={styles.categoryCardText} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyCategories}>
+                    <Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />
+                    <Text style={styles.emptyCategoriesText}>No categories available</Text>
+                  </View>
+                }
+              />
+            </View>
           ) : (
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id.toString()}
-              numColumns={isTablet ? 4 : 3}
-              renderItem={renderProduct}
-              contentContainerStyle={styles.productsGrid}
-              showsVerticalScrollIndicator={false}
-              key={isTablet ? 'tablet' : 'phone'}
-            />
+            /* Products View for Selected Category */
+            <>
+              {/* Back Button and Category Header */}
+              <View style={styles.categoryHeader}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={handleBackToCategories}
+                >
+                  <Ionicons name="arrow-back" size={20} color={colors.text} />
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+                <View style={styles.categoryTitleContainer}>
+                  <Text style={styles.categoryHeaderIcon}>{getCategoryIcon(selectedCategory.name)}</Text>
+                  <Text style={styles.categoryHeaderTitle}>{selectedCategory.name}</Text>
+                </View>
+              </View>
+
+              {/* Product count */}
+              <Text style={styles.productCount}>
+                {products.length} product{products.length !== 1 ? 's' : ''}
+              </Text>
+
+              {/* Products Grid */}
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#0ea5e9" style={styles.loader} />
+              ) : (
+                <FlatList
+                  data={products}
+                  keyExtractor={(item) => item.id.toString()}
+                  numColumns={isTablet ? 4 : 3}
+                  renderItem={renderProduct}
+                  contentContainerStyle={styles.productsGrid}
+                  showsVerticalScrollIndicator={false}
+                  key={isTablet ? 'tablet' : 'phone'}
+                  ListEmptyComponent={
+                    <View style={styles.emptyProducts}>
+                      <Ionicons name="cube-outline" size={48} color={colors.textMuted} />
+                      <Text style={styles.emptyProductsText}>No products in this category</Text>
+                    </View>
+                  }
+                />
+              )}
+            </>
           )}
         </View>
 
@@ -543,7 +667,7 @@ export const POSScreen: React.FC = () => {
               style={styles.discountButton}
               onPress={() => setShowDiscountModal(true)}
             >
-              <Ionicons name="pricetag-outline" size={18} color="#3b82f6" />
+              <Ionicons name="pricetag-outline" size={18} color="#0ea5e9" />
               <Text style={styles.discountButtonText}>
                 {discount > 0 ? `${discount}% discount applied` : 'Add Discount'}
               </Text>
@@ -680,6 +804,108 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: colors.white,
   },
+  // Category Grid View styles (segment-first approach)
+  categoryGridContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  categoryGrid: {
+    paddingBottom: spacing.xl,
+  },
+  categoryCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    margin: spacing.xs,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+    maxWidth: isTablet ? '23%' : '47%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  categoryIcon: {
+    fontSize: 40,
+    marginBottom: spacing.sm,
+  },
+  categoryCardText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+  },
+  emptyCategories: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyCategoriesText: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    marginTop: spacing.md,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    gap: spacing.xs,
+  },
+  backButtonText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  categoryTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  categoryHeaderIcon: {
+    fontSize: 24,
+  },
+  categoryHeaderTitle: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+  },
+  productCount: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  emptyProducts: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyProductsText: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    marginTop: spacing.md,
+  },
   loader: {
     flex: 1,
     justifyContent: 'center',
@@ -700,27 +926,47 @@ const styles = StyleSheet.create({
   productCardDisabled: {
     opacity: 0.5,
   },
-  productImage: {
-    width: 50,
-    height: 50,
+  productImageContainer: {
+    width: '100%',
+    height: 60,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
     backgroundColor: colors.surfaceHover,
-    borderRadius: radius.sm,
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  productImageFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+  },
+  productImageFallbackText: {
+    fontSize: 24,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   productName: {
     color: colors.text,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
     height: 32,
   },
+  productSku: {
+    color: colors.textMuted,
+    fontSize: 10,
+    marginBottom: 2,
+  },
   productPrice: {
-    color: colors.primary,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
   },
   productStock: {
     color: colors.textMuted,

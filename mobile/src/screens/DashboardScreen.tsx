@@ -1,8 +1,9 @@
 /**
  * Dashboard Screen - Sales summary and analytics
+ * Fetches data dynamically from API, matches web client theme
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,20 +12,24 @@ import {
   TouchableOpacity,
   Dimensions,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { apiService } from '../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type TimeRange = 'today' | 'week' | 'month';
 
 interface SalesSummary {
-  totalSales: number;
-  transactionCount: number;
-  averageTicket: number;
-  itemsSold: number;
-  returns: number;
-  netSales: number;
+  total_sales: number;
+  total_revenue: number;
+  total_tax: number;
+  total_discount: number;
+  items_sold: number;
+  transaction_count: number;
+  average_transaction: number;
+  returns_amount: number;
 }
 
 interface TopProduct {
@@ -34,79 +39,99 @@ interface TopProduct {
   revenue: number;
 }
 
-interface HourlySale {
-  hour: string;
-  amount: number;
+interface PaymentBreakdown {
+  method: string;
+  count: number;
+  revenue: number;
+  percentage: number;
 }
-
-// Mock data
-const MOCK_SUMMARY: Record<TimeRange, SalesSummary> = {
-  today: {
-    totalSales: 2847.50,
-    transactionCount: 42,
-    averageTicket: 67.80,
-    itemsSold: 156,
-    returns: 89.99,
-    netSales: 2757.51,
-  },
-  week: {
-    totalSales: 18543.25,
-    transactionCount: 287,
-    averageTicket: 64.60,
-    itemsSold: 1024,
-    returns: 425.00,
-    netSales: 18118.25,
-  },
-  month: {
-    totalSales: 72150.00,
-    transactionCount: 1156,
-    averageTicket: 62.41,
-    itemsSold: 4250,
-    returns: 1850.00,
-    netSales: 70300.00,
-  },
-};
-
-const TOP_PRODUCTS: TopProduct[] = [
-  { id: 1, name: 'Wireless Mouse Pro', quantity: 45, revenue: 1349.55 },
-  { id: 2, name: 'USB-C Hub 7-in-1', quantity: 38, revenue: 1710.00 },
-  { id: 3, name: 'Mechanical Keyboard', quantity: 28, revenue: 2519.72 },
-  { id: 4, name: 'Webcam HD 1080p', quantity: 25, revenue: 1249.75 },
-  { id: 5, name: 'Laptop Stand', quantity: 22, revenue: 879.78 },
-];
-
-const HOURLY_SALES: HourlySale[] = [
-  { hour: '9AM', amount: 150 },
-  { hour: '10AM', amount: 280 },
-  { hour: '11AM', amount: 420 },
-  { hour: '12PM', amount: 580 },
-  { hour: '1PM', amount: 450 },
-  { hour: '2PM', amount: 320 },
-  { hour: '3PM', amount: 390 },
-  { hour: '4PM', amount: 520 },
-  { hour: '5PM', amount: 680 },
-  { hour: '6PM', amount: 450 },
-];
 
 export const DashboardScreen: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('today');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  // Dynamic data
+  const [summary, setSummary] = useState<SalesSummary | null>(null);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown[]>([]);
 
-  const summary = MOCK_SUMMARY[timeRange];
-  const maxHourlySale = Math.max(...HOURLY_SALES.map(s => s.amount));
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
-  };
-
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(1)}k`;
+  const getDateRange = useCallback(() => {
+    const today = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case 'week':
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+      default:
+        startDate = today;
     }
-    return `$${amount.toFixed(2)}`;
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0],
+    };
+  }, [timeRange]);
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setError('');
+      const { startDate, endDate } = getDateRange();
+      
+      // Load dashboard summary data
+      const summaryData = await apiService.getReportSummary(startDate, endDate).catch(() => null);
+
+      if (summaryData) {
+        setSummary(summaryData as SalesSummary);
+        // Extract top products if available
+        if ((summaryData as any).top_products) {
+          setTopProducts((summaryData as any).top_products.slice(0, 5));
+        }
+        // Extract payment breakdown if available
+        if ((summaryData as any).payment_methods) {
+          setPaymentBreakdown((summaryData as any).payment_methods);
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [getDateRange]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData();
   };
+
+  // Default values if no data
+  const netSales = summary ? summary.total_revenue - (summary.returns_amount || 0) : 0;
+  const transactionCount = summary?.total_sales || 0;
+  const averageTicket = summary?.average_transaction || (transactionCount > 0 ? summary.total_revenue / transactionCount : 0);
+  const itemsSold = summary?.items_sold || 0;
+  const returns = summary?.returns_amount || 0;
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0ea5e9" />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -138,178 +163,203 @@ export const DashboardScreen: React.FC = () => {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />
         }
       >
-        {/* Main Stats */}
-        <View style={styles.mainStatsRow}>
-          <View style={[styles.mainStatCard, styles.primaryStatCard]}>
-            <Text style={styles.mainStatLabel}>Net Sales</Text>
-            <Text style={styles.mainStatValue}>${summary.netSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
-            <View style={styles.statChange}>
-              <Ionicons name="trending-up" size={14} color="#22c55e" />
-              <Text style={styles.statChangeText}>+12.5% vs last {timeRange}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#1e3a5f' }]}>
-              <Ionicons name="receipt-outline" size={20} color="#3b82f6" />
-            </View>
-            <Text style={styles.statValue}>{summary.transactionCount}</Text>
-            <Text style={styles.statLabel}>Transactions</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#422006' }]}>
-              <Ionicons name="trending-up-outline" size={20} color="#f59e0b" />
-            </View>
-            <Text style={styles.statValue}>${summary.averageTicket.toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Avg. Ticket</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#052e16' }]}>
-              <Ionicons name="cube-outline" size={20} color="#22c55e" />
-            </View>
-            <Text style={styles.statValue}>{summary.itemsSold}</Text>
-            <Text style={styles.statLabel}>Items Sold</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#450a0a' }]}>
-              <Ionicons name="arrow-undo-outline" size={20} color="#ef4444" />
-            </View>
-            <Text style={styles.statValue}>${summary.returns.toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Returns</Text>
-          </View>
-        </View>
-
-        {/* Hourly Sales Chart */}
-        <View style={styles.chartCard}>
-          <Text style={styles.sectionTitle}>Hourly Sales</Text>
-          <View style={styles.chartContainer}>
-            {HOURLY_SALES.map((sale, index) => (
-              <View key={index} style={styles.chartBar}>
-                <View 
-                  style={[
-                    styles.chartBarFill,
-                    { height: `${(sale.amount / maxHourlySale) * 100}%` }
-                  ]} 
-                />
-                <Text style={styles.chartBarLabel}>{sale.hour}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Top Products */}
-        <View style={styles.topProductsCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Selling Products</Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View All</Text>
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadDashboardData}>
+              <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
-          {TOP_PRODUCTS.map((product, index) => (
-            <View key={product.id} style={styles.productRow}>
-              <View style={styles.productRank}>
-                <Text style={styles.productRankText}>{index + 1}</Text>
+        ) : (
+          <>
+            {/* Main Stats */}
+            <View style={styles.mainStatsRow}>
+              <View style={[styles.mainStatCard, styles.primaryStatCard]}>
+                <Text style={styles.mainStatLabel}>Net Sales</Text>
+                <Text style={styles.mainStatValue}>${netSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                <View style={styles.statChange}>
+                  <Ionicons name="trending-up" size={14} color="#22c55e" />
+                  <Text style={styles.statChangeText}>vs last {timeRange}</Text>
+                </View>
               </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productQuantity}>{product.quantity} sold</Text>
-              </View>
-              <Text style={styles.productRevenue}>${product.revenue.toFixed(2)}</Text>
             </View>
-          ))}
-        </View>
 
-        {/* Payment Methods Breakdown */}
-        <View style={styles.paymentBreakdownCard}>
-          <Text style={styles.sectionTitle}>Payment Methods</Text>
-          <View style={styles.paymentMethods}>
-            <View style={styles.paymentMethod}>
-              <View style={[styles.paymentDot, { backgroundColor: '#3b82f6' }]} />
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>Card</Text>
-                <Text style={styles.paymentAmount}>$1,847.50</Text>
+            {/* Quick Stats Grid */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#e0f2fe' }]}>
+                  <Ionicons name="receipt-outline" size={20} color="#0ea5e9" />
+                </View>
+                <Text style={styles.statValue}>{transactionCount}</Text>
+                <Text style={styles.statLabel}>Transactions</Text>
               </View>
-              <Text style={styles.paymentPercent}>65%</Text>
-            </View>
-            <View style={styles.paymentMethod}>
-              <View style={[styles.paymentDot, { backgroundColor: '#22c55e' }]} />
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>Cash</Text>
-                <Text style={styles.paymentAmount}>$710.00</Text>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#fef3c7' }]}>
+                  <Ionicons name="trending-up-outline" size={20} color="#f59e0b" />
+                </View>
+                <Text style={styles.statValue}>${averageTicket.toFixed(2)}</Text>
+                <Text style={styles.statLabel}>Avg. Ticket</Text>
               </View>
-              <Text style={styles.paymentPercent}>25%</Text>
-            </View>
-            <View style={styles.paymentMethod}>
-              <View style={[styles.paymentDot, { backgroundColor: '#a855f7' }]} />
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>Digital</Text>
-                <Text style={styles.paymentAmount}>$200.00</Text>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#dcfce7' }]}>
+                  <Ionicons name="cube-outline" size={20} color="#22c55e" />
+                </View>
+                <Text style={styles.statValue}>{itemsSold}</Text>
+                <Text style={styles.statLabel}>Items Sold</Text>
               </View>
-              <Text style={styles.paymentPercent}>7%</Text>
-            </View>
-            <View style={styles.paymentMethod}>
-              <View style={[styles.paymentDot, { backgroundColor: '#f59e0b' }]} />
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>Gift Card</Text>
-                <Text style={styles.paymentAmount}>$90.00</Text>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#fee2e2' }]}>
+                  <Ionicons name="arrow-undo-outline" size={20} color="#ef4444" />
+                </View>
+                <Text style={styles.statValue}>${returns.toFixed(2)}</Text>
+                <Text style={styles.statLabel}>Returns</Text>
               </View>
-              <Text style={styles.paymentPercent}>3%</Text>
             </View>
-          </View>
-          
-          {/* Visual bar */}
-          <View style={styles.paymentBar}>
-            <View style={[styles.paymentBarSegment, { flex: 65, backgroundColor: '#3b82f6' }]} />
-            <View style={[styles.paymentBarSegment, { flex: 25, backgroundColor: '#22c55e' }]} />
-            <View style={[styles.paymentBarSegment, { flex: 7, backgroundColor: '#a855f7' }]} />
-            <View style={[styles.paymentBarSegment, { flex: 3, backgroundColor: '#f59e0b' }]} />
-          </View>
-        </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="download-outline" size={20} color="#3b82f6" />
-            <Text style={styles.quickActionText}>Export Report</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="print-outline" size={20} color="#3b82f6" />
-            <Text style={styles.quickActionText}>Print Summary</Text>
-          </TouchableOpacity>
-        </View>
+            {/* Top Products */}
+            {topProducts.length > 0 && (
+              <View style={styles.topProductsCard}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Top Selling Products</Text>
+                  <TouchableOpacity>
+                    <Text style={styles.viewAllText}>View All</Text>
+                  </TouchableOpacity>
+                </View>
+                {topProducts.map((product, index) => (
+                  <View key={product.id} style={styles.productRow}>
+                    <View style={styles.productRank}>
+                      <Text style={styles.productRankText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName}>{product.name}</Text>
+                      <Text style={styles.productQuantity}>{product.quantity} sold</Text>
+                    </View>
+                    <Text style={styles.productRevenue}>${product.revenue.toFixed(2)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Payment Methods Breakdown */}
+            {paymentBreakdown.length > 0 && (
+              <View style={styles.paymentBreakdownCard}>
+                <Text style={styles.sectionTitle}>Payment Methods</Text>
+                <View style={styles.paymentMethods}>
+                  {paymentBreakdown.map((payment, index) => (
+                    <View key={index} style={styles.paymentMethod}>
+                      <View style={[styles.paymentDot, { backgroundColor: getPaymentColor(payment.method) }]} />
+                      <View style={styles.paymentInfo}>
+                        <Text style={styles.paymentType}>{payment.method}</Text>
+                        <Text style={styles.paymentAmount}>${payment.revenue.toFixed(2)}</Text>
+                      </View>
+                      <Text style={styles.paymentPercent}>{payment.percentage.toFixed(0)}%</Text>
+                    </View>
+                  ))}
+                </View>
+                
+                {/* Visual bar */}
+                <View style={styles.paymentBar}>
+                  {paymentBreakdown.map((payment, index) => (
+                    <View 
+                      key={index}
+                      style={[
+                        styles.paymentBarSegment, 
+                        { flex: payment.percentage, backgroundColor: getPaymentColor(payment.method) }
+                      ]} 
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+              <TouchableOpacity style={styles.quickAction}>
+                <Ionicons name="download-outline" size={20} color="#0ea5e9" />
+                <Text style={styles.quickActionText}>Export Report</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickAction}>
+                <Ionicons name="print-outline" size={20} color="#0ea5e9" />
+                <Text style={styles.quickActionText}>Print Summary</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
 };
 
+function getPaymentColor(method: string): string {
+  const colors: Record<string, string> = {
+    card: '#0ea5e9',
+    cash: '#22c55e',
+    digital: '#a855f7',
+    gift_card: '#f59e0b',
+  };
+  return colors[method.toLowerCase()] || '#64748b';
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#64748b',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: '#0ea5e9',
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   header: {
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginBottom: 12,
   },
   timeRangeSelector: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     padding: 4,
   },
@@ -320,7 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   timeRangeButtonActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
   },
   timeRangeText: {
     fontSize: 14,
@@ -341,24 +391,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   mainStatCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
   },
   primaryStatCard: {
-    backgroundColor: '#052e16',
-    borderColor: '#166534',
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
   },
   mainStatLabel: {
     fontSize: 14,
-    color: '#86efac',
+    color: '#16a34a',
   },
   mainStatValue: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginVertical: 4,
   },
   statChange: {
@@ -378,11 +428,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: (SCREEN_WIDTH - 44) / 2,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
   },
   statIcon: {
     width: 40,
@@ -395,59 +445,28 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   statLabel: {
     fontSize: 13,
     color: '#64748b',
     marginTop: 4,
   },
-  chartCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#475569',
     marginBottom: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  chartContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 120,
-    gap: 4,
-  },
-  chartBar: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
-  },
-  chartBarFill: {
-    width: '100%',
-    backgroundColor: '#3b82f6',
-    borderRadius: 4,
-    minHeight: 4,
-  },
-  chartBarLabel: {
-    fontSize: 9,
-    color: '#64748b',
-    marginTop: 6,
-  },
   topProductsCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -457,20 +476,20 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: '#0ea5e9',
   },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#f1f5f9',
   },
   productRank: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -486,7 +505,7 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   productQuantity: {
     fontSize: 12,
@@ -499,12 +518,12 @@ const styles = StyleSheet.create({
     color: '#22c55e',
   },
   paymentBreakdownCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
   },
   paymentMethods: {
     gap: 12,
@@ -525,7 +544,7 @@ const styles = StyleSheet.create({
   },
   paymentType: {
     fontSize: 14,
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   paymentAmount: {
     fontSize: 12,
@@ -534,7 +553,7 @@ const styles = StyleSheet.create({
   paymentPercent: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#475569',
   },
   paymentBar: {
     flexDirection: 'row',
@@ -555,15 +574,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     paddingVertical: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
   },
   quickActionText: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: '#0ea5e9',
     fontWeight: '500',
   },
 });

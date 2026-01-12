@@ -48,7 +48,6 @@ export const ProductsScreen: React.FC = () => {
       if (isOnline) {
         const data = await apiService.getProducts({
           search: searchQuery || undefined,
-          category: selectedCategory || undefined,
           limit: 100,
         });
         await offlineService.cacheProducts(data as Product[]);
@@ -75,12 +74,12 @@ export const ProductsScreen: React.FC = () => {
 
   const getStockStatus = useCallback((product: Product) => {
     if (product.stock_quantity <= 0) {
-      return { label: 'Out of Stock', color: '#ef4444', bg: '#450a0a' };
+      return { label: 'Out of Stock', color: '#ef4444', bg: '#fee2e2' };
     }
     if (product.stock_quantity <= product.low_stock_threshold) {
-      return { label: 'Low Stock', color: '#f59e0b', bg: '#451a03' };
+      return { label: 'Low Stock', color: '#f59e0b', bg: '#fef3c7' };
     }
-    return { label: 'In Stock', color: '#22c55e', bg: '#052e16' };
+    return { label: 'In Stock', color: '#22c55e', bg: '#dcfce7' };
   }, []);
 
   const renderProduct = ({ item }: { item: Product }) => {
@@ -203,7 +202,7 @@ export const ProductsScreen: React.FC = () => {
       {/* Products List */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#0ea5e9" />
         </View>
       ) : (
         <FlatList
@@ -215,8 +214,8 @@ export const ProductsScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor="#3b82f6"
-              colors={['#3b82f6']}
+              tintColor="#0ea5e9"
+              colors={['#0ea5e9']}
             />
           }
           ListEmptyComponent={
@@ -235,7 +234,7 @@ export const ProductsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -244,35 +243,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   offlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#422006',
+    backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
   offlineText: {
-    color: '#fbbf24',
+    color: '#d97706',
     fontSize: 12,
     fontWeight: '500',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   searchIcon: {
     marginRight: 8,
@@ -280,7 +282,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
   categoriesContainer: {
@@ -291,17 +293,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   categoryChip: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
   },
   categoryChipActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
   },
   categoryChipText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -310,18 +312,20 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -341,15 +345,17 @@ const styles = StyleSheet.create({
   productCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   productImage: {
     width: 48,
     height: 48,
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -359,7 +365,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productName: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
@@ -377,7 +383,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   productPrice: {
-    color: '#3b82f6',
+    color: '#0ea5e9',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
@@ -403,7 +409,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptySubtext: {
-    color: '#475569',
+    color: '#94a3b8',
     fontSize: 14,
     marginTop: 4,
   },

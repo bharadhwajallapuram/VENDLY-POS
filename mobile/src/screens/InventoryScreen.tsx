@@ -26,8 +26,11 @@ interface InventoryItem {
   product_name: string;
   sku: string;
   quantity: number;
-  low_stock_threshold: number;
-  last_updated: string;
+  min_quantity: number;
+  price: number;
+  category: string;
+  low_stock_threshold?: number;
+  last_updated?: string;
 }
 
 type AdjustmentType = 'add' | 'remove' | 'set' | 'count';
@@ -90,8 +93,8 @@ export const InventoryScreen: React.FC = () => {
       resetAdjustForm();
       Alert.alert('Success', 'Inventory updated successfully');
     },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to update inventory');
+    onError: (error: unknown) => {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update inventory');
     },
   });
 
@@ -163,7 +166,7 @@ export const InventoryScreen: React.FC = () => {
         activeOpacity={0.7}
       >
         <View style={styles.itemStatus}>
-          <Ionicons name={status.icon as any} size={20} color={status.color} />
+          <Ionicons name={status.icon as keyof typeof Ionicons.glyphMap} size={20} color={status.color} />
         </View>
         
         <View style={styles.itemInfo}>
@@ -244,7 +247,7 @@ export const InventoryScreen: React.FC = () => {
       {/* Inventory List */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#0ea5e9" />
         </View>
       ) : (
         <FlatList
@@ -256,8 +259,8 @@ export const InventoryScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor="#3b82f6"
-              colors={['#3b82f6']}
+              tintColor="#0ea5e9"
+              colors={['#0ea5e9']}
             />
           }
           ListEmptyComponent={
@@ -360,7 +363,7 @@ export const InventoryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -369,50 +372,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   offlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#422006',
+    backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
   offlineText: {
-    color: '#fbbf24',
+    color: '#d97706',
     fontSize: 12,
     fontWeight: '500',
   },
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#451a03',
+    backgroundColor: '#fef3c7',
     marginHorizontal: 16,
     marginTop: 12,
     padding: 12,
     borderRadius: 10,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
   },
   alertText: {
-    color: '#fcd34d',
+    color: '#92400e',
     fontSize: 14,
     fontWeight: '500',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   searchIcon: {
     marginRight: 8,
@@ -420,16 +428,18 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   statItem: {
     flex: 1,
@@ -437,11 +447,11 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#e2e8f0',
     marginVertical: 4,
   },
   statValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 22,
     fontWeight: '700',
   },
@@ -461,10 +471,12 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   itemStatus: {
     marginRight: 12,
@@ -473,7 +485,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemName: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -507,11 +519,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -524,18 +536,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 20,
     fontWeight: '600',
   },
   selectedProduct: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     padding: 12,
     borderRadius: 10,
     marginBottom: 20,
   },
   selectedProductName: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -545,7 +557,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   fieldLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 8,
@@ -557,16 +569,16 @@ const styles = StyleSheet.create({
   },
   typeButton: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   typeButtonActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
   },
   typeButtonText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -574,20 +586,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   quantityInput: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   notesInput: {
     height: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',

@@ -1,8 +1,35 @@
 /**
  * Offline Service - Handles local storage and offline data management
  */
+/* eslint-disable no-console */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface Product {
+  id: number;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  price: number;
+  category?: string;
+  stock_quantity: number;
+  low_stock_threshold?: number;
+  is_active?: boolean;
+}
+
+interface Customer {
+  id: number;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+// Categories can be simple strings or objects with id/name
+type Category = string | { id: number; name: string };
+
+interface Settings {
+  [key: string]: unknown;
+}
 
 const KEYS = {
   PRODUCTS: 'vendly_products_cache',
@@ -56,9 +83,9 @@ class OfflineService {
       const timestampsStr = await AsyncStorage.getItem(KEYS.CACHE_TIMESTAMPS);
       const timestamps: CacheTimestamps = timestampsStr ? JSON.parse(timestampsStr) : {};
       
-      const keyName = Object.keys(KEYS).find(k => KEYS[k as keyof typeof KEYS] === key)?.toLowerCase();
+      const keyName = Object.keys(KEYS).find(k => KEYS[k as keyof typeof KEYS] === key)?.toLowerCase() as keyof CacheTimestamps | undefined;
       if (keyName) {
-        (timestamps as any)[keyName] = new Date().toISOString();
+        timestamps[keyName] = new Date().toISOString();
       }
       
       await AsyncStorage.setItem(KEYS.CACHE_TIMESTAMPS, JSON.stringify(timestamps));
@@ -77,7 +104,7 @@ class OfflineService {
       
       if (!keyName) return true;
       
-      const timestamp = (timestamps as any)[keyName];
+      const timestamp = timestamps[keyName as keyof CacheTimestamps];
       if (!timestamp) return true;
 
       const cacheTime = new Date(timestamp).getTime();
@@ -90,16 +117,16 @@ class OfflineService {
   }
 
   // ========== Products ==========
-  async cacheProducts(products: any[]): Promise<void> {
+  async cacheProducts<T extends Product>(products: T[]): Promise<void> {
     await this.setCache(KEYS.PRODUCTS, products);
   }
 
-  async getCachedProducts(): Promise<any[] | null> {
-    return this.getCache(KEYS.PRODUCTS);
+  async getCachedProducts<T extends Product>(): Promise<T[] | null> {
+    return this.getCache<T[]>(KEYS.PRODUCTS);
   }
 
-  async searchCachedProducts(query: string): Promise<any[]> {
-    const products = await this.getCachedProducts();
+  async searchCachedProducts<T extends Product>(query: string): Promise<T[]> {
+    const products = await this.getCachedProducts<T>();
     if (!products) return [];
 
     const lowerQuery = query.toLowerCase();
@@ -111,23 +138,23 @@ class OfflineService {
     );
   }
 
-  async getCachedProductByBarcode(barcode: string): Promise<any | null> {
-    const products = await this.getCachedProducts();
+  async getCachedProductByBarcode<T extends Product>(barcode: string): Promise<T | null> {
+    const products = await this.getCachedProducts<T>();
     if (!products) return null;
     return products.find((p) => p.barcode === barcode) || null;
   }
 
   // ========== Customers ==========
-  async cacheCustomers(customers: any[]): Promise<void> {
+  async cacheCustomers<T extends Customer>(customers: T[]): Promise<void> {
     await this.setCache(KEYS.CUSTOMERS, customers);
   }
 
-  async getCachedCustomers(): Promise<any[] | null> {
-    return this.getCache(KEYS.CUSTOMERS);
+  async getCachedCustomers<T extends Customer>(): Promise<T[] | null> {
+    return this.getCache<T[]>(KEYS.CUSTOMERS);
   }
 
-  async searchCachedCustomers(query: string): Promise<any[]> {
-    const customers = await this.getCachedCustomers();
+  async searchCachedCustomers<T extends Customer>(query: string): Promise<T[]> {
+    const customers = await this.getCachedCustomers<T>();
     if (!customers) return [];
 
     const lowerQuery = query.toLowerCase();
@@ -140,20 +167,20 @@ class OfflineService {
   }
 
   // ========== Categories ==========
-  async cacheCategories(categories: any[]): Promise<void> {
+  async cacheCategories<T = Category>(categories: T[]): Promise<void> {
     await this.setCache(KEYS.CATEGORIES, categories);
   }
 
-  async getCachedCategories(): Promise<any[] | null> {
-    return this.getCache(KEYS.CATEGORIES);
+  async getCachedCategories<T = Category>(): Promise<T[] | null> {
+    return this.getCache<T[]>(KEYS.CATEGORIES);
   }
 
   // ========== Settings ==========
-  async cacheSettings(settings: any): Promise<void> {
+  async cacheSettings(settings: Settings): Promise<void> {
     await this.setCache(KEYS.SETTINGS, settings);
   }
 
-  async getCachedSettings(): Promise<any | null> {
+  async getCachedSettings(): Promise<Settings | null> {
     return this.getCache(KEYS.SETTINGS);
   }
 
@@ -181,7 +208,7 @@ class OfflineService {
         
         status[keyName] = {
           cached: data !== null,
-          timestamp: (timestamps as any)[keyName],
+          timestamp: timestamps[keyName as keyof CacheTimestamps],
         };
       }
 

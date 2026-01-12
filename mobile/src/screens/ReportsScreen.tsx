@@ -77,9 +77,9 @@ export function ReportsScreen() {
     try {
       setError('');
       const data = await apiService.getReportSummary(dateRange.start, dateRange.end);
-      setSummary(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load report');
+      setSummary(data as ReportSummary);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,7 +102,7 @@ export function ReportsScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#0ea5e9" />
       </View>
     );
   }
@@ -134,7 +134,7 @@ export function ReportsScreen() {
       <ScrollView
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />
         }
       >
         {error ? (
@@ -150,7 +150,7 @@ export function ReportsScreen() {
             {/* Summary Cards */}
             <View style={styles.cardsGrid}>
               <View style={styles.card}>
-                <Ionicons name="receipt" size={24} color="#3b82f6" />
+                <Ionicons name="receipt" size={24} color="#0ea5e9" />
                 <Text style={styles.cardLabel}>Total Sales</Text>
                 <Text style={styles.cardValue}>{summary.total_sales}</Text>
               </View>
@@ -235,27 +235,29 @@ export function ReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   subtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 4,
   },
   presetContainer: {
@@ -267,15 +269,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     alignItems: 'center',
   },
   presetButtonActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
   },
   presetText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontWeight: '600',
   },
   presetTextActive: {
@@ -292,20 +294,22 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   cardLabel: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 8,
   },
   cardValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginTop: 4,
   },
   revenueValue: {
@@ -315,12 +319,14 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
   },
   refundCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#f59e0b',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   refundRow: {
     flexDirection: 'row',
@@ -328,7 +334,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   refundLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
   },
   refundAmount: {
@@ -337,15 +343,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   section: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginBottom: 16,
   },
   productRow: {
@@ -353,31 +361,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#f1f5f9',
   },
   productRank: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   rankText: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontWeight: '600',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
   },
   productQty: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
     marginTop: 2,
   },
@@ -398,7 +406,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

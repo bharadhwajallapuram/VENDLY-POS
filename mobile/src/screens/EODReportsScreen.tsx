@@ -68,9 +68,9 @@ export function EODReportsScreen() {
     try {
       setError('');
       const data = await apiService.getZReport(reportDate);
-      setZReport(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load Z-Report');
+      setZReport(data as ZReport);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load Z-Report');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,12 +99,12 @@ export function EODReportsScreen() {
         reportDate,
         reconcileNotes
       );
-      setReconcileResult(result);
+      setReconcileResult(result as ReconcileResult);
       setCashAmount('');
       setReconcileNotes('');
       Alert.alert('Success', 'Cash drawer reconciled successfully');
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to reconcile cash');
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to reconcile cash');
     } finally {
       setReconciling(false);
     }
@@ -127,7 +127,7 @@ export function EODReportsScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#0ea5e9" />
       </View>
     );
   }
@@ -145,7 +145,7 @@ export function EODReportsScreen() {
           <Ionicons name="chevron-back" size={24} color="#94a3b8" />
         </TouchableOpacity>
         <View style={styles.dateDisplay}>
-          <Ionicons name="calendar" size={20} color="#3b82f6" />
+          <Ionicons name="calendar" size={20} color="#0ea5e9" />
           <Text style={styles.dateText}>{reportDate}</Text>
         </View>
         <TouchableOpacity
@@ -164,7 +164,7 @@ export function EODReportsScreen() {
       <ScrollView
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />
         }
       >
         {error ? (
@@ -270,7 +270,7 @@ export function EODReportsScreen() {
                 style={styles.reconcileHeader}
                 onPress={() => setShowReconcile(!showReconcile)}
               >
-                <Ionicons name="calculator" size={24} color="#3b82f6" />
+                <Ionicons name="calculator" size={24} color="#0ea5e9" />
                 <Text style={styles.sectionTitle}>Cash Reconciliation</Text>
                 <Ionicons
                   name={showReconcile ? 'chevron-up' : 'chevron-down'}
@@ -374,27 +374,29 @@ export function EODReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   subtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 4,
   },
   dateSelector: {
@@ -402,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginTop: 1,
   },
   dateArrow: {
@@ -411,7 +413,7 @@ const styles = StyleSheet.create({
   dateDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
@@ -419,7 +421,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dateText: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -428,10 +430,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   infoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   infoRow: {
     flexDirection: 'row',
@@ -439,11 +443,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   infoLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
   },
   infoValue: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -454,20 +458,22 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   revenueCard: {
     borderLeftWidth: 4,
     borderLeftColor: '#10b981',
   },
   cardLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 12,
   },
   cardValue: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 24,
     fontWeight: 'bold',
     marginTop: 4,
@@ -482,27 +488,29 @@ const styles = StyleSheet.create({
     color: '#ef4444',
   },
   cardSubtext: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 12,
     marginTop: 4,
   },
   section: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginBottom: 16,
     flex: 1,
   },
   paymentRow: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#f1f5f9',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -511,13 +519,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   paymentMethod: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
     textTransform: 'capitalize',
   },
   paymentCount: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
   },
   paymentRight: {
@@ -530,7 +538,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   paymentPercent: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
   },
   percentBar: {
@@ -538,7 +546,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     height: 2,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     borderRadius: 1,
   },
   productRow: {
@@ -546,31 +554,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#f1f5f9',
   },
   productRank: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   rankText: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontWeight: '600',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
   },
   productQty: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
     marginTop: 2,
   },
@@ -588,17 +596,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   reconcileLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     padding: 12,
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 16,
     marginBottom: 16,
   },
@@ -610,7 +618,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     paddingVertical: 14,
     borderRadius: 8,
     gap: 8,
@@ -629,17 +637,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   resultSuccess: {
-    backgroundColor: '#10b98120',
+    backgroundColor: '#dcfce7',
     borderWidth: 1,
     borderColor: '#10b981',
   },
   resultWarning: {
-    backgroundColor: '#f59e0b20',
+    backgroundColor: '#fef3c7',
     borderWidth: 1,
     borderColor: '#f59e0b',
   },
   resultTitle: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
@@ -650,10 +658,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   resultLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
   },
   resultValue: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontWeight: '500',
   },
   differenceValue: {
@@ -671,7 +679,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -685,7 +693,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyText: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 16,
     marginTop: 12,
   },
