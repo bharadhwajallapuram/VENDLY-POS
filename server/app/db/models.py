@@ -6,7 +6,7 @@ MySQL/SQLite compatible models
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from enum import Enum as PyEnum
 from typing import List, Optional
 
@@ -22,6 +22,16 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+# ---------- EST Timezone Helper ----------
+# EST is UTC-5 (Eastern Standard Time)
+EST = timezone(timedelta(hours=-5))
+
+
+def now_est() -> datetime:
+    """Return current time in EST timezone"""
+    return datetime.now(EST).replace(tzinfo=None)
 
 
 # ---------- Base ----------
@@ -175,7 +185,7 @@ class Sale(Base):
     status: Mapped[str] = mapped_column(String(20), default="completed", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=func.now(), nullable=False, index=True
+        DateTime, default=now_est, nullable=False, index=True
     )
 
     # Relationships

@@ -9,3 +9,4 @@ export { DashboardScreen } from './DashboardScreen';
 export { ReportsScreen } from './ReportsScreen';
 export { PaymentsScreen } from './PaymentsScreen';
 export { EODReportsScreen } from './EODReportsScreen';
+export { TransactionsScreen } from './TransactionsScreen';

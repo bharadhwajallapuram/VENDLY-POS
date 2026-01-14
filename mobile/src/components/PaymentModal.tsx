@@ -546,10 +546,11 @@ const styles = StyleSheet.create({
   methodsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   methodButton: {
     width: '31%',
+    marginBottom: 8,
     aspectRatio: 1.1,
     backgroundColor: '#1e293b',
     borderRadius: 12,
@@ -584,12 +585,14 @@ const styles = StyleSheet.create({
   quickAmounts: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   quickAmountButton: {
     flex: 1,
     minWidth: '18%',
+    marginRight: 6,
+    marginBottom: 6,
     paddingVertical: 12,
     backgroundColor: '#1e293b',
     borderRadius: 8,
@@ -673,10 +676,11 @@ const styles = StyleSheet.create({
   },
   tipButtons: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   tipButton: {
     flex: 1,
+    marginHorizontal: 3,
     paddingVertical: 12,
     backgroundColor: '#1e293b',
     borderRadius: 8,
@@ -708,13 +712,14 @@ const styles = StyleSheet.create({
   },
   digitalIcons: {
     flexDirection: 'row',
-    gap: 32,
+    justifyContent: 'center',
     marginBottom: 24,
   },
   digitalIcon: {
     alignItems: 'center',
     backgroundColor: '#1e293b',
     padding: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     width: 100,
   },
@@ -749,12 +754,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     marginTop: 16,
     paddingVertical: 12,
   },
   scanGiftCardText: {
     fontSize: 16,
+    marginLeft: 8,
     color: '#3b82f6',
   },
   storeCreditInfo: {
@@ -795,10 +800,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   splitPaymentMethod: {
     fontSize: 14,
+    marginLeft: 8,
     color: '#f1f5f9',
   },
   splitPaymentAmount: {
@@ -812,11 +817,12 @@ const styles = StyleSheet.create({
   },
   splitMethodRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   splitMethodButton: {
     flex: 1,
+    marginHorizontal: 3,
     paddingVertical: 12,
     backgroundColor: '#1e293b',
     borderRadius: 8,
@@ -831,10 +837,10 @@ const styles = StyleSheet.create({
   splitInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   splitInput: {
     flex: 1,
+    marginRight: 8,
     backgroundColor: '#1e293b',
     borderRadius: 8,
     paddingHorizontal: 16,
@@ -860,7 +866,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     backgroundColor: '#22c55e',
     paddingVertical: 18,
     borderRadius: 12,
@@ -872,6 +877,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+    marginLeft: 8,
   },
 });
 

@@ -1,52 +1,81 @@
 /**
  * Shared Theme - Design tokens for consistent styling
+ * Matches the web client's modern design with sky-blue primary
  */
 
 export const colors = {
-  // Primary
-  primary: '#3b82f6',
-  primaryDark: '#2563eb',
-  primaryLight: '#60a5fa',
+  // Primary - Modern Sky Blue (matches client tailwind primary-500)
+  primary: '#0ea5e9',
+  primaryDark: '#0284c7',
+  primaryLight: '#38bdf8',
+  primary50: '#f0f9ff',
+  primary100: '#e0f2fe',
+  primary200: '#bae6fd',
+  primary300: '#7dd3fc',
+  primary400: '#38bdf8',
+  primary500: '#0ea5e9',
+  primary600: '#0284c7',
+  primary700: '#0369a1',
+  primary800: '#075985',
+  primary900: '#0c4a6e',
 
-  // Success
-  success: '#22c55e',
-  successDark: '#16a34a',
-  successLight: '#4ade80',
+  // Accent - Purple gradient
+  accent: '#8b5cf6',
+  accentDark: '#7c3aed',
+  accentLight: '#a78bfa',
 
-  // Warning
+  // Success - Modern Green
+  success: '#10b981',
+  successDark: '#059669',
+  successLight: '#34d399',
+  successBg: '#d1fae5',
+
+  // Warning - Modern Amber
   warning: '#f59e0b',
   warningDark: '#d97706',
   warningLight: '#fbbf24',
+  warningBg: '#fef3c7',
 
-  // Danger
+  // Danger - Modern Red
   danger: '#ef4444',
   dangerDark: '#dc2626',
   dangerLight: '#f87171',
+  dangerBg: '#fee2e2',
 
-  // Info
+  // Info - Cyan
   info: '#06b6d4',
   infoDark: '#0891b2',
   infoLight: '#22d3ee',
+  infoBg: '#cffafe',
 
-  // Neutrals (Slate)
-  background: '#0f172a',
-  surface: '#1e293b',
-  surfaceHover: '#334155',
-  surfaceLight: '#334155',
-  border: '#334155',
-  borderLight: '#475569',
+  // Neutrals - Modern Light theme
+  background: '#f1f5f9',     // slate-100
+  surface: '#ffffff',        // white
+  surfaceHover: '#f8fafc',   // slate-50
+  surfaceLight: '#e2e8f0',   // slate-200
+  border: '#e2e8f0',         // slate-200
+  borderLight: '#f1f5f9',    // slate-100
 
-  // Text
-  text: '#f1f5f9',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  textInverse: '#0f172a',
+  // Text - Dark text on light background
+  text: '#0f172a',           // slate-900
+  textSecondary: '#475569',  // slate-600
+  textMuted: '#94a3b8',      // slate-400
+  textInverse: '#f8fafc',    // slate-50
+
+  // Cards & Elevated surfaces
+  card: '#ffffff',
+  cardBorder: '#e2e8f0',
+  cardShadow: 'rgba(0, 0, 0, 0.04)',
+
+  // Gradient colors
+  gradientStart: '#0ea5e9',
+  gradientEnd: '#8b5cf6',
 
   // Misc
   white: '#ffffff',
   black: '#000000',
   transparent: 'transparent',
-  overlay: 'rgba(0, 0, 0, 0.7)',
+  overlay: 'rgba(15, 23, 42, 0.5)',
 };
 
 export const spacing = {

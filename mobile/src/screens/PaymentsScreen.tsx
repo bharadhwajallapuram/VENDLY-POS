@@ -66,7 +66,7 @@ export function PaymentsScreen() {
         upiAmount: 0,
       };
 
-      salesArray.forEach((sale: any) => {
+      salesArray.forEach((sale: Sale) => {
         const amount = sale.total || 0;
         stats.totalAmount += amount;
         
@@ -78,8 +78,8 @@ export function PaymentsScreen() {
 
       setTodayStats(stats);
       setSales(salesArray);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load payments');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load payments');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,7 +122,7 @@ export function PaymentsScreen() {
   const getPaymentColor = (method: string) => {
     const m = method.toLowerCase();
     if (m === 'cash') return '#10b981';
-    if (m.includes('card') || m === 'stripe') return '#3b82f6';
+    if (m.includes('card') || m === 'stripe') return '#0ea5e9';
     if (m === 'upi') return '#8b5cf6';
     return '#64748b';
   };
@@ -143,7 +143,7 @@ export function PaymentsScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#0ea5e9" />
       </View>
     );
   }
@@ -152,13 +152,13 @@ export function PaymentsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Payments</Text>
-        <Text style={styles.subtitle}>Today's transactions</Text>
+        <Text style={styles.subtitle}>Today&apos;s transactions</Text>
       </View>
 
       {/* Today's Summary */}
       <View style={styles.summaryContainer}>
         <View style={styles.summaryMain}>
-          <Text style={styles.summaryLabel}>Today's Total</Text>
+          <Text style={styles.summaryLabel}>Today&apos;s Total</Text>
           <Text style={styles.summaryValue}>{formatCurrency(todayStats.totalAmount)}</Text>
           <Text style={styles.summarySubtext}>
             {todayStats.totalTransactions} transactions
@@ -173,9 +173,9 @@ export function PaymentsScreen() {
             </Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Ionicons name="card" size={16} color="#3b82f6" />
+            <Ionicons name="card" size={16} color="#0ea5e9" />
             <Text style={styles.breakdownLabel}>Card</Text>
-            <Text style={[styles.breakdownValue, { color: '#3b82f6' }]}>
+            <Text style={[styles.breakdownValue, { color: '#0ea5e9' }]}>
               {formatCurrency(todayStats.cardAmount)}
             </Text>
           </View>
@@ -215,7 +215,7 @@ export function PaymentsScreen() {
       <ScrollView
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />
         }
       >
         {error ? (
@@ -289,40 +289,44 @@ export function PaymentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#f1f5f9',
+    color: '#0f172a',
   },
   subtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 4,
   },
   summaryContainer: {
     flexDirection: 'row',
     margin: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   summaryMain: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     alignItems: 'center',
   },
   summaryLabel: {
@@ -352,7 +356,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   breakdownLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
     marginLeft: 8,
     flex: 1,
@@ -367,23 +371,23 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 12,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#f1f5f9',
     borderRadius: 20,
-    gap: 6,
+    marginRight: 12,
   },
   filterButtonActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
   },
   filterText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontWeight: '500',
+    marginLeft: 6,
   },
   filterTextActive: {
     color: '#ffffff',
@@ -395,10 +399,12 @@ const styles = StyleSheet.create({
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   paymentIcon: {
     width: 48,
@@ -412,12 +418,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transactionId: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
   transactionMeta: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
     marginTop: 2,
   },
@@ -425,7 +431,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -466,7 +472,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 18,
     fontWeight: '600',
     marginTop: 12,

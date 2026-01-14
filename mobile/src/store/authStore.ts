@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService, setAuthTokenGetter } from '../services/api';
+import { apiService, setAuthTokenGetter, setAuthFailureHandler } from '../services/api';
 
 interface User {
   id: number;
@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       user: null,
       token: null,
-      isLoading: false,
+      isLoading: false,  // Start with false, not loading
       error: null,
 
       login: async (email: string, password: string) => {
@@ -107,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         token: state.token,
         user: state.user,
+        isAuthenticated: state.isAuthenticated,
       }),
     }
   )
@@ -114,3 +115,8 @@ export const useAuthStore = create<AuthState>()(
 
 // Register the token getter to break circular dependency
 setAuthTokenGetter(() => useAuthStore.getState().token);
+// Register auth failure handler to clear invalid tokens
+setAuthFailureHandler(() => {
+  console.log('[AuthStore] Token invalid, logging out');
+  useAuthStore.getState().logout();
+});

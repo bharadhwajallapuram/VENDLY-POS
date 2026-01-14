@@ -727,11 +727,17 @@ export function createWebSocket(onMessage: (data: unknown) => void): WebSocket |
   if (typeof window === 'undefined') return null;
   
   const wsUrl = API_URL.replace(/^http/, 'ws') + '/api/v1/ws';
+  console.log('[WebSocket] Connecting to:', wsUrl);
   const ws = new WebSocket(wsUrl);
+  
+  ws.onopen = () => {
+    console.log('[WebSocket] Connected successfully');
+  };
   
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      console.log('[WebSocket] Message received:', data);
       onMessage(data);
     } catch {
       console.error('Failed to parse WebSocket message');
@@ -740,6 +746,10 @@ export function createWebSocket(onMessage: (data: unknown) => void): WebSocket |
   
   ws.onerror = (error) => {
     console.error('WebSocket error:', error);
+  };
+  
+  ws.onclose = () => {
+    console.log('[WebSocket] Connection closed');
   };
   
   return ws;

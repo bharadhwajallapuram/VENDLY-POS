@@ -19,22 +19,27 @@ import { apiService } from '../services/api';
 import { offlineService } from '../services/offline';
 import { useSyncStore } from '../store/syncStore';
 
+interface Category {
+  id: number;
+  name: string;
+}
+
 interface Product {
   id: number;
   name: string;
-  sku: string;
+  sku?: string;
   barcode?: string;
   price: number;
   cost_price?: number;
-  category?: string;
-  stock_quantity: number;
-  low_stock_threshold: number;
-  is_active: boolean;
+  category_id?: number;
+  quantity: number;
+  min_quantity?: number;
+  is_active?: boolean;
 }
 
 export const ProductsScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const { isOnline } = useSyncStore();
 
   const {
@@ -43,12 +48,12 @@ export const ProductsScreen: React.FC = () => {
     refetch,
     isRefetching,
   } = useQuery<Product[]>({
-    queryKey: ['products', searchQuery, selectedCategory],
+    queryKey: ['products', searchQuery, selectedCategoryId],
     queryFn: async () => {
       if (isOnline) {
         const data = await apiService.getProducts({
           search: searchQuery || undefined,
-          category: selectedCategory || undefined,
+          category_id: selectedCategoryId || undefined,
           limit: 100,
         });
         await offlineService.cacheProducts(data as Product[]);
@@ -57,30 +62,44 @@ export const ProductsScreen: React.FC = () => {
       if (searchQuery) {
         return offlineService.searchCachedProducts(searchQuery);
       }
-      return (await offlineService.getCachedProducts()) || [];
+      const cached = (await offlineService.getCachedProducts()) || [];
+      // Filter cached products by category if selected
+      if (selectedCategoryId) {
+        return cached.filter((p: Product) => p.category_id === selectedCategoryId);
+      }
+      return cached;
     },
   });
 
-  const { data: categories = [] } = useQuery<string[]>({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
       if (isOnline) {
         const data = await apiService.getCategories();
-        await offlineService.cacheCategories(data as string[]);
-        return data as string[];
+        // Ensure we have category objects with id and name
+        if (Array.isArray(data)) {
+          return data.map(cat => 
+            typeof cat === 'object' && cat !== null 
+              ? { id: (cat as Category).id, name: (cat as Category).name }
+              : { id: 0, name: String(cat) }
+          );
+        }
+        return [];
       }
-      return (await offlineService.getCachedCategories()) || [];
+      return [];
     },
   });
 
   const getStockStatus = useCallback((product: Product) => {
-    if (product.stock_quantity <= 0) {
-      return { label: 'Out of Stock', color: '#ef4444', bg: '#450a0a' };
+    const qty = product.quantity ?? 0;
+    const minQty = product.min_quantity ?? 0;
+    if (qty <= 0) {
+      return { label: 'Out of Stock', color: '#ef4444', bg: '#fee2e2' };
     }
-    if (product.stock_quantity <= product.low_stock_threshold) {
-      return { label: 'Low Stock', color: '#f59e0b', bg: '#451a03' };
+    if (qty <= minQty) {
+      return { label: 'Low Stock', color: '#f59e0b', bg: '#fef3c7' };
     }
-    return { label: 'In Stock', color: '#22c55e', bg: '#052e16' };
+    return { label: 'In Stock', color: '#22c55e', bg: '#dcfce7' };
   }, []);
 
   const renderProduct = ({ item }: { item: Product }) => {
@@ -106,7 +125,7 @@ export const ProductsScreen: React.FC = () => {
           <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
           <View style={[styles.stockBadge, { backgroundColor: stockStatus.bg }]}>
             <Text style={[styles.stockBadgeText, { color: stockStatus.color }]}>
-              {item.stock_quantity} in stock
+              {item.quantity ?? 0} in stock
             </Text>
           </View>
         </View>
@@ -147,63 +166,38 @@ export const ProductsScreen: React.FC = () => {
       {/* Categories */}
       <FlatList
         horizontal
-        data={['All', ...categories]}
-        keyExtractor={(item) => item}
+        data={[{ id: -1, name: 'All' }, ...categories]}
+        keyExtractor={(item) => `cat-${item.name}-${item.id}`}
         showsHorizontalScrollIndicator={false}
         style={styles.categoriesContainer}
         contentContainerStyle={styles.categoriesContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryChip,
-              (item === 'All' ? !selectedCategory : selectedCategory === item) &&
-                styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(item === 'All' ? null : item)}
-          >
-            <Text
+        renderItem={({ item }) => {
+          const isSelected = item.id === -1 ? selectedCategoryId === null : selectedCategoryId === item.id;
+          return (
+            <TouchableOpacity
               style={[
-                styles.categoryChipText,
-                (item === 'All' ? !selectedCategory : selectedCategory === item) &&
-                  styles.categoryChipTextActive,
+                styles.categoryChip,
+                isSelected ? styles.categoryChipActive : null,
               ]}
+              onPress={() => setSelectedCategoryId(item.id === -1 ? null : item.id)}
             >
-              {item}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  isSelected ? styles.categoryChipTextActive : null,
+                ]}
+              >
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
       />
-
-      {/* Stats Row */}
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{products.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: '#22c55e' }]}>
-            {products.filter((p) => p.stock_quantity > p.low_stock_threshold).length}
-          </Text>
-          <Text style={styles.statLabel}>In Stock</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: '#f59e0b' }]}>
-            {products.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold).length}
-          </Text>
-          <Text style={styles.statLabel}>Low Stock</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: '#ef4444' }]}>
-            {products.filter((p) => p.stock_quantity <= 0).length}
-          </Text>
-          <Text style={styles.statLabel}>Out</Text>
-        </View>
-      </View>
 
       {/* Products List */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#0ea5e9" />
         </View>
       ) : (
         <FlatList
@@ -215,8 +209,8 @@ export const ProductsScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor="#3b82f6"
-              colors={['#3b82f6']}
+              tintColor="#0ea5e9"
+              colors={['#0ea5e9']}
             />
           }
           ListEmptyComponent={
@@ -235,7 +229,7 @@ export const ProductsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -244,35 +238,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   offlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#422006',
+    backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
   offlineText: {
-    color: '#fbbf24',
+    color: '#d97706',
     fontSize: 12,
     fontWeight: '500',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   searchIcon: {
     marginRight: 8,
@@ -280,48 +277,59 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
   categoriesContainer: {
-    maxHeight: 52,
     marginTop: 12,
+    marginBottom: 8,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   categoriesContent: {
     paddingHorizontal: 16,
+    paddingRight: 32,
+    paddingVertical: 4,
   },
   categoryChip: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#e2e8f0',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
   },
   categoryChipActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
+    borderColor: '#0ea5e9',
   },
   categoryChipText: {
-    color: '#94a3b8',
+    color: '#0f172a',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   categoryChipTextActive: {
     color: '#ffffff',
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -341,15 +349,17 @@ const styles = StyleSheet.create({
   productCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   productImage: {
     width: 48,
     height: 48,
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -359,7 +369,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productName: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
@@ -377,7 +387,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   productPrice: {
-    color: '#3b82f6',
+    color: '#0ea5e9',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
@@ -403,7 +413,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptySubtext: {
-    color: '#475569',
+    color: '#94a3b8',
     fontSize: 14,
     marginTop: 4,
   },

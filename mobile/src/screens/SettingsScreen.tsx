@@ -20,6 +20,7 @@ import { useSyncStore } from '../store/syncStore';
 import { offlineService } from '../services/offline';
 
 export const SettingsScreen: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const navigation = useNavigation<any>();
   const { user, logout } = useAuthStore();
   const { isOnline, pendingActions, lastSyncAt, syncPendingActions, isSyncing } = useSyncStore();
@@ -123,9 +124,9 @@ export const SettingsScreen: React.FC = () => {
               disabled={isSyncing || pendingActions.length === 0}
             >
               {isSyncing ? (
-                <ActivityIndicator size="small" color="#3b82f6" />
+                <ActivityIndicator size="small" color="#0ea5e9" />
               ) : (
-                <Ionicons name="sync" size={22} color="#3b82f6" />
+                <Ionicons name="sync" size={22} color="#0ea5e9" />
               )}
             </TouchableOpacity>
           </View>
@@ -153,8 +154,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#334155', true: '#1d4ed8' }}
-              thumbColor={notificationsEnabled ? '#3b82f6' : '#64748b'}
+              trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
+              thumbColor={notificationsEnabled ? '#ffffff' : '#94a3b8'}
             />
           </View>
           
@@ -168,8 +169,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={soundEnabled}
               onValueChange={setSoundEnabled}
-              trackColor={{ false: '#334155', true: '#1d4ed8' }}
-              thumbColor={soundEnabled ? '#3b82f6' : '#64748b'}
+              trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
+              thumbColor={soundEnabled ? '#ffffff' : '#94a3b8'}
             />
           </View>
           
@@ -183,8 +184,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={hapticEnabled}
               onValueChange={setHapticEnabled}
-              trackColor={{ false: '#334155', true: '#1d4ed8' }}
-              thumbColor={hapticEnabled ? '#3b82f6' : '#64748b'}
+              trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
+              thumbColor={hapticEnabled ? '#ffffff' : '#94a3b8'}
             />
           </View>
         </View>
@@ -202,8 +203,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={darkMode}
               onValueChange={setDarkMode}
-              trackColor={{ false: '#334155', true: '#1d4ed8' }}
-              thumbColor={darkMode ? '#3b82f6' : '#64748b'}
+              trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
+              thumbColor={darkMode ? '#ffffff' : '#94a3b8'}
             />
           </View>
         </View>
@@ -218,7 +219,7 @@ export const SettingsScreen: React.FC = () => {
             onPress={() => navigation.navigate('Reports')}
           >
             <View style={styles.settingInfo}>
-              <Ionicons name="bar-chart-outline" size={22} color="#3b82f6" />
+              <Ionicons name="bar-chart-outline" size={22} color="#0ea5e9" />
               <Text style={styles.settingLabel}>Sales Reports</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#475569" />
@@ -324,7 +325,7 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
   content: {
     paddingBottom: 32,
@@ -336,12 +337,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -368,22 +370,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -397,17 +403,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '600',
   },
   profileEmail: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     marginTop: 2,
   },
   roleBadge: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#e0f2fe',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -415,7 +421,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   roleText: {
-    color: '#93c5fd',
+    color: '#0284c7',
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'capitalize',
@@ -427,11 +433,11 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   syncLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
   },
   syncValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
     marginTop: 2,
@@ -442,13 +448,13 @@ const styles = StyleSheet.create({
   pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#451a03',
+    backgroundColor: '#fef3c7',
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 6,
   },
   pendingText: {
-    color: '#fcd34d',
+    color: '#92400e',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -465,12 +471,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   settingLabel: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
   },
   settingDivider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#f1f5f9',
     marginLeft: 48,
   },
   actionRow: {
@@ -487,18 +493,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   aboutLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 15,
   },
   aboutValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#450a0a',
+    backgroundColor: '#fee2e2',
     marginHorizontal: 16,
     marginTop: 32,
     paddingVertical: 14,
@@ -506,7 +512,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: {
-    color: '#ef4444',
+    color: '#dc2626',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -515,7 +521,7 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    color: '#475569',
+    color: '#94a3b8',
     fontSize: 12,
   },
 });

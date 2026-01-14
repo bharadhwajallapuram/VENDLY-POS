@@ -38,15 +38,16 @@ const queryClient = new QueryClient({
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const DarkTheme = {
+// Light theme matching web client
+const LightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#3b82f6',
-    background: '#0f172a',
-    card: '#1e293b',
-    text: '#f1f5f9',
-    border: '#334155',
+    primary: '#0ea5e9',      // sky-500
+    background: '#f8fafc',   // slate-50
+    card: '#ffffff',         // white
+    text: '#0f172a',         // slate-900
+    border: '#e2e8f0',       // slate-200
     notification: '#ef4444',
   },
 };
@@ -58,15 +59,15 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1e293b',
-          borderTopColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#e2e8f0',
           height: 65,
           paddingBottom: 10,
           paddingTop: 5,
         },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#64748b',
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarActiveTintColor: '#0ea5e9',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarIcon: ({ focused, color }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'help';
           
           switch (route.name) {
@@ -105,9 +106,10 @@ function MoreStack() {
     <Stack.Navigator
       id="MoreStack"
       screenOptions={{
-        headerStyle: { backgroundColor: '#1e293b' },
-        headerTintColor: '#f1f5f9',
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#0f172a',
         headerTitleStyle: { fontWeight: '600' },
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen name="Settings" component={SettingsScreen} />
@@ -125,12 +127,12 @@ function RootNavigator() {
 
   useEffect(() => {
     loadStoredAuth();
-  }, []);
+  }, [loadStoredAuth]);
 
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#0ea5e9" />
       </View>
     );
   }
@@ -149,8 +151,8 @@ function RootNavigator() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <NavigationContainer theme={DarkTheme}>
-        <StatusBar style="light" />
+      <NavigationContainer theme={LightTheme}>
+        <StatusBar style="dark" />
         <RootNavigator />
       </NavigationContainer>
     </QueryClientProvider>
@@ -162,6 +164,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
   },
 });
