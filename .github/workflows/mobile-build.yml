@@ -51,6 +51,10 @@ jobs:
         with:
           version: 9
 
+      - name: Unset npm_config___n_o_d_e___l_i_n_k_e_r_
+        run: unset npm_config___n_o_d_e___l_i_n_k_e_r_ || true
+        shell: bash
+
       - name: Get pnpm store directory
         shell: bash
         run: |
