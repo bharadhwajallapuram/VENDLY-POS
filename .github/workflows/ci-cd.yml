@@ -11,22 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Unset npm_config___n_o_d_e___l_i_n_k_e_r_
+      run: unset npm_config___n_o_d_e___l_i_n_k_e_r_ || true
+      shell: bash
     - uses: actions/checkout@v4
-    
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
         version: 10
-
-    - name: Unset npm_config___n_o_d_e___l_i_n_k_e_r_
-      run: unset npm_config___n_o_d_e___l_i_n_k_e_r_ || true
-      shell: bash
-    
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.19.0'
         cache: 'pnpm'
+        cache-dependency-path: '**/pnpm-lock.yaml'
     
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
@@ -48,22 +46,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Unset npm_config___n_o_d_e___l_i_n_k_e_r_
+      run: unset npm_config___n_o_d_e___l_i_n_k_e_r_ || true
+      shell: bash
     - uses: actions/checkout@v4
-    
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
         version: 10
-
-    - name: Unset npm_config___n_o_d_e___l_i_n_k_e_r_
-      run: unset npm_config___n_o_d_e___l_i_n_k_e_r_ || true
-      shell: bash
-    
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.19.0'
         cache: 'pnpm'
+        cache-dependency-path: '**/pnpm-lock.yaml'
     
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
