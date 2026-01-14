@@ -23,7 +23,9 @@ class WSManager:
 
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients"""
-        print(f"[WS] Broadcasting to {len(self.active_connections)} clients: {message.get('event', 'unknown')}")
+        print(
+            f"[WS] Broadcasting to {len(self.active_connections)} clients: {message.get('event', 'unknown')}"
+        )
         for connection in self.active_connections:
             try:
                 await connection.send_text(json.dumps(message))

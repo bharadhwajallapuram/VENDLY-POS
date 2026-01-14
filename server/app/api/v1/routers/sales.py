@@ -476,7 +476,7 @@ async def create_sale(
                 ],
             },
         }
-        
+
         await manager.broadcast(broadcast_data)
         print(f"[SALE] WebSocket broadcast sent for sale #{sale.id}")
     except Exception as e:
@@ -858,22 +858,22 @@ def send_receipt(
 ):
     """
     Send a receipt via email and/or SMS.
-    
+
     Args:
         sale_id: The sale ID to send receipt for
         email: Email address to send to (optional)
         phone: Phone number to send SMS to (optional, E.164 format recommended)
-    
+
     Returns:
         Status of sending attempts
     """
     if not email and not phone:
         raise HTTPException(400, detail="Either email or phone is required")
-    
+
     sale = db.get(m.Sale, sale_id)
     if not sale:
         raise HTTPException(404, detail="Sale not found")
-    
+
     # Build receipt items
     receipt_items = []
     for item in sale.items:
@@ -886,22 +886,22 @@ def send_receipt(
                 total=float(item.subtotal),
             )
         )
-    
+
     # Get cashier name
     cashier = db.get(m.User, sale.user_id)
     cashier_name = cashier.full_name or cashier.email if cashier else "Unknown"
-    
+
     # Get customer if any
     customer_name = None
     if sale.customer_id:
         customer = db.get(m.Customer, sale.customer_id)
         customer_name = customer.name if customer else None
-    
+
     # Calculate tax rate
     tax_rate = 8.0
     if sale.subtotal > 0:
         tax_rate = round((float(sale.tax) / float(sale.subtotal)) * 100, 2)
-    
+
     # Build receipt object
     receipt = Receipt(
         receipt_number=f"R-{sale.id:06d}",
@@ -917,15 +917,15 @@ def send_receipt(
         cashier_name=cashier_name,
         customer_name=customer_name,
     )
-    
+
     results = {"email_sent": False, "sms_sent": False}
     errors = []
-    
+
     # Send email if provided
     if email:
         receipt_html = generate_receipt_html(receipt)
         receipt_text = generate_receipt_text(receipt)
-        
+
         email_sent = EmailService.send_custom_email(
             to_email=email,
             subject=f"Your Receipt from Vendly Store - {receipt.receipt_number}",
@@ -935,12 +935,12 @@ def send_receipt(
         results["email_sent"] = email_sent
         if not email_sent:
             errors.append("Failed to send email")
-    
+
     # Send SMS if provided
     if phone:
         # Format phone number if needed
         formatted_phone = SMSService.format_phone_number(phone)
-        
+
         # Create a shorter SMS-friendly receipt
         sms_message = f"""Vendly Store Receipt
 {receipt.receipt_number}
@@ -951,24 +951,31 @@ Total: ${receipt.total:.2f}
 Payment: {receipt.payment_method}
 
 Thank you for your purchase!"""
-        
+
         # Use console provider for dev mode (logs to server console)
         # In production, configure Twilio credentials
         sms_sent = SMSService._send_via_twilio(formatted_phone, sms_message)
         if not sms_sent:
             # Fallback to console logging in dev mode
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.info(f"📱 [DEV MODE] Receipt SMS for {formatted_phone}:\n{sms_message}")
+            logger.info(
+                f"📱 [DEV MODE] Receipt SMS for {formatted_phone}:\n{sms_message}"
+            )
             sms_sent = True  # Consider console logging as success in dev
-        
+
         results["sms_sent"] = sms_sent
         if not sms_sent:
             errors.append("Failed to send SMS")
-    
+
     return {
         "success": len(errors) == 0,
         "results": results,
         "errors": errors if errors else None,
-        "message": "Receipt sent successfully" if len(errors) == 0 else "Some deliveries failed",
+        "message": (
+            "Receipt sent successfully"
+            if len(errors) == 0
+            else "Some deliveries failed"
+        ),
     }

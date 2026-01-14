@@ -28,6 +28,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 # EST is UTC-5 (Eastern Standard Time)
 EST = timezone(timedelta(hours=-5))
 
+
 def now_est() -> datetime:
     """Return current time in EST timezone"""
     return datetime.now(EST).replace(tzinfo=None)
