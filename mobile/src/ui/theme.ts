@@ -1,10 +1,10 @@
 /**
  * Shared Theme - Design tokens for consistent styling
- * Matches the web client's light theme with sky-blue primary
+ * Matches the web client's modern design with sky-blue primary
  */
 
 export const colors = {
-  // Primary - Sky Blue (matches client tailwind primary-500)
+  // Primary - Modern Sky Blue (matches client tailwind primary-500)
   primary: '#0ea5e9',
   primaryDark: '#0284c7',
   primaryLight: '#38bdf8',
@@ -19,37 +19,42 @@ export const colors = {
   primary800: '#075985',
   primary900: '#0c4a6e',
 
-  // Success
-  success: '#22c55e',
-  successDark: '#16a34a',
-  successLight: '#4ade80',
-  successBg: '#dcfce7',
+  // Accent - Purple gradient
+  accent: '#8b5cf6',
+  accentDark: '#7c3aed',
+  accentLight: '#a78bfa',
 
-  // Warning
+  // Success - Modern Green
+  success: '#10b981',
+  successDark: '#059669',
+  successLight: '#34d399',
+  successBg: '#d1fae5',
+
+  // Warning - Modern Amber
   warning: '#f59e0b',
   warningDark: '#d97706',
   warningLight: '#fbbf24',
   warningBg: '#fef3c7',
 
-  // Danger
+  // Danger - Modern Red
   danger: '#ef4444',
   dangerDark: '#dc2626',
   dangerLight: '#f87171',
   dangerBg: '#fee2e2',
 
-  // Info
+  // Info - Cyan
   info: '#06b6d4',
   infoDark: '#0891b2',
   infoLight: '#22d3ee',
   infoBg: '#cffafe',
 
-  // Neutrals - Light theme (matching web client)
-  background: '#f8fafc',     // slate-50
+  // Neutrals - Modern Light theme
+  background: '#f1f5f9',     // slate-100
   surface: '#ffffff',        // white
-  surfaceHover: '#f1f5f9',   // slate-100
+  surfaceHover: '#f8fafc',   // slate-50
   surfaceLight: '#e2e8f0',   // slate-200
   border: '#e2e8f0',         // slate-200
-  borderLight: '#cbd5e1',    // slate-300
+  borderLight: '#f1f5f9',    // slate-100
 
   // Text - Dark text on light background
   text: '#0f172a',           // slate-900
@@ -60,12 +65,17 @@ export const colors = {
   // Cards & Elevated surfaces
   card: '#ffffff',
   cardBorder: '#e2e8f0',
+  cardShadow: 'rgba(0, 0, 0, 0.04)',
+
+  // Gradient colors
+  gradientStart: '#0ea5e9',
+  gradientEnd: '#8b5cf6',
 
   // Misc
   white: '#ffffff',
   black: '#000000',
   transparent: 'transparent',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlay: 'rgba(15, 23, 42, 0.5)',
 };
 
 export const spacing = {

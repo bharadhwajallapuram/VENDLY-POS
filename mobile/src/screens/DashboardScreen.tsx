@@ -3,7 +3,7 @@
  * Fetches data dynamically from API, matches web client theme
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,28 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Alert,
+  Share,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiService } from '../services/api';
+import { apiService, createWebSocket } from '../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type TimeRange = 'today' | 'week' | 'month';
+
+interface Transaction {
+  id: number;
+  total: number;
+  payment_method: string;
+  status: string;
+  created_at: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+}
 
 interface SalesSummary {
   total_sales: number;
@@ -30,6 +45,8 @@ interface SalesSummary {
   transaction_count: number;
   average_transaction: number;
   returns_amount: number;
+  top_products?: TopProduct[];
+  payment_methods?: PaymentBreakdown[];
 }
 
 interface TopProduct {
@@ -46,19 +63,35 @@ interface PaymentBreakdown {
   percentage: number;
 }
 
-export const DashboardScreen: React.FC = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const DashboardScreen: React.FC<{ navigation?: { navigate: (screen: string) => void } }> = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('today');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   
   // Dynamic data
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown[]>([]);
 
+  // Helper to format date as YYYY-MM-DD in local timezone
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const getDateRange = useCallback(() => {
     const today = new Date();
+    // Add 1 day buffer to handle UTC timezone differences
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
     let startDate: Date;
     
     switch (timeRange) {
@@ -71,12 +104,12 @@ export const DashboardScreen: React.FC = () => {
         startDate.setMonth(today.getMonth() - 1);
         break;
       default:
-        startDate = today;
+        startDate = new Date(today);
     }
     
     return {
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0],
+      startDate: formatLocalDate(startDate),
+      endDate: formatLocalDate(tomorrow),
     };
   }, [timeRange]);
 
@@ -89,14 +122,15 @@ export const DashboardScreen: React.FC = () => {
       const summaryData = await apiService.getReportSummary(startDate, endDate).catch(() => null);
 
       if (summaryData) {
-        setSummary(summaryData as SalesSummary);
+        const typedSummary = summaryData as SalesSummary;
+        setSummary(typedSummary);
         // Extract top products if available
-        if ((summaryData as any).top_products) {
-          setTopProducts((summaryData as any).top_products.slice(0, 5));
+        if (typedSummary.top_products) {
+          setTopProducts(typedSummary.top_products.slice(0, 5));
         }
         // Extract payment breakdown if available
-        if ((summaryData as any).payment_methods) {
-          setPaymentBreakdown((summaryData as any).payment_methods);
+        if (typedSummary.payment_methods) {
+          setPaymentBreakdown(typedSummary.payment_methods);
         }
       }
     } catch (err: unknown) {
@@ -112,9 +146,369 @@ export const DashboardScreen: React.FC = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  // WebSocket for real-time transaction updates
+  useEffect(() => {
+    const ws = createWebSocket((data: unknown) => {
+      const message = data as { event?: string; type?: string; data?: Transaction };
+      
+      // Check for sale_created event
+      if (message.event === 'sale_created' || message.type === 'sale_created') {
+        const newTransaction = message.data;
+        if (newTransaction) {
+          console.log('📥 Real-time transaction received:', newTransaction.id);
+          
+          // Refresh dashboard data to update totals
+          loadDashboardData();
+          
+          // If transactions modal is open, add new transaction
+          if (showTransactions) {
+            const { startDate, endDate } = getDateRange();
+            const txDate = formatLocalDate(new Date(newTransaction.created_at));
+            const inRange = txDate >= startDate && txDate <= endDate;
+            
+            if (inRange) {
+              setTransactions(prev => {
+                // Avoid duplicates
+                if (prev.some(t => t.id === newTransaction.id)) return prev;
+                // Add to beginning (newest first)
+                return [newTransaction, ...prev];
+              });
+            }
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, [showTransactions, getDateRange, loadDashboardData]);
+
+  const loadTransactions = useCallback(async () => {
+    setLoadingTransactions(true);
+    try {
+      const { startDate, endDate } = getDateRange();
+      const data = await apiService.getSales({ limit: 100 });
+      // Filter by date range
+      const filtered = (data as Transaction[]).filter(t => {
+        const txDate = formatLocalDate(new Date(t.created_at));
+        return txDate >= startDate && txDate <= endDate;
+      });
+      // Sort newest first
+      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setTransactions(filtered);
+    } catch (_err) {
+      // Failed to load transactions
+      setTransactions([]);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  }, [getDateRange]);
+
+  const openTransactions = () => {
+    setShowTransactions(true);
+    loadTransactions();
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboardData();
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  // PDF generation for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _generatePdfHtml = () => {
+    const { startDate, endDate } = getDateRange();
+    const netSales = summary ? summary.total_revenue - (summary.returns_amount || 0) : 0;
+    const transactionCount = summary?.total_sales || 0;
+    const avgTicket = summary?.average_transaction || (transactionCount > 0 ? summary!.total_revenue / transactionCount : 0);
+    const itemsSold = summary?.items_sold || 0;
+    const returns = summary?.returns_amount || 0;
+
+    const topProductsHtml = topProducts.length > 0 
+      ? topProducts.map((product, index) => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${index + 1}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${product.name}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${product.quantity}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${formatCurrency(product.revenue)}</td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="4" style="padding: 16px; text-align: center; color: #94a3b8;">No product data available</td></tr>';
+
+    const paymentMethodsHtml = paymentBreakdown.length > 0
+      ? paymentBreakdown.map(payment => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-transform: capitalize;">${payment.method}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${payment.count}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${formatCurrency(payment.revenue)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${payment.percentage.toFixed(1)}%</td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="4" style="padding: 16px; text-align: center; color: #94a3b8;">No payment data available</td></tr>';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Vendly Sales Report</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              margin: 0;
+              padding: 20px;
+              background: #fff;
+              color: #0f172a;
+            }
+            .header {
+              background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+              color: white;
+              padding: 24px;
+              border-radius: 12px;
+              margin-bottom: 24px;
+            }
+            .header h1 {
+              margin: 0 0 8px 0;
+              font-size: 28px;
+            }
+            .header p {
+              margin: 0;
+              opacity: 0.9;
+              font-size: 14px;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 16px;
+              margin-bottom: 24px;
+            }
+            .summary-card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 16px;
+            }
+            .summary-card .label {
+              font-size: 12px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .summary-card .value {
+              font-size: 24px;
+              font-weight: 700;
+              color: #0f172a;
+              margin-top: 4px;
+            }
+            .summary-card.primary .value {
+              color: #0ea5e9;
+            }
+            .summary-card.success .value {
+              color: #10b981;
+            }
+            .summary-card.warning .value {
+              color: #f59e0b;
+            }
+            .summary-card.danger .value {
+              color: #ef4444;
+            }
+            .section {
+              margin-bottom: 24px;
+            }
+            .section h2 {
+              font-size: 18px;
+              color: #0f172a;
+              margin: 0 0 12px 0;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #0ea5e9;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              background: #fff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            th {
+              background: #f1f5f9;
+              padding: 12px 8px;
+              text-align: left;
+              font-weight: 600;
+              color: #475569;
+              font-size: 12px;
+              text-transform: uppercase;
+            }
+            .footer {
+              text-align: center;
+              padding: 20px;
+              color: #94a3b8;
+              font-size: 12px;
+              border-top: 1px solid #e2e8f0;
+              margin-top: 32px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📊 Vendly Sales Report</h1>
+            <p>Period: ${startDate} to ${endDate} | Generated: ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-card primary">
+              <div class="label">Net Sales</div>
+              <div class="value">${formatCurrency(netSales)}</div>
+            </div>
+            <div class="summary-card success">
+              <div class="label">Transactions</div>
+              <div class="value">${transactionCount}</div>
+            </div>
+            <div class="summary-card warning">
+              <div class="label">Average Ticket</div>
+              <div class="value">${formatCurrency(avgTicket)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Items Sold</div>
+              <div class="value">${itemsSold}</div>
+            </div>
+            <div class="summary-card danger">
+              <div class="label">Returns</div>
+              <div class="value">${formatCurrency(returns)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Tax Collected</div>
+              <div class="value">${formatCurrency(summary?.total_tax || 0)}</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>🏆 Top Selling Products</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Product</th>
+                  <th style="text-align: right;">Qty</th>
+                  <th style="text-align: right;">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${topProductsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h2>💳 Payment Methods</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th style="text-align: right;">Count</th>
+                  <th style="text-align: right;">Amount</th>
+                  <th style="text-align: right;">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${paymentMethodsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <p>Generated by Vendly POS • ${new Date().getFullYear()}</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const generateTextReport = () => {
+    const { startDate, endDate } = getDateRange();
+    const netSalesVal = summary ? summary.total_revenue - (summary.returns_amount || 0) : 0;
+    const transCount = summary?.total_sales || 0;
+    const avgTicket = summary?.average_transaction || (transCount > 0 ? summary!.total_revenue / transCount : 0);
+    const itemsSoldVal = summary?.items_sold || 0;
+    const returnsVal = summary?.returns_amount || 0;
+
+    let report = `
+📊 VENDLY SALES REPORT
+══════════════════════════════
+Period: ${startDate} to ${endDate}
+Generated: ${new Date().toLocaleString()}
+
+💰 SALES SUMMARY
+──────────────────────────────
+Net Sales:        ${formatCurrency(netSalesVal)}
+Transactions:     ${transCount}
+Average Ticket:   ${formatCurrency(avgTicket)}
+Items Sold:       ${itemsSoldVal}
+Returns:          ${formatCurrency(returnsVal)}
+Tax Collected:    ${formatCurrency(summary?.total_tax || 0)}
+`;
+
+    if (topProducts.length > 0) {
+      report += `
+🏆 TOP SELLING PRODUCTS
+──────────────────────────────`;
+      topProducts.forEach((product, index) => {
+        report += `
+${index + 1}. ${product.name}
+   Qty: ${product.quantity} | Revenue: ${formatCurrency(product.revenue)}`;
+      });
+    }
+
+    if (paymentBreakdown.length > 0) {
+      report += `
+
+💳 PAYMENT METHODS
+──────────────────────────────`;
+      paymentBreakdown.forEach(payment => {
+        report += `
+${payment.method.charAt(0).toUpperCase() + payment.method.slice(1)}: ${formatCurrency(payment.revenue)} (${payment.percentage.toFixed(1)}%)`;
+      });
+    }
+
+    report += `
+
+══════════════════════════════
+Powered by Vendly POS
+`;
+
+    return report;
+  };
+
+  const handleExportReport = async () => {
+    try {
+      setExporting(true);
+      
+      const reportText = generateTextReport();
+      
+      const result = await Share.share({
+        message: reportText,
+        title: 'Vendly Sales Report',
+      });
+
+      if (result.action === Share.sharedAction) {
+        // Successfully shared
+      }
+    } catch (_err) {
+      Alert.alert('Export Failed', 'Unable to share report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Default values if no data
@@ -190,13 +584,16 @@ export const DashboardScreen: React.FC = () => {
 
             {/* Quick Stats Grid */}
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
+              <TouchableOpacity 
+                style={styles.statCard}
+                onPress={openTransactions}
+              >
                 <View style={[styles.statIcon, { backgroundColor: '#e0f2fe' }]}>
                   <Ionicons name="receipt-outline" size={20} color="#0ea5e9" />
                 </View>
                 <Text style={styles.statValue}>{transactionCount}</Text>
                 <Text style={styles.statLabel}>Transactions</Text>
-              </View>
+              </TouchableOpacity>
               <View style={styles.statCard}>
                 <View style={[styles.statIcon, { backgroundColor: '#fef3c7' }]}>
                   <Ionicons name="trending-up-outline" size={20} color="#f59e0b" />
@@ -278,11 +675,21 @@ export const DashboardScreen: React.FC = () => {
 
             {/* Quick Actions */}
             <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickAction}>
-                <Ionicons name="download-outline" size={20} color="#0ea5e9" />
-                <Text style={styles.quickActionText}>Export Report</Text>
+              <TouchableOpacity 
+                style={[styles.quickAction, exporting && styles.quickActionDisabled]} 
+                onPress={handleExportReport}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#0ea5e9" />
+                ) : (
+                  <Ionicons name="download-outline" size={20} color="#0ea5e9" />
+                )}
+                <Text style={styles.quickActionText}>
+                  {exporting ? 'Generating...' : 'Export Report'}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickAction}>
+              <TouchableOpacity style={styles.quickAction} onPress={handleExportReport}>
                 <Ionicons name="print-outline" size={20} color="#0ea5e9" />
                 <Text style={styles.quickActionText}>Print Summary</Text>
               </TouchableOpacity>
@@ -290,6 +697,60 @@ export const DashboardScreen: React.FC = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Transactions Modal */}
+      <Modal
+        visible={showTransactions}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTransactions(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Transactions</Text>
+            <TouchableOpacity onPress={() => setShowTransactions(false)}>
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+          
+          {loadingTransactions ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0ea5e9" />
+            </View>
+          ) : transactions.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="receipt-outline" size={64} color="#cbd5e1" />
+              <Text style={styles.emptyText}>No transactions found</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={transactions}
+              keyExtractor={(item) => item.id.toString()}
+              contentContainerStyle={{ padding: 16 }}
+              renderItem={({ item }) => (
+                <View style={styles.transactionItem}>
+                  <View style={styles.transactionLeft}>
+                    <Text style={styles.transactionId}>#{item.id}</Text>
+                    <Text style={styles.transactionTime}>
+                      {new Date(item.created_at).toLocaleTimeString('en-US', { 
+                        hour: 'numeric', minute: '2-digit', hour12: true 
+                      })}
+                    </Text>
+                    <Text style={[styles.transactionStatus, { color: item.status === 'completed' ? '#22c55e' : '#f59e0b' }]}>
+                      {item.status}
+                    </Text>
+                  </View>
+                  <View style={styles.transactionRight}>
+                    <Text style={styles.transactionTotal}>${item.total?.toFixed(2) || '0.00'}</Text>
+                    <Text style={styles.transactionPayment}>{item.payment_method}</Text>
+                  </View>
+                </View>
+              )}
+              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -580,10 +1041,84 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  quickActionDisabled: {
+    opacity: 0.6,
+  },
   quickActionText: {
     fontSize: 14,
     color: '#0ea5e9',
     fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#64748b',
+    marginTop: 16,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  transactionLeft: {
+    gap: 2,
+  },
+  transactionId: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  transactionTime: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  transactionStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+    marginTop: 2,
+  },
+  transactionRight: {
+    alignItems: 'flex-end',
+  },
+  transactionTotal: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  transactionPayment: {
+    fontSize: 12,
+    color: '#64748b',
+    textTransform: 'capitalize',
+    marginTop: 2,
   },
 });
 

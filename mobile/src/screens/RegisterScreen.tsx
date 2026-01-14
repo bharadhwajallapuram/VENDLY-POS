@@ -483,7 +483,7 @@ export const RegisterScreen: React.FC = () => {
           </View>
           <FlatList
             data={sessionHistory}
-            keyExtractor={item => item.id}
+            keyExtractor={item => String(item.id)}
             renderItem={renderSessionCard}
             contentContainerStyle={styles.historyList}
             ListEmptyComponent={

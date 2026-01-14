@@ -11,9 +11,9 @@ interface Product {
   sku?: string;
   barcode?: string;
   price: number;
-  category?: string;
-  stock_quantity: number;
-  low_stock_threshold?: number;
+  category_id?: number;
+  quantity: number;
+  min_quantity?: number;
   is_active?: boolean;
 }
 

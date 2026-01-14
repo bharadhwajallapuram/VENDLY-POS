@@ -20,6 +20,9 @@ import {
   ReturnsScreen,
   RegisterScreen,
   DashboardScreen,
+  ReportsScreen,
+  PaymentsScreen,
+  EODReportsScreen,
 } from './src/screens';
 import { useAuthStore } from './src/store/authStore';
 
@@ -35,15 +38,16 @@ const queryClient = new QueryClient({
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const DarkTheme = {
+// Light theme matching web client
+const LightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#3b82f6',
-    background: '#0f172a',
-    card: '#1e293b',
-    text: '#f1f5f9',
-    border: '#334155',
+    primary: '#0ea5e9',      // sky-500
+    background: '#f8fafc',   // slate-50
+    card: '#ffffff',         // white
+    text: '#0f172a',         // slate-900
+    border: '#e2e8f0',       // slate-200
     notification: '#ef4444',
   },
 };
@@ -55,14 +59,14 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1e293b',
-          borderTopColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#e2e8f0',
           height: 65,
           paddingBottom: 10,
           paddingTop: 5,
         },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#64748b',
+        tabBarActiveTintColor: '#0ea5e9',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'help';
           
@@ -102,32 +106,28 @@ function MoreStack() {
     <Stack.Navigator
       id="MoreStack"
       screenOptions={{
-        headerStyle: { backgroundColor: '#1e293b' },
-        headerTintColor: '#f1f5f9',
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#0f172a',
         headerTitleStyle: { fontWeight: '600' },
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Returns" component={ReturnsScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Sales Reports' }} />
+      <Stack.Screen name="Payments" component={PaymentsScreen} options={{ title: 'Payments' }} />
+      <Stack.Screen name="EODReports" component={EODReportsScreen} options={{ title: 'End of Day' }} />
     </Stack.Navigator>
   );
 }
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
+  const { isAuthenticated, loadStoredAuth } = useAuthStore();
 
   useEffect(() => {
     loadStoredAuth();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  }, [loadStoredAuth]);
 
   return (
     <Stack.Navigator id="RootStack" screenOptions={{ headerShown: false }}>
@@ -143,8 +143,8 @@ function RootNavigator() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <NavigationContainer theme={DarkTheme}>
-        <StatusBar style="light" />
+      <NavigationContainer theme={LightTheme}>
+        <StatusBar style="dark" />
         <RootNavigator />
       </NavigationContainer>
     </QueryClientProvider>

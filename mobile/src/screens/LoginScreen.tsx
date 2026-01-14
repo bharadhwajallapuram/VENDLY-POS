@@ -1,5 +1,5 @@
 /**
- * Login Screen - Authentication screen for mobile app
+ * Login Screen - Modern Authentication screen for mobile app
  */
 
 import React, { useState } from 'react';
@@ -10,13 +10,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
-import { Button, Input, colors, spacing, fontSize, fontWeight, radius } from '../ui';
+import { colors, spacing, fontSize, fontWeight, radius, shadows } from '../ui';
+
+const { width } = Dimensions.get('window');
 
 export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuthStore();
 
   const handleLogin = async () => {
@@ -25,94 +34,151 @@ export const LoginScreen: React.FC = () => {
       return;
     }
     
-    const success = await login(email, password);
-    if (!success) {
-      // Get fresh error from store
-      const currentError = useAuthStore.getState().error;
-      Alert.alert('Login Failed', currentError || 'Unable to connect to server. Using demo mode.');
-      // Fall back to demo mode
-      useAuthStore.setState({ 
-        isAuthenticated: true, 
-        user: { id: 1, email: email, full_name: 'Demo User', role: 'admin' },
-        error: null,
-        isLoading: false 
-      });
+    try {
+      const success = await login(email, password);
+      if (!success) {
+        const currentError = useAuthStore.getState().error;
+        Alert.alert('Login Failed', currentError || 'Unable to connect to server.');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
     }
   };
   
-  // Demo login - sets authenticated without API call
   const handleDemoLogin = () => {
-    // Skip API call entirely for demo
+    // Directly set auth state to bypass API
     useAuthStore.setState({ 
       isAuthenticated: true, 
       user: { id: 1, email: 'demo@vendly.com', full_name: 'Demo User', role: 'admin' },
       token: 'demo-token',
-      isLoading: false 
+      isLoading: false,
+      error: null,
     });
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>V</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0ea5e9" />
+      
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={['#0ea5e9', '#8b5cf6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logo}>
+              <Ionicons name="storefront" size={36} color="#fff" />
+            </View>
           </View>
           <Text style={styles.appName}>Vendly POS</Text>
-          <Text style={styles.tagline}>Mobile Point of Sale</Text>
+          <Text style={styles.tagline}>Modern Point of Sale</Text>
+        </View>
+        
+        {/* Wave decoration */}
+        <View style={styles.wave} />
+      </LinearGradient>
+
+      <KeyboardAvoidingView
+        style={styles.formContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.card}>
+          <Text style={styles.welcomeText}>Welcome Back</Text>
+          <Text style={styles.subtitleText}>Sign in to continue</Text>
+
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#0ea5e9', '#0284c7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.signInGradient}
+              >
+                {isLoading ? (
+                  <Text style={styles.signInText}>Signing in...</Text>
+                ) : (
+                  <View style={styles.signInContent}>
+                    <Text style={styles.signInText}>Sign In</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.demoButton}
+              onPress={handleDemoLogin}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="flash-outline" size={20} color={colors.primary} />
+              <Text style={styles.demoButtonText}>Quick Demo Access</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Login Form */}
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
-            icon="mail-outline"
-          />
-
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Enter your password"
-            secureTextEntry
-            editable={!isLoading}
-            icon="lock-closed-outline"
-          />
-
-          <Button
-            title="Sign In"
-            onPress={handleLogin}
-            loading={isLoading}
-            fullWidth
-            size="lg"
-            style={styles.loginButton}
-          />
-
-          <Button
-            title="Demo Login (Skip)"
-            onPress={handleDemoLogin}
-            variant="outline"
-            fullWidth
-          />
-        </View>
-
-        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Version 1.0.0</Text>
+          <Text style={styles.footerText}>Powered by Vendly</Text>
+          <View style={styles.versionBadge}>
+            <Text style={styles.versionText}>v2.0.0</Text>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -121,52 +187,197 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  gradientHeader: {
+    height: 280,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: spacing.xxl,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerContent: {
+    alignItems: 'center',
+    zIndex: 1,
   },
   logoContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.xxxl + spacing.lg,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.xxl,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  logoText: {
-    fontSize: 40,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   appName: {
-    fontSize: fontSize.xxxl,
+    fontSize: 32,
     fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: colors.white,
     marginBottom: spacing.xs,
+    letterSpacing: 0.5,
   },
   tagline: {
     fontSize: fontSize.lg,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: fontWeight.medium,
+  },
+  wave: {
+    position: 'absolute',
+    bottom: -20,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+  },
+  formContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+    marginTop: -40,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: spacing.xxl,
+    ...shadows.lg,
+    marginBottom: spacing.lg,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  subtitleText: {
+    fontSize: fontSize.md,
+    color: colors.textMuted,
+    marginBottom: spacing.xxl,
+    textAlign: 'center',
   },
   form: {
-    gap: spacing.lg,
+    // Using flex layout
   },
-  loginButton: {
-    marginTop: spacing.sm,
+  inputContainer: {
+    marginBottom: spacing.lg,
+  },
+  inputLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inputIcon: {
+    marginRight: spacing.sm,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: fontSize.md,
+    color: colors.text,
+    paddingVertical: spacing.md,
+  },
+  eyeIcon: {
+    padding: spacing.sm,
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: -spacing.sm,
+  },
+  forgotPasswordText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
+  },
+  signInButton: {
+    marginTop: spacing.md,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  signInButtonDisabled: {
+    opacity: 0.7,
+  },
+  signInGradient: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.white,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginHorizontal: spacing.md,
+    fontWeight: fontWeight.medium,
+  },
+  demoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary50,
+  },
+  demoButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    marginLeft: spacing.sm,
   },
   footer: {
     alignItems: 'center',
-    marginTop: spacing.xxxl + spacing.lg,
+    paddingVertical: spacing.lg,
   },
   footerText: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  versionBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: radius.full,
+  },
+  versionText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
 });
 

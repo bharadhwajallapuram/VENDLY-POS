@@ -371,7 +371,6 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 12,
   },
   filterButton: {
     flexDirection: 'row',
@@ -380,7 +379,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#f1f5f9',
     borderRadius: 20,
-    gap: 6,
+    marginRight: 12,
   },
   filterButtonActive: {
     backgroundColor: '#0ea5e9',
@@ -388,6 +387,7 @@ const styles = StyleSheet.create({
   filterText: {
     color: '#64748b',
     fontWeight: '500',
+    marginLeft: 6,
   },
   filterTextActive: {
     color: '#ffffff',

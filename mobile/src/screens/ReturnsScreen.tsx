@@ -2,7 +2,7 @@
  * Returns Screen - Process returns, refunds, and exchanges
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,31 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { apiService } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+
+interface SaleItem {
+  id: number;
+  product_name: string;
+  sku?: string;
+  quantity: number;
+  unit_price: number;
+  discount?: number;
+}
+
+interface Sale {
+  id: number;
+  receipt_number?: string;
+  created_at: string;
+  total: number;
+  items?: SaleItem[];
+  payment_method: string;
+  customer_name?: string;
+  status: string;
+}
 
 interface ReturnItem {
   id: number;
@@ -29,42 +52,6 @@ interface ReturnItem {
   reason?: string;
 }
 
-interface Sale {
-  id: string;
-  receiptNumber: string;
-  date: string;
-  total: number;
-  items: ReturnItem[];
-  paymentMethod: string;
-  customerName?: string;
-}
-
-// Mock sales data
-const MOCK_SALES: Sale[] = [
-  {
-    id: '1',
-    receiptNumber: 'RCP-2024-0001',
-    date: '2024-01-15T14:30:00',
-    total: 125.50,
-    paymentMethod: 'Card',
-    customerName: 'John Smith',
-    items: [
-      { id: 1, name: 'Wireless Mouse', sku: 'WM-001', quantity: 1, maxQuantity: 1, price: 29.99, selected: false, returnQuantity: 1 },
-      { id: 2, name: 'USB-C Hub', sku: 'HUB-004', quantity: 2, maxQuantity: 2, price: 45.00, selected: false, returnQuantity: 1 },
-    ],
-  },
-  {
-    id: '2',
-    receiptNumber: 'RCP-2024-0002',
-    date: '2024-01-14T10:15:00',
-    total: 89.99,
-    paymentMethod: 'Cash',
-    items: [
-      { id: 3, name: 'Bluetooth Speaker', sku: 'SPK-010', quantity: 1, maxQuantity: 1, price: 89.99, selected: false, returnQuantity: 1 },
-    ],
-  },
-];
-
 const RETURN_REASONS = [
   'Defective/Damaged',
   'Wrong Item',
@@ -75,7 +62,11 @@ const RETURN_REASONS = [
 ];
 
 export const ReturnsScreen: React.FC = () => {
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [showReasonModal, setShowReasonModal] = useState(false);
@@ -84,14 +75,60 @@ export const ReturnsScreen: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   const [notes, setNotes] = useState('');
 
-  const filteredSales = MOCK_SALES.filter(sale => 
-    sale.receiptNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadSales = useCallback(async () => {
+    try {
+      const data = await apiService.getSales({ limit: 100 });
+      // Filter only completed sales that can be refunded
+      const refundableSales = (data as Sale[]).filter(
+        s => s.status === 'completed' || s.status === 'partially_refunded'
+      );
+      setSales(refundableSales);
+    } catch (_err) {
+      Alert.alert('Error', 'Failed to load sales');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
-  const handleSelectSale = (sale: Sale) => {
-    setSelectedSale(sale);
-    setReturnItems(sale.items.map(item => ({ ...item, selected: false, returnQuantity: 1 })));
+  useEffect(() => {
+    loadSales();
+  }, [loadSales]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadSales();
+  };
+
+  const filteredSales = sales.filter(sale => {
+    const query = searchQuery.toLowerCase();
+    return (
+      (sale.receipt_number || `#${sale.id}`).toLowerCase().includes(query) ||
+      sale.customer_name?.toLowerCase().includes(query)
+    );
+  });
+
+  const handleSelectSale = async (sale: Sale) => {
+    try {
+      // Fetch full sale details with items
+      const fullSale = await apiService.getSale(sale.id) as Sale;
+      setSelectedSale(fullSale);
+      
+      // Transform items for return processing
+      const items: ReturnItem[] = (fullSale.items || []).map(item => ({
+        id: item.id,
+        name: item.product_name,
+        sku: item.sku || '',
+        quantity: item.quantity,
+        maxQuantity: item.quantity,
+        price: item.unit_price,
+        selected: false,
+        returnQuantity: 1,
+      }));
+      setReturnItems(items);
+    } catch (_err) {
+      Alert.alert('Error', 'Failed to load sale details');
+    }
   };
 
   const toggleItemSelection = (itemId: number) => {
@@ -155,24 +192,39 @@ export const ReturnsScreen: React.FC = () => {
           text: 'Process Return',
           onPress: async () => {
             setProcessing(true);
-            // Simulate processing
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            setProcessing(false);
+            try {
+              // Call API to process refund
+              const refundItems = selectedItems.map(item => ({
+                sale_item_id: item.id,
+                quantity: item.returnQuantity,
+              }));
+              
+              await apiService.refundSale(
+                selectedSale!.id,
+                refundItems,
+                user?.id?.toString()
+              );
 
-            Alert.alert(
-              'Return Processed',
-              `Refund of $${refundTotal.toFixed(2)} has been processed via ${refundMethod === 'original' ? 'original payment method' : 'store credit'}.`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    setSelectedSale(null);
-                    setReturnItems([]);
-                    setNotes('');
+              Alert.alert(
+                'Return Processed',
+                `Refund of $${refundTotal.toFixed(2)} has been processed via ${refundMethod === 'original' ? 'original payment method' : 'store credit'}.`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setSelectedSale(null);
+                      setReturnItems([]);
+                      setNotes('');
+                      loadSales(); // Refresh the sales list
+                    },
                   },
-                },
-              ]
-            );
+                ]
+              );
+            } catch (_err) {
+              Alert.alert('Error', 'Failed to process refund. Please try again.');
+            } finally {
+              setProcessing(false);
+            }
           },
         },
       ]
@@ -214,10 +266,19 @@ export const ReturnsScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.loadingText}>Loading sales...</Text>
+            </View>
+          ) : (
           <FlatList
             data={filteredSales}
-            keyExtractor={item => item.id}
+            keyExtractor={item => String(item.id)}
             contentContainerStyle={styles.salesList}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.saleCard}
@@ -225,28 +286,27 @@ export const ReturnsScreen: React.FC = () => {
               >
                 <View style={styles.saleHeader}>
                   <View>
-                    <Text style={styles.receiptNumber}>{item.receiptNumber}</Text>
-                    <Text style={styles.saleDate}>{formatDate(item.date)}</Text>
+                    <Text style={styles.receiptNumber}>{item.receipt_number || `#${item.id}`}</Text>
+                    <Text style={styles.saleDate}>{formatDate(item.created_at)}</Text>
                   </View>
                   <Text style={styles.saleTotal}>${item.total.toFixed(2)}</Text>
                 </View>
-                {item.customerName && (
+                {item.customer_name && (
                   <Text style={styles.customerName}>
-                    <Ionicons name="person-outline" size={12} color="#64748b" /> {item.customerName}
+                    <Ionicons name="person-outline" size={12} color="#64748b" /> {item.customer_name}
                   </Text>
                 )}
                 <View style={styles.saleFooter}>
-                  <View style={styles.itemCount}>
-                    <Ionicons name="cube-outline" size={14} color="#64748b" />
-                    <Text style={styles.itemCountText}>{item.items.length} items</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>{item.status}</Text>
                   </View>
                   <View style={styles.paymentBadge}>
                     <Ionicons
-                      name={item.paymentMethod === 'Cash' ? 'cash-outline' : 'card-outline'}
+                      name={item.payment_method === 'cash' ? 'cash-outline' : 'card-outline'}
                       size={14}
                       color="#94a3b8"
                     />
-                    <Text style={styles.paymentText}>{item.paymentMethod}</Text>
+                    <Text style={styles.paymentText}>{item.payment_method}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -261,6 +321,7 @@ export const ReturnsScreen: React.FC = () => {
               </View>
             }
           />
+        )}
         </View>
       ) : (
         /* Return Process */
@@ -269,11 +330,11 @@ export const ReturnsScreen: React.FC = () => {
           <View style={styles.saleInfo}>
             <View style={styles.saleInfoRow}>
               <Text style={styles.saleInfoLabel}>Receipt:</Text>
-              <Text style={styles.saleInfoValue}>{selectedSale.receiptNumber}</Text>
+              <Text style={styles.saleInfoValue}>{selectedSale.receipt_number || `#${selectedSale.id}`}</Text>
             </View>
             <View style={styles.saleInfoRow}>
               <Text style={styles.saleInfoLabel}>Date:</Text>
-              <Text style={styles.saleInfoValue}>{formatDate(selectedSale.date)}</Text>
+              <Text style={styles.saleInfoValue}>{formatDate(selectedSale.created_at)}</Text>
             </View>
             <TouchableOpacity
               style={styles.changeSaleButton}
@@ -563,6 +624,29 @@ const styles = StyleSheet.create({
   paymentText: {
     fontSize: 13,
     color: '#94a3b8',
+    textTransform: 'capitalize',
+  },
+  statusBadge: {
+    backgroundColor: '#1e3a5f',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#60a5fa',
+    textTransform: 'capitalize',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   emptyState: {
     alignItems: 'center',

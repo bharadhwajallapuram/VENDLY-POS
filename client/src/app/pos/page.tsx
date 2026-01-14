@@ -71,7 +71,7 @@ function POSContent() {
   const receiptRef = useRef<HTMLDivElement>(null);
   const lastScanTimeRef = useRef<number>(0);
   const cart = useCart();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { isOnline, pendingCount, queueOfflineSale, syncNow, isSyncing } = useOffline();
   
   const [query, setQuery] = useState('');
@@ -443,7 +443,6 @@ function POSContent() {
   // Handle payment (supports offline mode)
   async function handlePayment(payments: SplitPayment[]) {
     try {
-      const token = localStorage.getItem('vendly_token');
       if (!token) {
         alert('You must be logged in to complete a sale');
         return;
@@ -546,9 +545,12 @@ function POSContent() {
       }
 
       // Build sale payload
+      // Backend expects payment_method as a string, use the first payment method or 'split' if multiple
+      const paymentMethod = payments.length === 1 ? payments[0].method : 'split';
+      
       const salePayload = {
         items: saleItems,
-        payments,
+        payment_method: paymentMethod,
         discount: orderDiscountCents / 100,
         coupon_code: appliedCoupon || undefined,
         notes: null,

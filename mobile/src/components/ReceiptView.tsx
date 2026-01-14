@@ -15,8 +15,10 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { apiService } from '../services/api';
 
 interface ReceiptItem {
   name: string;
@@ -26,6 +28,7 @@ interface ReceiptItem {
 }
 
 interface ReceiptData {
+  saleId?: number;
   receiptNumber: string;
   date: Date;
   items: ReceiptItem[];
@@ -134,18 +137,70 @@ Thank you for your purchase!
 
     setSending(true);
     
-    // Simulate sending
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setSending(false);
-    setShowSendModal(false);
-    setSendTo('');
-    
-    Alert.alert(
-      'Receipt Sent!',
-      `Receipt has been sent to ${sendTo}`,
-      [{ text: 'OK' }]
-    );
+    try {
+      // If we have a sale ID, use the backend API for sending
+      if (receipt.saleId) {
+        const options = sendType === 'email' 
+          ? { email: sendTo.trim() }
+          : { phone: sendTo.trim() };
+        
+        const result = await apiService.sendReceipt(receipt.saleId, options);
+        
+        setShowSendModal(false);
+        setSendTo('');
+        
+        if (result && (result as { success?: boolean }).success) {
+          Alert.alert(
+            'Receipt Sent!',
+            `Receipt has been sent to ${sendTo}`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          const errors = (result as { errors?: string[] })?.errors;
+          Alert.alert(
+            'Sending Issue',
+            errors ? errors.join(', ') : 'Receipt may have been sent. Check your inbox.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // Fallback to device native apps if no saleId (offline mode)
+        const receiptText = generateReceiptText();
+        
+        if (sendType === 'sms') {
+          const cleanedPhone = sendTo.replace(/\D/g, '');
+          const smsUrl = `sms:${cleanedPhone}?body=${encodeURIComponent(receiptText)}`;
+          
+          const canOpen = await Linking.canOpenURL(smsUrl);
+          if (canOpen) {
+            await Linking.openURL(smsUrl);
+            setShowSendModal(false);
+            setSendTo('');
+            Alert.alert('SMS Ready', `SMS app opened with receipt for ${sendTo}. Press send to complete.`);
+          } else {
+            Alert.alert('Error', 'Unable to open SMS app. Please make sure your device supports SMS.');
+          }
+        } else {
+          const subject = `Receipt #${receipt.receiptNumber} - ${receipt.storeInfo.name}`;
+          const mailUrl = `mailto:${encodeURIComponent(sendTo)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(receiptText)}`;
+          
+          const canOpen = await Linking.canOpenURL(mailUrl);
+          if (canOpen) {
+            await Linking.openURL(mailUrl);
+            setShowSendModal(false);
+            setSendTo('');
+            Alert.alert('Email Ready', `Email app opened with receipt for ${sendTo}. Press send to complete.`);
+          } else {
+            Alert.alert('Error', 'Unable to open email app. Please make sure you have an email app configured.');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Send error:', error);
+      Alert.alert('Error', `Failed to send receipt via ${sendType === 'email' ? 'email' : 'SMS'}. Please try again.`);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handlePrint = () => {
@@ -315,17 +370,30 @@ Thank you for your purchase!
         >
           <View style={styles.sendModalOverlay}>
             <View style={styles.sendModalContainer}>
-              <Text style={styles.sendModalTitle}>
-                Send via {sendType === 'email' ? 'Email' : 'SMS'}
+              <View style={styles.sendModalHeader}>
+                <Ionicons 
+                  name={sendType === 'email' ? 'mail-outline' : 'chatbubble-outline'} 
+                  size={28} 
+                  color="#3b82f6" 
+                />
+                <Text style={styles.sendModalTitle}>
+                  Send via {sendType === 'email' ? 'Email' : 'SMS'}
+                </Text>
+              </View>
+              <Text style={styles.sendModalHint}>
+                {sendType === 'email' 
+                  ? 'Enter customer email address' 
+                  : 'Enter mobile number with country code'}
               </Text>
               <TextInput
                 style={styles.sendInput}
-                placeholder={sendType === 'email' ? 'email@example.com' : '555-0100'}
+                placeholder={sendType === 'email' ? 'customer@email.com' : '+1 555-123-4567'}
                 placeholderTextColor="#64748b"
                 value={sendTo}
                 onChangeText={setSendTo}
                 keyboardType={sendType === 'email' ? 'email-address' : 'phone-pad'}
                 autoCapitalize="none"
+                autoCorrect={false}
               />
               <View style={styles.sendModalButtons}>
                 <TouchableOpacity
@@ -338,9 +406,9 @@ Thank you for your purchase!
                   <Text style={styles.sendModalCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.sendModalSubmit}
+                  style={[styles.sendModalSubmit, !sendTo.trim() && styles.sendModalSubmitDisabled]}
                   onPress={handleSend}
-                  disabled={sending}
+                  disabled={sending || !sendTo.trim()}
                 >
                   {sending ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -510,9 +578,9 @@ const styles = StyleSheet.create({
   paymentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   paymentText: {
+    marginLeft: 8,
     fontSize: 14,
     color: '#64748b',
   },
@@ -546,7 +614,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderTopWidth: 1,
     borderTopColor: '#334155',
-    gap: 8,
   },
   actionButton: {
     flex: 1,
@@ -555,7 +622,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#0f172a',
     borderRadius: 8,
-    gap: 4,
+    marginHorizontal: 4,
   },
   actionButtonText: {
     fontSize: 12,
@@ -588,12 +655,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
   },
+  sendModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   sendModalTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#f1f5f9',
-    marginBottom: 16,
+    marginLeft: 8,
+  },
+  sendModalHint: {
+    fontSize: 14,
+    color: '#94a3b8',
     textAlign: 'center',
+    marginBottom: 16,
   },
   sendInput: {
     backgroundColor: '#0f172a',
@@ -608,7 +686,6 @@ const styles = StyleSheet.create({
   },
   sendModalButtons: {
     flexDirection: 'row',
-    gap: 12,
   },
   sendModalCancel: {
     flex: 1,
@@ -616,6 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#0f172a',
     borderRadius: 8,
+    marginRight: 12,
   },
   sendModalCancelText: {
     color: '#94a3b8',
@@ -628,6 +706,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#3b82f6',
     borderRadius: 8,
+  },
+  sendModalSubmitDisabled: {
+    backgroundColor: '#475569',
   },
   sendModalSubmitText: {
     color: '#fff',

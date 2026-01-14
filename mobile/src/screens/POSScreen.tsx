@@ -55,12 +55,13 @@ const isTablet = SCREEN_WIDTH >= 768;
 interface Product {
   id: number;
   name: string;
-  sku: string;
+  sku?: string;
   price: number;
   barcode?: string;
   category?: string;
   category_id?: number;
-  stock_quantity: number;
+  quantity: number;
+  min_quantity?: number;
   image_url?: string;
 }
 
@@ -82,6 +83,7 @@ interface Customer {
 }
 
 interface Receipt {
+  saleId?: number;
   receiptNumber: string;
   date: Date;
   items: Array<{
@@ -207,7 +209,7 @@ export const POSScreen: React.FC = () => {
 
   // Fetch categories with full objects (id, name)
   const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['categories'],
+    queryKey: ['categoriesWithIds'],
     queryFn: async () => {
       if (isOnline) {
         const data = await apiService.getCategoriesWithIds();
@@ -218,7 +220,7 @@ export const POSScreen: React.FC = () => {
   });
 
   const handleAddToCart = useCallback((product: Product) => {
-    if (product.stock_quantity <= 0) {
+    if (product.quantity <= 0) {
       Alert.alert('Out of Stock', 'This product is currently out of stock');
       return;
     }
@@ -337,8 +339,14 @@ export const POSScreen: React.FC = () => {
     };
 
     try {
+      let saleId: number | undefined;
+      
       if (isOnline) {
-        await apiService.createSale(saleData);
+        const result = await apiService.createSale(saleData);
+        // Extract sale ID from the response
+        if (result && typeof result === 'object' && 'id' in result) {
+          saleId = (result as { id: number }).id;
+        }
       } else {
         addPendingAction('sale', saleData);
       }
@@ -353,6 +361,7 @@ export const POSScreen: React.FC = () => {
 
       const receiptNumber = `RCP-${Date.now()}`;
       setLastReceipt({
+        saleId,
         receiptNumber,
         date: new Date(),
         items: cartItems.map(item => ({
@@ -397,7 +406,7 @@ export const POSScreen: React.FC = () => {
     
     return (
       <TouchableOpacity
-        style={[styles.productCard, item.stock_quantity <= 0 && styles.productCardDisabled]}
+        style={[styles.productCard, item.quantity <= 0 && styles.productCardDisabled]}
         onPress={() => handleAddToCart(item)}
         activeOpacity={0.7}
       >
@@ -421,8 +430,8 @@ export const POSScreen: React.FC = () => {
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
         <Text style={styles.productSku} numberOfLines={1}>{item.sku || 'No SKU'}</Text>
         <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
-        <Text style={[styles.productStock, item.stock_quantity <= 0 && styles.outOfStock]}>
-          Stock: {item.stock_quantity}
+        <Text style={[styles.productStock, item.quantity <= 0 && styles.outOfStock]}>
+          Stock: {item.quantity}
         </Text>
       </TouchableOpacity>
     );

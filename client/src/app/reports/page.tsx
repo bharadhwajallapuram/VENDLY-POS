@@ -10,13 +10,26 @@ import DemandForecastDashboard from '@/components/DemandForecastDashboard';
 import { Reports, ReportSummary } from '@/lib/api';
 import { useAuth } from '@/store/auth';
 
+// Helper to format date as YYYY-MM-DD in local timezone
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 function ReportsContent() {
   const { token } = useAuth();
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    return {
+      start: formatLocalDate(weekAgo),
+      end: formatLocalDate(today),
+    };
   });
 
   const loadReport = useCallback(async () => {

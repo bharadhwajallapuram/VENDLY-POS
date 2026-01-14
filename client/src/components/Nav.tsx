@@ -93,6 +93,14 @@ export default function Nav() {
             >
               POS
             </Link>
+            <Link
+              href="/transactions"
+              className={getLinkStyles(isActive('/transactions'))}
+              role="menuitem"
+              aria-current={isActive('/transactions') ? 'page' : undefined}
+            >
+              Transactions
+            </Link>
 
             {isManager && (
               <>
@@ -273,6 +281,15 @@ export default function Nav() {
               aria-current={isActive('/pos') ? 'page' : undefined}
             >
               POS
+            </Link>
+            <Link
+              href="/transactions"
+              onClick={closeMobileMenu}
+              className={`block px-3 ${getLinkStyles(isActive('/transactions'))}`}
+              role="menuitem"
+              aria-current={isActive('/transactions') ? 'page' : undefined}
+            >
+              Transactions
             </Link>
 
             {isManager && (

@@ -3,16 +3,31 @@
  */
 import { Platform } from 'react-native';
 
-// For web use localhost, for Android emulator use 10.0.2.2
+// Get the API base URL based on platform
 const getApiBaseUrl = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  console.log('[API] Environment URL:', envUrl);
+  console.log('[API] Platform:', Platform.OS);
+  
+  if (envUrl) {
+    return envUrl;
+  }
+  
   if (Platform.OS === 'web') {
     return 'http://localhost:8000/api/v1';
   }
-  // Android emulator: 10.0.2.2 maps to host machine's localhost
-  return process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000/api/v1';
+  
+  if (Platform.OS === 'android') {
+    // Android emulator: 10.0.2.2 maps to host machine's localhost
+    return 'http://10.0.2.2:8000/api/v1';
+  }
+  
+  // iOS - use the computer's local IP
+  return 'http://192.168.1.151:8000/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('[API] Final Base URL:', API_BASE_URL);
 
 // Token getter function to avoid circular dependency
 let getAuthToken: (() => string | null) | null = null;
@@ -81,7 +96,11 @@ class ApiService {
 
   // ========== Auth ==========
   async login(email: string, password: string) {
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
+    const url = `${this.baseUrl}/auth/login`;
+    console.log('[API] Login URL:', url);
+    console.log('[API] Base URL:', this.baseUrl);
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -159,7 +178,7 @@ class ApiService {
     const response = await this.request(`/products${query}`);
     
     // Extract items from paginated response
-    let products: Array<{ id: number; name: string; sku: string; stock_quantity: number; price: number; min_quantity?: number; category?: string }> = [];
+    let products: Array<{ id: number; name: string; sku: string; quantity: number; price: number; min_quantity?: number; category?: string }> = [];
     if (response && typeof response === 'object' && 'items' in (response as object)) {
       products = (response as { items: typeof products }).items;
     } else if (Array.isArray(response)) {
@@ -172,7 +191,7 @@ class ApiService {
       product_id: p.id,
       product_name: p.name,
       sku: p.sku || '',
-      quantity: p.stock_quantity || 0,
+      quantity: p.quantity || 0,
       min_quantity: p.min_quantity || 10,
       price: p.price || 0,
       category: p.category || 'Uncategorized',
@@ -206,9 +225,19 @@ class ApiService {
     discount?: number;
     notes?: string;
   }) {
+    // Transform items to match backend schema (price -> unit_price)
+    const transformedData = {
+      ...data,
+      items: data.items.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        discount: item.discount || 0,
+      })),
+    };
     return this.request('/sales', {
       method: 'POST',
-      body: data,
+      body: transformedData,
     });
   }
 
@@ -228,6 +257,23 @@ class ApiService {
 
   async getSale(id: number) {
     return this.request(`/sales/${id}`);
+  }
+
+  async refundSale(saleId: number, items: { sale_item_id: number; quantity: number }[], employeeId?: string) {
+    return this.request(`/sales/${saleId}/refund`, {
+      method: 'POST',
+      body: { items, employee_id: employeeId },
+    });
+  }
+
+  async sendReceipt(saleId: number, options: { email?: string; phone?: string }) {
+    const params = new URLSearchParams();
+    if (options.email) params.append('email', options.email);
+    if (options.phone) params.append('phone', options.phone);
+    
+    return this.request(`/sales/${saleId}/send-receipt?${params.toString()}`, {
+      method: 'POST',
+    });
   }
 
   // ========== Customers ==========
@@ -310,3 +356,41 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+
+// ========== WebSocket Service ==========
+export function createWebSocket(onMessage: (data: unknown) => void): WebSocket | null {
+  try {
+    // Convert HTTP URL to WebSocket URL
+    const wsUrl = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1$/, '') + '/api/v1/ws';
+    console.log('[WebSocket] Connecting to:', wsUrl);
+    
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('[WebSocket] Connected');
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[WebSocket] Message received:', data.event || data.type);
+        onMessage(data);
+      } catch (err) {
+        console.error('[WebSocket] Failed to parse message:', err);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('[WebSocket] Error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('[WebSocket] Disconnected');
+    };
+    
+    return ws;
+  } catch (err) {
+    console.error('[WebSocket] Failed to create connection:', err);
+    return null;
+  }
+}

@@ -160,7 +160,7 @@ export const HeldOrdersModal: React.FC<HeldOrdersModalProps> = ({
           {/* Orders List */}
           <FlatList
             data={heldOrders}
-            keyExtractor={item => item.id}
+            keyExtractor={item => String(item.id)}
             renderItem={renderOrder}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
